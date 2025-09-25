@@ -5,6 +5,8 @@ import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
 import ZoneSelector from "@/components/ZonaSelector";
 import { show2 } from "@/lib/math";
+import { useCallback } from "react";
+
 
 type Material = {
   id: string;
@@ -66,6 +68,22 @@ export default function InventarioPage() {
     }
     return result;
   }, [movs]);
+
+
+  const aplicarConsumo = useCallback(async () => {
+  if (!zonaId) return;
+  const params = new URLSearchParams({ zonaId });
+  const res = await fetch(`/api/consumo/apply?${params.toString()}`, { method: "POST" });
+  const j = await res.json();
+  // Opcional: mostrar un alert rápido
+  if (!res.ok) {
+    alert(j.error ?? "Error aplicando consumo");
+  } else {
+    alert(`Consumo aplicado (${j.inserted} movimientos).`);
+    await cargar(zonaId); // refresca tabla
+  }
+}, [zonaId]);
+
 
   // Determinar estado del semáforo
   function estadoMaterial(mat: Material): { dias: number; estado: "verde" | "amarillo" | "rojo" } {
