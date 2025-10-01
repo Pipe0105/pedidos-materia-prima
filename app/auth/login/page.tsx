@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState("");
@@ -17,12 +17,37 @@ export default function LoginPage() {
     setMsg("");
 
     try {
+      // 1. Buscar el usuario en tu tabla `usuarios`
+      const { data: userRow, error: e1 } = await supabase
+        .from("usuarios")
+        .select("id, username, rol")
+        .eq("username", username)
+        .single();
+
+      if (e1 || !userRow) throw new Error("Usuario no encontrado");
+
+      // 2. Buscar el email real en auth.users
+      const { data: authUser, error: e2 } = await supabase
+        .from("auth.users")
+        .select("email")
+        .eq("id", userRow.id)
+        .single();
+
+      if (e2 || !authUser) throw new Error("No se encontró correo vinculado");
+
+      // 3. Hacer login con email y contraseña
       const { data, error } = await supabase.auth.signInWithPassword({
-        email,
+        email: authUser.email,
         password,
       });
 
       if (error) throw error;
+
+      // 4. Guardar info local
+      localStorage.setItem("rol", userRow.rol);
+      localStorage.setItem("username", userRow.username);
+
+      setMsg("✅ Login exitoso");
       router.push("/");
     } catch (err: any) {
       setMsg(err.message);
@@ -34,59 +59,34 @@ export default function LoginPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-gray-50 p-6">
       <div className="w-full max-w-sm rounded-xl bg-white p-8 shadow-md border">
-        <h1 className="text-2xl font-bold text-center mb-6 text-gray-800">
-          Pedidos MP
-        </h1>
-        <h2 className="text-lg font-medium text-center mb-4 text-gray-600">
-          Iniciar sesión
-        </h2>
-
+        <h1 className="text-xl font-bold text-center mb-6">Iniciar sesión</h1>
         <form onSubmit={handleLogin} className="space-y-4">
-          <div>
-            <label className="block text-sm text-gray-900 mb-1">
-              Correo electrónico
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm text-gray-900 mb-1">
-              Contraseña
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            />
-          </div>
-          <p className="text-right text-sm mt-3">
-  <a href="/auth/reset" className="text-blue-900 hover:underline">
-    ¿Olvidaste tu contraseña?
-  </a>
-</p>
+          <input
+            type="text"
+            placeholder="Nombre de usuario"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            className="w-full border rounded px-3 py-2 text-sm"
+            required
+          />
+          <input
+            type="password"
+            placeholder="Contraseña"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full border rounded px-3 py-2 text-sm"
+            required
+          />
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-blue-600 text-white py-2 text-sm font-medium hover:bg-blue-700 transition disabled:opacity-50"
+            className="w-full rounded bg-blue-600 text-white px-3 py-2 text-sm"
           >
             {loading ? "Ingresando…" : "Ingresar"}
           </button>
         </form>
-
-        {msg && (
-          <p className="mt-4 text-center text-sm text-red-600 bg-red-50 p-2 rounded">
-            {msg}
-          </p>
-        )}
+        {msg && <p className="mt-4 text-center text-sm text-gray-700">{msg}</p>}
       </div>
     </main>
   );
 }
-
