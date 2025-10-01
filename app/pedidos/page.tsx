@@ -1,118 +1,164 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import ZoneSelector from "@/components/ZonaSelector";
-import Link from "next/link";
-import { show2 } from "@/lib/math";
+import { fmtNum } from "@/lib/format";
 
 type Pedido = {
   id: string;
-  fecha_pedido: string; // YYYY-MM-DD
+  fecha_pedido: string;
+  fecha_entrega: string | null;
   solicitante: string | null;
-  estado: "borrador" | "enviado" | "completado";
+  estado: "borrador" | "enviado" | "recibido" | "completado";
+  total_bultos?: number | null;
+  total_kg?: number | null;
 };
 
 export default function PedidosPage() {
-  const [zonaId, setZonaId] = useState<string>("");
-  const [rows, setRows] = useState<
-    (Pedido & { total_bultos: number; total_kg: number })[]
-  >([]);
+  const router = useRouter();
+  const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [loading, setLoading] = useState(false);
+  const [q, setQ] = useState(""); // buscador
+  const [estadoFiltro, setEstadoFiltro] = useState<Pedido["estado"] | "">("");
   const [mostrarCompletados, setMostrarCompletados] = useState(false);
 
-  async function cargar(zid: string) {
-    if (!zid) return;
+  async function cargarPedidos() {
     setLoading(true);
-
-    // 1) Traer pedidos de la zona
-    const { data: pedidos } = await supabase
+    const { data, error } = await supabase
       .from("pedidos")
-      .select("id,fecha_pedido,solicitante,estado")
-      .eq("zona_id", zid)
-      .order("fecha_pedido", { ascending: false })
-      .returns<Pedido[]>();
+      .select(
+        "id, fecha_pedido, fecha_entrega, solicitante, estado, total_bultos, total_kg"
+      )
+      .order("fecha_pedido", { ascending: false });
 
-    // 2) Totales desde items (cliente)
-    const ids = (pedidos ?? []).map((p) => p.id);
-    const tot: Record<string, { b: number; kg: number }> = {};
-    if (ids.length) {
-      const { data: it } = await supabase
-        .from("pedido_items")
-        .select("pedido_id,bultos,kg")
-        .in("pedido_id", ids)
-        .returns<{ pedido_id: string; bultos: number; kg: number }[]>();
-      (it ?? []).forEach((r) => {
-        tot[r.pedido_id] ??= { b: 0, kg: 0 };
-        tot[r.pedido_id].b += Number(r.bultos);
-        tot[r.pedido_id].kg += Number(r.kg);
-      });
+    if (error) {
+      console.error("Error cargando pedidos:", error);
+    } else {
+      setPedidos(data ?? []);
     }
-
-    const data = (pedidos ?? [])
-      .filter((p) => (mostrarCompletados ? true : p.estado !== "completado"))
-      .map((p) => ({
-        ...p,
-        total_bultos: tot[p.id]?.b ?? 0,
-        total_kg: tot[p.id]?.kg ?? 0,
-      }));
-
-    setRows(data);
     setLoading(false);
   }
 
   useEffect(() => {
-    if (zonaId) void cargar(zonaId);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [zonaId, mostrarCompletados]);
+    void cargarPedidos();
+  }, []);
 
-  async function nuevo() {
-    if (!zonaId) return;
-    const hoy = new Date().toISOString().slice(0, 10);
+  // aplicar filtros y búsqueda
+  const filtrados = useMemo(() => {
+    return pedidos
+      .filter((p) =>
+        q ? (p.solicitante ?? "").toLowerCase().includes(q.toLowerCase()) : true
+      )
+      .filter((p) => (estadoFiltro ? p.estado === estadoFiltro : true))
+      .filter((p) =>
+        mostrarCompletados ? true : p.estado !== "completado"
+      );
+  }, [pedidos, q, estadoFiltro, mostrarCompletados]);
+
+  // eliminar pedido
+  async function eliminarPedido(id: string) {
+    if (!confirm("¿Eliminar este pedido?")) return;
+    const { error } = await supabase.from("pedidos").delete().eq("id", id);
+    if (error) {
+      console.error("Error al eliminar pedido:", error);
+    } else {
+      setPedidos((prev) => prev.filter((p) => p.id !== id));
+    }
+  }
+
+  // duplicar pedido
+  async function duplicarPedido(id: string) {
+    const pedido = pedidos.find((p) => p.id === id);
+    if (!pedido) return;
+
     const { data, error } = await supabase
       .from("pedidos")
-      .insert({ zona_id: zonaId, fecha_pedido: hoy, estado: "borrador" })
+      .insert({
+        zona_id: "TODO", // ⚠️ ajusta según tu lógica
+        fecha_pedido: new Date().toISOString().slice(0, 10),
+        fecha_entrega: pedido.fecha_entrega,
+        solicitante: pedido.solicitante,
+        estado: "borrador",
+        total_bultos: pedido.total_bultos,
+        total_kg: pedido.total_kg,
+      })
       .select("id")
       .single();
-    if (!error && data) location.href = `/pedidos/${data.id}`;
+
+    if (error) {
+      console.error("Error al duplicar:", error);
+    } else {
+      router.push(`/pedidos/${data!.id}`);
+    }
+  }
+
+  // badge de estado
+  function badgeEstado(estado: Pedido["estado"]) {
+    const base = "px-2 py-0.5 rounded text-xs font-medium";
+    switch (estado) {
+      case "borrador":
+        return <span className={`${base} bg-gray-100 text-gray-600`}>Borrador</span>;
+      case "enviado":
+        return <span className={`${base} bg-blue-100 text-blue-700`}>Enviado</span>;
+      case "recibido":
+        return <span className={`${base} bg-green-100 text-green-700`}>Recibido</span>;
+      case "completado":
+        return <span className={`${base} bg-emerald-100 text-emerald-700`}>Completado</span>;
+    }
   }
 
   return (
-    <main className="mx-auto max-w-6xl p-6 space-y-6">
-      <header className="flex items-center justify-between">
+    <main className="mx-auto max-w-6xl space-y-6 p-6">
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold">Pedidos</h1>
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-gray-600">Zona:</span>
-          <ZoneSelector value={zonaId} onChange={setZonaId} />
-          <button onClick={nuevo} className="rounded-lg bg-gray-900 px-4 py-2 text-sm text-white">
-            + Nuevo pedido
-          </button>
-        </div>
+        <button
+          onClick={() => router.push("/pedidos/nuevo")}
+          className="rounded bg-blue-600 text-white px-3 py-1 text-sm"
+        >
+          Nuevo pedido
+        </button>
       </header>
 
-      <div className="flex items-center gap-3">
-        <label className="text-sm">
+      {/* filtros */}
+      <div className="flex flex-wrap gap-3 items-center">
+        <input
+          type="text"
+          placeholder="Buscar por solicitante…"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          className="rounded-lg border px-2 py-1 text-sm"
+        />
+        <select
+          className="rounded-lg border px-2 py-1 text-sm"
+          value={estadoFiltro}
+          onChange={(e) => setEstadoFiltro(e.target.value as any)}
+        >
+          <option value="">Todos</option>
+          <option value="borrador">Borrador</option>
+          <option value="enviado">Enviado</option>
+          <option value="recibido">Recibido</option>
+          <option value="completado">Completado</option>
+        </select>
+        <label className="flex items-center gap-1 text-sm">
           <input
             type="checkbox"
-            className="mr-2"
             checked={mostrarCompletados}
             onChange={(e) => setMostrarCompletados(e.target.checked)}
           />
           Mostrar completados
         </label>
-        <button onClick={() => cargar(zonaId)} className="rounded-lg border px-3 py-1 text-sm">
-          Refrescar
-        </button>
       </div>
 
       {loading ? (
-        <div className="text-sm text-gray-500">Cargando…</div>
-      ) : (
+        <p className="text-gray-500">Cargando…</p>
+      ) : filtrados.length ? (
         <div className="overflow-x-auto rounded-xl border bg-white shadow-sm">
-          <table className="min-w-full text-sm">
-            <thead>
-              <tr className="border-b bg-gray-50 text-left">
-                <th className="p-2">Fecha</th>
+          <table className="min-w-full text-sm text-center">
+            <thead className="bg-gray-50 border-b">
+              <tr>
+                <th className="p-2">Fecha pedido</th>
+                <th className="p-2">Fecha entrega</th>
                 <th className="p-2">Solicitante</th>
                 <th className="p-2">Estado</th>
                 <th className="p-2">Totales</th>
@@ -120,31 +166,50 @@ export default function PedidosPage() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
-                <tr key={r.id} className="border-b">
-                  <td className="p-2">{r.fecha_pedido}</td>
-                  <td className="p-2">{r.solicitante ?? "—"}</td>
-                  <td className="p-2">{r.estado}</td>
+              {filtrados.map((p) => (
+                <tr key={p.id} className="border-b hover:bg-gray-50">
+                  <td className="p-2">{p.fecha_pedido?.slice(0, 10)}</td>
                   <td className="p-2">
-                    {show2(r.total_bultos)} b / {show2(r.total_kg)} kg
+                    {p.fecha_entrega ? p.fecha_entrega.slice(0, 10) : "—"}
                   </td>
+                  <td className="p-2">{p.solicitante ?? "—"}</td>
+                  <td className="p-2">{badgeEstado(p.estado)}</td>
                   <td className="p-2">
-                    <Link className="rounded border px-2 py-1" href={`/pedidos/${r.id}`}>
-                      Ver/Editar
-                    </Link>
+                    {fmtNum(p.total_bultos ?? 0)} b / {fmtNum(p.total_kg ?? 0)} kg
+                  </td>
+                  <td className="p-2 space-x-2">
+                    <button
+                      onClick={() => router.push(`/pedidos/${p.id}/ver`)}
+                      className="rounded-lg border px-2 py-1 text-xs hover:bg-gray-100"
+                    >
+                      Ver
+                    </button>
+                    <button
+                      onClick={() => router.push(`/pedidos/${p.id}`)}
+                      className="rounded-lg border px-2 py-1 text-xs hover:bg-gray-100"
+                    >
+                      Editar
+                    </button>
+                    <button
+                      onClick={() => duplicarPedido(p.id)}
+                      className="rounded-lg border px-2 py-1 text-xs text-blue-600 hover:bg-blue-50"
+                    >
+                      Duplicar
+                    </button>
+                    <button
+                      onClick={() => eliminarPedido(p.id)}
+                      className="rounded-lg border px-2 py-1 text-xs text-rose-600 hover:bg-rose-50"
+                    >
+                      Eliminar
+                    </button>
                   </td>
                 </tr>
               ))}
-              {!rows.length && (
-                <tr>
-                  <td className="p-4 text-gray-500" colSpan={5}>
-                    No hay pedidos en esta zona.
-                  </td>
-                </tr>
-              )}
             </tbody>
           </table>
         </div>
+      ) : (
+        <p className="text-gray-500">No hay pedidos que coincidan.</p>
       )}
     </main>
   );

@@ -31,6 +31,7 @@ export default function ComparacionPage() {
     if (!zonaId || !fecha) return;
     setLoading(true);
 
+    // Materiales
     const { data: mats } = await supabase
       .from("materiales")
       .select("id,nombre,presentacion_kg_por_bulto,tasa_consumo_diaria_kg")
@@ -39,18 +40,21 @@ export default function ComparacionPage() {
       .order("nombre")
       .returns<Material[]>();
 
+    // Consumo auto
     const { data: auto } = await supabase
       .from("consumo_auto")
       .select("material_id,kg")
       .eq("zona_id", zonaId)
       .eq("fecha", fecha);
 
+    // Consumo manual
     const { data: manual } = await supabase
       .from("consumo_manual")
       .select("material_id,kg")
       .eq("zona_id", zonaId)
       .eq("fecha", fecha);
 
+    // Movimientos
     const { data: movs } = await supabase
       .from("movimientos_inventario")
       .select("material_id,kg,tipo")
@@ -73,6 +77,7 @@ export default function ComparacionPage() {
       mats?.map((m) => {
         const st = stock[m.id] ?? 0;
 
+        // Consumo diario unificado
         let consumoDiario: number | null = null;
         if (manualMap.get(m.id)) {
           consumoDiario = manualMap.get(m.id)!;
@@ -141,7 +146,7 @@ export default function ComparacionPage() {
                 <th className="p-2">Material</th>
                 <th className="p-2">Stock (kg)</th>
                 <th className="p-2">Consumo diario (kg)</th>
-                <th className="p-2">Cobertura</th>
+                <th className="p-2">Cobertura (días)</th>
                 <th className="p-2">Hasta</th>
               </tr>
             </thead>
@@ -154,21 +159,7 @@ export default function ComparacionPage() {
                     {r.consumo_diario != null ? fmtNum(r.consumo_diario) : "—"}
                   </td>
                   <td className="p-2">
-                    {r.cobertura != null ? (
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                          r.cobertura < 2
-                            ? "bg-red-100 text-red-700"
-                            : r.cobertura < 4
-                            ? "bg-yellow-100 text-yellow-700"
-                            : "bg-green-100 text-green-700"
-                        }`}
-                      >
-                        {fmtNum(r.cobertura)} días
-                      </span>
-                    ) : (
-                      "—"
-                    )}
+                    {r.cobertura != null ? fmtNum(r.cobertura) : "—"}
                   </td>
                   <td className="p-2">{r.hasta ?? "—"}</td>
                 </tr>
