@@ -23,21 +23,7 @@ export default function LoginPage() {
       });
 
       if (error) throw error;
-
-      // Opcional: cargar info extendida del usuario desde tu tabla "usuarios"
-      const user = data.user;
-      if (user) {
-        const { data: perfil } = await supabase
-          .from("usuarios")
-          .select("nombre, rol, zona_id")
-          .eq("id", user.id)
-          .single();
-
-        console.log("Perfil:", perfil);
-      }
-
-      setMsg("Login exitoso ✅");
-      router.push("/"); // Redirigir al dashboard
+      router.push("/");
     } catch (err: any) {
       setMsg(err.message);
     } finally {
@@ -46,34 +32,61 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="mx-auto max-w-md p-6 space-y-4">
-      <h1 className="text-xl font-semibold">Iniciar sesión</h1>
-      <form onSubmit={handleLogin} className="space-y-3">
-        <input
-          type="email"
-          placeholder="Correo electrónico"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="w-full border rounded px-3 py-2 text-sm"
-          required
-        />
-        <input
-          type="password"
-          placeholder="Contraseña"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="w-full border rounded px-3 py-2 text-sm"
-          required
-        />
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full rounded bg-blue-600 text-white px-3 py-2 text-sm"
-        >
-          {loading ? "Ingresando…" : "Ingresar"}
-        </button>
-      </form>
-      {msg && <p className="text-sm text-gray-700">{msg}</p>}
+    <main className="flex min-h-screen items-center justify-center bg-gray-50 p-6">
+      <div className="w-full max-w-sm rounded-xl bg-white p-8 shadow-md border">
+        <h1 className="text-2xl font-bold text-center mb-6 text-gray-800">
+          Pedidos MP
+        </h1>
+        <h2 className="text-lg font-medium text-center mb-4 text-gray-600">
+          Iniciar sesión
+        </h2>
+
+        <form onSubmit={handleLogin} className="space-y-4">
+          <div>
+            <label className="block text-sm text-gray-900 mb-1">
+              Correo electrónico
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-gray-900 mb-1">
+              Contraseña
+            </label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+            />
+          </div>
+          <p className="text-right text-sm mt-3">
+  <a href="/auth/reset" className="text-blue-900 hover:underline">
+    ¿Olvidaste tu contraseña?
+  </a>
+</p>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full rounded-lg bg-blue-600 text-white py-2 text-sm font-medium hover:bg-blue-700 transition disabled:opacity-50"
+          >
+            {loading ? "Ingresando…" : "Ingresar"}
+          </button>
+        </form>
+
+        {msg && (
+          <p className="mt-4 text-center text-sm text-red-600 bg-red-50 p-2 rounded">
+            {msg}
+          </p>
+        )}
+      </div>
     </main>
   );
 }
+

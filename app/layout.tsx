@@ -10,7 +10,8 @@ import { supabase } from "@/lib/supabase";
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const esLogin = pathname.startsWith("/login");
+  const esLogin = pathname.startsWith("/auth/login");
+
 
   async function handleLogout() {
     await supabase.auth.signOut();

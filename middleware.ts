@@ -10,21 +10,20 @@ export async function middleware(req: NextRequest) {
     data: { session },
   } = await supabase.auth.getSession();
 
-  const isLoginPage = req.nextUrl.pathname.startsWith("/login");
+  const isAuthPage = req.nextUrl.pathname.startsWith("/auth/login");
 
-  if (!session && !isLoginPage) {
-    // No hay sesión → mandar al login
-    const redirectUrl = req.nextUrl.clone();
-    redirectUrl.pathname = "/login";
-    return NextResponse.redirect(redirectUrl);
-  }
+if (!session && !isAuthPage) {
+  const redirectUrl = req.nextUrl.clone();
+  redirectUrl.pathname = "/auth/login";
+  return NextResponse.redirect(redirectUrl);
+}
 
-  if (session && isLoginPage) {
-    // Ya logueado → mandar al home
-    const redirectUrl = req.nextUrl.clone();
-    redirectUrl.pathname = "/";
-    return NextResponse.redirect(redirectUrl);
-  }
+if (session && isAuthPage) {
+  const redirectUrl = req.nextUrl.clone();
+  redirectUrl.pathname = "/";
+  return NextResponse.redirect(redirectUrl);
+}
+
 
   return res;
 }
