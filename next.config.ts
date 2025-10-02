@@ -5,8 +5,12 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   typescript: {
-    // 🚫 No bloqueará el build aunque haya errores de tipos
+    // 🚫 No bloqueará el build aunque haya errores de TypeScript
     ignoreBuildErrors: true,
+  },
+  experimental: {
+    // Opcional: asegura compatibilidad con Turbopack en Next 15
+    turbo: {},
   },
 };
 
