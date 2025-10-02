@@ -104,23 +104,59 @@ export default function PedidosZona({
     }
   }
 
-  async function marcarCompletado(id: string) {
-    const { error } = await supabase
-      .from("pedidos")
-      .update({ estado: "completado" })
-      .eq("id", id);
+async function marcarCompletado(id: string) {
+  // 1. obtener items del pedido
+  const { data: items, error: errItems } = await supabase
+    .from("pedido_items")
+    .select(
+      `id, material_id, bultos, kg,
+       materiales ( unidad_medida, presentacion_kg_por_bulto )`
+    )
+    .eq("pedido_id", id);
 
-    if (error) {
-      notify("Error al completar pedido: " + error.message, "error");
-    } else {
-      setPedidos((prev) =>
-        prev.map((p) =>
-          p.id === id ? { ...p, estado: "completado" } : p
-        )
-      );
-      notify("Pedido completado ✅", "success");
-    }
+  if (errItems) {
+    notify("Error cargando materiales: " + errItems.message, "error");
+    return;
   }
+
+  // 2. crear movimientos de inventario
+  const movimientos = (items ?? []).map((it: any) => ({
+    zona_id: zonaId, // 👈 asegúrate de tener zonaId en props/estado
+    material_id: it.material_id,
+    fecha: new Date().toISOString().slice(0, 10),
+    tipo: "entrada",
+    bultos: it.bultos,
+    kg: it.materiales?.unidad_medida === "bulto" ? it.kg : null,
+    ref_tipo: "pedido",
+    ref_id: id,
+    notas: "Ingreso por pedido completado",
+  }));
+
+  const { error: errMov } = await supabase
+    .from("movimientos_inventario")
+    .insert(movimientos);
+
+  if (errMov) {
+    notify("Error registrando inventario: " + errMov.message, "error");
+    return;
+  }
+
+  // 3. actualizar estado del pedido
+  const { error } = await supabase
+    .from("pedidos")
+    .update({ estado: "completado" })
+    .eq("id", id);
+
+  if (error) {
+    notify("Error al completar pedido: " + error.message, "error");
+  } else {
+    setPedidos((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, estado: "completado" } : p))
+    );
+    notify("Pedido completado ✅, inventario actualizado", "success");
+  }
+}
+
 
   function badgeEstado(estado: Pedido["estado"]) {
     const base =
@@ -235,12 +271,6 @@ export default function PedidosZona({
                       className="rounded-lg border px-2 py-1 text-xs hover:bg-gray-100"
                     >
                       Editar
-                    </button>
-                    <button
-                      onClick={() => duplicarPedido(p.id)}
-                      className="rounded-lg border px-2 py-1 text-xs text-blue-600 hover:bg-blue-50"
-                    >
-                      Duplicar
                     </button>
                     <button
                       onClick={() => eliminarPedido(p.id)}

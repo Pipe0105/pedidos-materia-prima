@@ -6,7 +6,8 @@ import { supabase } from "@/lib/supabase";
 type Material = {
   id: string;
   nombre: string;
-  presentacion_kg_por_bulto: number;
+  presentacion_kg_por_bulto: number | null;
+  unidad_medida: "bulto" | "unidad" | "litro";
 };
 
 export default function MaterialPicker({
@@ -16,7 +17,11 @@ export default function MaterialPicker({
   zonaId: string;
   onChange: (
     id: string,
-    meta?: { nombre: string; presentacion_kg_por_bulto: number }
+    meta?: {
+      nombre: string;
+      presentacion_kg_por_bulto: number | null;
+      unidad_medida: "bulto" | "unidad" | "litro";
+    }
   ) => void;
 }) {
   const [materiales, setMateriales] = useState<Material[]>([]);
@@ -25,13 +30,13 @@ export default function MaterialPicker({
     const fetchMateriales = async () => {
       const { data, error } = await supabase
         .from("materiales")
-        .select("id, nombre, presentacion_kg_por_bulto")
+        .select("id, nombre, presentacion_kg_por_bulto, unidad_medida")
         .eq("zona_id", zonaId)
         .eq("activo", true)
         .order("nombre");
 
       if (!error && data) {
-        setMateriales(data);
+        setMateriales(data as Material[]);
       }
     };
 
@@ -49,6 +54,7 @@ export default function MaterialPicker({
             ? {
                 nombre: mat.nombre,
                 presentacion_kg_por_bulto: mat.presentacion_kg_por_bulto,
+                unidad_medida: mat.unidad_medida,
               }
             : undefined
         );
@@ -57,7 +63,10 @@ export default function MaterialPicker({
       <option value="">Seleccionar material</option>
       {materiales.map((m) => (
         <option key={m.id} value={m.id}>
-          {m.nombre} ({m.presentacion_kg_por_bulto} kg/bulto)
+          {m.nombre}{" "}
+          {m.unidad_medida === "bulto" && m.presentacion_kg_por_bulto
+            ? `(${m.presentacion_kg_por_bulto} kg/bulto)`
+            : `(${m.unidad_medida})`}
         </option>
       ))}
     </select>

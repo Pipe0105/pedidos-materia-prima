@@ -245,7 +245,6 @@ export default function PedidoEditorPage() {
                     <td className="p-2">
                       <MaterialPicker
                         zonaId={pedido.zona_id}
-                        value={i.material_id}
                         onChange={(materialId) =>
                           setItems(
                             items.map((row, j) =>

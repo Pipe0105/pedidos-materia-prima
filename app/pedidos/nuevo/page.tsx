@@ -10,7 +10,12 @@ type PedidoItem = {
   material_id: string;
   nombre: string;
   bultos: number;
-  kg: number;
+  kg: number | null;
+  materiales: {
+    nombre: string;
+    presentacion_kg_por_bulto: number | null;
+    unidad_medida: "bulto" | "unidad" | "litro";
+  } | null;
 };
 
 export default function NuevoPedidoPage() {
@@ -29,7 +34,11 @@ export default function NuevoPedidoPage() {
 
   function agregarMaterial(
     id: string,
-    meta?: { nombre: string; presentacion_kg_por_bulto: number }
+    meta?: {
+      nombre: string;
+      presentacion_kg_por_bulto: number | null;
+      unidad_medida: "bulto" | "unidad" | "litro";
+    }
   ) {
     if (!meta) return;
     setItems((prev) => [
@@ -38,7 +47,8 @@ export default function NuevoPedidoPage() {
         material_id: id,
         nombre: meta.nombre,
         bultos: 1,
-        kg: meta.presentacion_kg_por_bulto,
+        kg: meta.unidad_medida === "bulto" ? meta.presentacion_kg_por_bulto : null,
+        materiales: meta,
       },
     ]);
   }
@@ -55,24 +65,22 @@ export default function NuevoPedidoPage() {
 
     setSaving(true);
 
-    // Crear pedido
     const hoy = new Date().toISOString().slice(0, 10);
 
     const { data: pedido, error } = await supabase
-    .from("pedidos")
-    .insert({
+      .from("pedidos")
+      .insert({
         zona_id: zonaId,
         solicitante,
-        fecha_pedido: hoy, // 👈 obligatorio
+        fecha_pedido: hoy,
         fecha_entrega: fechaEntrega || null,
         notas,
         estado: "enviado",
         total_bultos: items.reduce((sum, it) => sum + it.bultos, 0),
-        total_kg: items.reduce((sum, it) => sum + it.kg, 0),
-    })
-    .select("id")
-    .single();
-
+        total_kg: items.reduce((sum, it) => sum + (it.kg ?? 0), 0),
+      })
+      .select("id")
+      .single();
 
     if (error) {
       setSaving(false);
@@ -80,7 +88,6 @@ export default function NuevoPedidoPage() {
       return;
     }
 
-    // Insertar ítems
     const pedidoId = pedido.id;
     const itemsToInsert = items.map((it) => ({
       pedido_id: pedidoId,
@@ -152,7 +159,8 @@ export default function NuevoPedidoPage() {
             <thead>
               <tr className="bg-gray-50">
                 <th className="p-2 text-left">Material</th>
-                <th className="p-2">Bultos</th>
+                <th className="p-2">Unidad</th>
+                <th className="p-2">Cantidad</th>
                 <th className="p-2">Kg</th>
               </tr>
             </thead>
@@ -160,6 +168,7 @@ export default function NuevoPedidoPage() {
               {items.map((it, idx) => (
                 <tr key={idx} className="border-b">
                   <td className="p-2">{it.nombre}</td>
+                  <td className="p-2">{it.materiales?.unidad_medida}</td>
                   <td className="p-2" align="center">
                     <input
                       type="number"
@@ -173,7 +182,11 @@ export default function NuevoPedidoPage() {
                               ? {
                                   ...p,
                                   bultos: val,
-                                  kg: val * (p.kg / p.bultos || 1),
+                                  kg:
+                                    p.materiales?.unidad_medida === "bulto"
+                                      ? val *
+                                        (p.materiales?.presentacion_kg_por_bulto || 1)
+                                      : null,
                                 }
                               : p
                           )
@@ -182,7 +195,7 @@ export default function NuevoPedidoPage() {
                       className="w-20 border rounded px-2 py-1 text-sm"
                     />
                   </td>
-                  <td className="p-2" align="center">{it.kg}</td>
+                  <td className="p-2" align="center">{it.kg ?? "—"}</td>
                 </tr>
               ))}
             </tbody>

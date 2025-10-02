@@ -23,8 +23,12 @@ type PedidoItem = {
   id: string;
   material_id: string;
   bultos: number;
-  kg: number;
-  materiales: { nombre: string; presentacion_kg_por_bulto: number } | null;
+  kg: number | null;
+  materiales: {
+    nombre: string;
+    presentacion_kg_por_bulto: number | null;
+    unidad_medida: "bulto" | "unidad" | "litro";
+  } | null;
 };
 
 export default function PedidoEditor() {
@@ -38,7 +42,6 @@ export default function PedidoEditor() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // cargar pedido + items
   useEffect(() => {
     const fetchData = async () => {
       const { data: pedido } = await supabase
@@ -54,29 +57,12 @@ export default function PedidoEditor() {
         .from("pedido_items")
         .select(
           `id, material_id, bultos, kg,
-           materiales ( nombre, presentacion_kg_por_bulto )`
+           materiales ( nombre, presentacion_kg_por_bulto, unidad_medida )`
         )
         .eq("pedido_id", pedidoId);
 
-      if (pedido) {
-        // 🔹 Autocompletar si la fecha de entrega ya pasó
-        if (
-          pedido.fecha_entrega &&
-          new Date(pedido.fecha_entrega) <= new Date() &&
-          pedido.estado !== "completado"
-        ) {
-          await supabase
-            .from("pedidos")
-            .update({ estado: "completado" })
-            .eq("id", pedido.id);
+      if (pedido) setPedido(pedido);
 
-          setPedido({ ...pedido, estado: "completado" });
-        } else {
-          setPedido(pedido);
-        }
-      }
-
-      // 👇 normalizar materiales (si viene array, tomar el primer objeto)
       setItems(
         (items || []).map((it: any) => ({
           ...it,
@@ -89,9 +75,7 @@ export default function PedidoEditor() {
       setLoading(false);
     };
 
-    if (pedidoId) {
-      void fetchData();
-    }
+    if (pedidoId) void fetchData();
   }, [pedidoId]);
 
   async function guardarCambios() {
@@ -106,7 +90,7 @@ export default function PedidoEditor() {
         notas: pedido.notas,
         estado: pedido.estado,
         total_bultos: items.reduce((sum, it) => sum + it.bultos, 0),
-        total_kg: items.reduce((sum, it) => sum + it.kg, 0),
+        total_kg: items.reduce((sum, it) => sum + (it.kg ?? 0), 0),
       })
       .eq("id", pedido.id);
 
@@ -115,35 +99,24 @@ export default function PedidoEditor() {
     if (error) notify("Error al guardar: " + error.message, "error");
     else {
       notify("Pedido actualizado ✅", "success");
-      router.push("/"); // 🔹 Ir al home
-    }
-  }
-
-  async function marcarCompletado() {
-    if (!pedido) return;
-    const { error } = await supabase
-      .from("pedidos")
-      .update({ estado: "completado" })
-      .eq("id", pedido.id);
-
-    if (error) {
-      notify("Error al completar pedido: " + error.message, "error");
-    } else {
-      setPedido({ ...pedido, estado: "completado" });
-      notify("Pedido completado ✅", "success");
+      router.push("/");
     }
   }
 
   async function agregarMaterial(
     id: string,
-    meta?: { nombre: string; presentacion_kg_por_bulto: number }
+    meta?: {
+      nombre: string;
+      presentacion_kg_por_bulto: number | null;
+      unidad_medida: "bulto" | "unidad" | "litro";
+    }
   ) {
     if (!meta) return;
     const nuevo = {
       pedido_id: pedidoId,
       material_id: id,
       bultos: 1,
-      kg: meta.presentacion_kg_por_bulto,
+      kg: meta.unidad_medida === "bulto" ? meta.presentacion_kg_por_bulto : null,
     };
 
     const { data } = await supabase
@@ -151,7 +124,7 @@ export default function PedidoEditor() {
       .insert(nuevo)
       .select(
         `id, material_id, bultos, kg,
-         materiales ( nombre, presentacion_kg_por_bulto )`
+         materiales ( nombre, presentacion_kg_por_bulto, unidad_medida )`
       )
       .single();
 
@@ -169,7 +142,7 @@ export default function PedidoEditor() {
     }
   }
 
-  async function actualizarItem(id: string, bultos: number, kg: number) {
+  async function actualizarItem(id: string, bultos: number, kg: number | null) {
     await supabase.from("pedido_items").update({ bultos, kg }).eq("id", id);
     setItems((prev) =>
       prev.map((it) => (it.id === id ? { ...it, bultos, kg } : it))
@@ -189,57 +162,8 @@ export default function PedidoEditor() {
   return (
     <main className="mx-auto max-w-4xl space-y-6 p-6">
       <header className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Editar pedido</h1>
-          <p className="text-gray-500 text-sm">
-            Planta:{" "}
-            <span className="font-semibold">{pedido.zonas?.[0]?.nombre}</span>
-          </p>
-        </div>
-        <div>
-          {pedido.estado && (
-            <span className="px-3 py-1 rounded-full text-xs font-semibold bg-gray-100">
-              {pedido.estado}
-            </span>
-          )}
-        </div>
+        <h1 className="text-2xl font-bold">Editar pedido</h1>
       </header>
-
-      {/* Datos */}
-      <div className="space-y-4 border rounded-lg p-4 bg-gray-50 shadow-sm">
-        <div>
-          <label className="text-sm font-medium">Solicitante</label>
-          <input
-            type="text"
-            value={pedido.solicitante ?? ""}
-            onChange={(e) =>
-              setPedido((prev) => prev && { ...prev, solicitante: e.target.value })
-            }
-            className="w-full rounded-lg border px-3 py-1 text-sm"
-          />
-        </div>
-        <div>
-          <label className="text-sm font-medium">Fecha de entrega</label>
-          <input
-            type="date"
-            value={pedido.fecha_entrega ?? ""}
-            onChange={(e) =>
-              setPedido((prev) => prev && { ...prev, fecha_entrega: e.target.value })
-            }
-            className="w-full rounded-lg border px-3 py-1 text-sm"
-          />
-        </div>
-        <div>
-          <label className="text-sm font-medium">Notas</label>
-          <textarea
-            value={pedido.notas ?? ""}
-            onChange={(e) =>
-              setPedido((prev) => prev && { ...prev, notas: e.target.value })
-            }
-            className="w-full rounded-lg border px-3 py-1 text-sm"
-          />
-        </div>
-      </div>
 
       {/* Materiales */}
       <div className="space-y-4 border rounded-lg p-4 bg-white shadow-sm">
@@ -249,34 +173,39 @@ export default function PedidoEditor() {
           <table className="w-full text-sm mt-3">
             <thead>
               <tr className="bg-gray-50">
-                <th className="p-2 text-left align-middle">Material</th>
-                <th className="p-2 align-middle">Bultos</th>
-                <th className="p-2 align-middle">Kg</th>
-                <th className="p-2 align-middle">Acciones</th>
+                <th className="p-2 text-left">Material</th>
+                <th className="p-2">Unidad</th>
+                <th className="p-2">Cantidad</th>
+                <th className="p-2">Kg</th>
+                <th className="p-2">Acciones</th>
               </tr>
             </thead>
             <tbody>
               {items.map((it) => (
                 <tr key={it.id} className="border-b">
-                  <td className="p-2 align-middle">
-                    {it.materiales?.nombre || "—"}
-                  </td>
-                  <td className="p-2 align-middle" align="center">
+                  <td className="p-2">{it.materiales?.nombre || "—"}</td>
+                  <td className="p-2" align="center">{it.materiales?.unidad_medida}</td>
+                  <td className="p-2" align="center">
                     <input
                       type="number"
                       value={it.bultos}
                       min={1}
                       onChange={(e) => {
                         const val = parseInt(e.target.value) || 0;
-                        const newKg =
-                          val * (it.materiales?.presentacion_kg_por_bulto || 1);
-                        actualizarItem(it.id, val, newKg);
+                        if (it.materiales?.unidad_medida === "bulto") {
+                          const newKg =
+                            val *
+                            (it.materiales?.presentacion_kg_por_bulto || 1);
+                          actualizarItem(it.id, val, newKg);
+                        } else {
+                          actualizarItem(it.id, val, null);
+                        }
                       }}
                       className="w-20 border rounded px-2 py-1 text-sm text-center"
                     />
                   </td>
-                  <td className="p-2 align-middle" align="center">{it.kg}</td>
-                  <td className="p-2 align-middle" align="center">
+                  <td className="p-2" align="center">{it.kg ?? "—"}</td>
+                  <td className="p-2" align="center">
                     <button
                       onClick={() => eliminarItem(it.id)}
                       className="text-rose-600 hover:underline text-sm"
@@ -295,25 +224,14 @@ export default function PedidoEditor() {
         )}
       </div>
 
-      {/* Botones */}
       <div className="flex gap-3">
         <button
           onClick={guardarCambios}
           disabled={saving}
-          className="flex items-center gap-1 rounded bg-blue-600 text-white px-4 py-2 text-sm hover:bg-blue-700 disabled:opacity-50"
+          className="rounded bg-blue-600 text-white px-4 py-2 text-sm hover:bg-blue-700 disabled:opacity-50"
         >
-          {saving ? "💾 Guardando..." : "💾 Guardar cambios"}
+          {saving ? "Guardando..." : "Guardar cambios"}
         </button>
-
-        {(pedido.estado === "enviado" || pedido.estado === "recibido") && (
-          <button
-            onClick={marcarCompletado}
-            className="flex items-center gap-1 rounded bg-green-600 text-white px-4 py-2 text-sm hover:bg-green-700"
-          >
-            ✅ Completar pedido
-          </button>
-        )}
-
         <button
           onClick={() => router.push("/pedidos")}
           className="rounded border px-4 py-2 text-sm hover:bg-gray-100"

@@ -61,6 +61,7 @@ export default function MaterialesPage() {
         "id,zona_id,nombre,presentacion_kg_por_bulto,tasa_consumo_diaria_kg,proveedor,activo,unidad_medida,zonas(nombre)"
       )
       .eq("zona_id", zid)
+      .eq("activo", true) // 👈 solo activos
       .order("nombre");
 
     if (error) setErr(error.message);
@@ -103,7 +104,7 @@ export default function MaterialesPage() {
       zona_id: zonaId,
       nombre: form.nombre.trim(),
       presentacion_kg_por_bulto:
-        form.unidad_medida === "bulto" ? toNum(form.presentacion) : null,
+        form.unidad_medida === "bulto" ? toNum(form.presentacion) : 1, // 👈 dummy 1 si no es bulto
       tasa_consumo_diaria_kg: consumo,
       proveedor: form.proveedor.trim() || null,
       unidad_medida: form.unidad_medida,
@@ -137,7 +138,7 @@ export default function MaterialesPage() {
 
   async function eliminarMaterial(id: string) {
     if (!confirm("¿Seguro que quieres eliminar este material?")) return;
-    await supabase.from("materiales").delete().eq("id", id);
+    await supabase.from("materiales").update({ activo: false }).eq("id", id); // 👈 soft delete
     await cargarMateriales(zonaId);
   }
 
@@ -213,8 +214,7 @@ export default function MaterialesPage() {
                 ? "bultos"
                 : form.unidad_medida === "unidad"
                 ? "unidades"
-                : "litros"}
-              )
+                : "litros"})
             </span>
             <input
               className="w-full rounded-lg border px-3 py-2"
@@ -288,7 +288,7 @@ export default function MaterialesPage() {
                         ? `${fmt2(Number(m.presentacion_kg_por_bulto))} kg/bulto`
                         : "—"}
                     </td>
-                    <td className="p-2" >
+                    <td className="p-2">
                       {m.tasa_consumo_diaria_kg == null
                         ? "—"
                         : fmt2(Number(m.tasa_consumo_diaria_kg))}

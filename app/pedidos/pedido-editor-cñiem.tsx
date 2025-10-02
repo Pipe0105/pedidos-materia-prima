@@ -68,16 +68,6 @@ export default function PedidoEditorClient({ pedidoId }: { pedidoId: string }) {
       >
         Guardar pedido
       </button>
-
-      {/* Botón completar solo si no está ya completado */}
-      {pedido?.estado !== "completado" && (
-        <button
-          onClick={marcarCompletado}
-          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
-        >
-          Marcar como completado
-        </button>
-      )}
     </div>
   );
 }
