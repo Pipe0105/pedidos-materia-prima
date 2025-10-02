@@ -8,154 +8,128 @@ import { fmtNum } from "@/lib/format";
 type Material = {
   id: string;
   nombre: string;
-  presentacion_kg_por_bulto: number;
-  tasa_consumo_diaria_kg: number | null;
+  unidad_medida: "bulto" | "unidad" | "litro";
+  presentacion_kg_por_bulto: number | null;
 };
 
-type ConsumoRow = {
+type ComparacionRow = {
   material_id: string;
   nombre: string;
-  stock_kg: number;
-  consumo_kg: number | null;
-  cobertura: number | null;
-  hasta: string | null;
+  unidad: "bulto" | "unidad" | "litro";
+  stock: number;
+  auto: number | null;
+  manual: number | null;
+  restanteAuto: number | null;
+  restanteManual: number | null;
 };
 
-type DiffRow = {
-  material_id: string;
-  nombre: string;
-  consumo_auto: number | null;
-  consumo_manual: number | null;
-  diferencia: number | null;
-};
+function formatUnidad(valor: number | null, unidad: string) {
+  if (valor == null) return "—";
+  const plural =
+    unidad === "bulto" ? "bultos" : unidad === "unidad" ? "unidades" : "litros";
+  const singular = unidad;
+  return `${fmtNum(valor)} ${valor === 1 ? singular : plural}`;
+}
 
 export default function ComparacionPage() {
   const [zonaId, setZonaId] = useState("");
   const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 10));
-  const [rowsAuto, setRowsAuto] = useState<ConsumoRow[]>([]);
-  const [rowsManual, setRowsManual] = useState<ConsumoRow[]>([]);
-  const [rowsDiff, setRowsDiff] = useState<DiffRow[]>([]);
+  const [rows, setRows] = useState<ComparacionRow[]>([]);
   const [loading, setLoading] = useState(false);
 
   async function cargar() {
     if (!zonaId || !fecha) return;
     setLoading(true);
 
-    // Materiales
     const { data: mats } = await supabase
       .from("materiales")
-      .select("id,nombre,presentacion_kg_por_bulto,tasa_consumo_diaria_kg")
+      .select("id,nombre,unidad_medida,presentacion_kg_por_bulto")
       .eq("zona_id", zonaId)
       .eq("activo", true)
       .order("nombre")
       .returns<Material[]>();
 
-    // Consumo auto
     const { data: auto } = await supabase
       .from("consumo_auto")
       .select("material_id,kg")
       .eq("zona_id", zonaId)
       .eq("fecha", fecha);
 
-    // Consumo manual
     const { data: manual } = await supabase
       .from("consumo_manual")
       .select("material_id,kg")
       .eq("zona_id", zonaId)
       .eq("fecha", fecha);
 
-    // Movimientos inventario
     const { data: movs } = await supabase
       .from("movimientos_inventario")
       .select("material_id,kg,tipo")
       .eq("zona_id", zonaId);
 
-    const stock: Record<string, number> = {};
-    (movs ?? []).forEach((mv) => {
-      const mult = mv.tipo === "entrada" ? 1 : mv.tipo === "salida" ? -1 : 1;
-      stock[mv.material_id] =
-        (stock[mv.material_id] ?? 0) + Number(mv.kg) * mult;
-    });
-
-    // Mapas
     const autoMap = new Map<string, number>();
     (auto ?? []).forEach((a) => autoMap.set(a.material_id, Number(a.kg)));
 
     const manualMap = new Map<string, number>();
     (manual ?? []).forEach((m) => manualMap.set(m.material_id, Number(m.kg)));
 
-    // Filas automáticas
-    const autoRows: ConsumoRow[] =
-      mats?.map((m) => {
-        const st = stock[m.id] ?? 0;
-        const consumo = autoMap.get(m.id) ?? m.tasa_consumo_diaria_kg ?? null;
+    const stockKg: Record<string, number> = {};
+    (movs ?? []).forEach((mv) => {
+      const mult = mv.tipo === "entrada" ? 1 : mv.tipo === "salida" ? -1 : 1;
+      stockKg[mv.material_id] =
+        (stockKg[mv.material_id] ?? 0) + Number(mv.kg) * mult;
+    });
 
-        let cobertura: number | null = null;
-        let hasta: string | null = null;
-        if (consumo && consumo > 0) {
-          cobertura = st / consumo;
-          const base = new Date(fecha);
-          base.setDate(base.getDate() + Math.floor(cobertura));
-          hasta = base.toISOString().slice(0, 10);
+    const data: ComparacionRow[] =
+      mats?.map((m) => {
+        const stKg = stockKg[m.id] ?? 0;
+
+        // stock en unidad original
+        let stock = stKg;
+        if (m.unidad_medida === "bulto" && m.presentacion_kg_por_bulto) {
+          stock = stKg / m.presentacion_kg_por_bulto;
         }
 
-        return {
-          material_id: m.id,
-          nombre: m.nombre,
-          stock_kg: st,
-          consumo_kg: consumo,
-          cobertura,
-          hasta,
-        };
-      }) ?? [];
-
-    // Filas manuales
-    const manualRows: ConsumoRow[] =
-      mats?.map((m) => {
-        const st = stock[m.id] ?? 0;
-        const consumo = manualMap.get(m.id) ?? null;
-
-        let cobertura: number | null = null;
-        let hasta: string | null = null;
-        if (consumo && consumo > 0) {
-          cobertura = st / consumo;
-          const base = new Date(fecha);
-          base.setDate(base.getDate() + Math.floor(cobertura));
-          hasta = base.toISOString().slice(0, 10);
+        // consumo automático convertido a unidad real
+        let autoU: number | null = null;
+        if (autoMap.has(m.id)) {
+          const kg = autoMap.get(m.id)!;
+          if (m.unidad_medida === "bulto" && m.presentacion_kg_por_bulto) {
+            autoU = kg / m.presentacion_kg_por_bulto;
+          } else {
+            autoU = kg; // ya está en unidades o litros
+          }
         }
 
-        return {
-          material_id: m.id,
-          nombre: m.nombre,
-          stock_kg: st,
-          consumo_kg: consumo,
-          cobertura,
-          hasta,
-        };
-      }) ?? [];
+        // consumo manual convertido a unidad real
+        let manualU: number | null = null;
+        if (manualMap.has(m.id)) {
+          const kg = manualMap.get(m.id)!;
+          if (m.unidad_medida === "bulto" && m.presentacion_kg_por_bulto) {
+            manualU = kg / m.presentacion_kg_por_bulto;
+          } else {
+            manualU = kg; // ya está en unidades o litros
+          }
+        }
 
-    // Tabla de diferencias
-    const diffRows: DiffRow[] =
-      mats?.map((m) => {
-        const consumoAuto = autoMap.get(m.id) ?? null;
-        const consumoManual = manualMap.get(m.id) ?? null;
-        const diferencia =
-          consumoAuto != null && consumoManual != null
-            ? consumoManual - consumoAuto
-            : null;
+        // stock restante
+        let restanteAuto: number | null = null;
+        let restanteManual: number | null = null;
+        if (autoU != null) restanteAuto = stock - autoU;
+        if (manualU != null) restanteManual = stock - manualU;
 
         return {
           material_id: m.id,
           nombre: m.nombre,
-          consumo_auto: consumoAuto,
-          consumo_manual: consumoManual,
-          diferencia,
+          unidad: m.unidad_medida,
+          stock,
+          auto: autoU,
+          manual: manualU,
+          restanteAuto,
+          restanteManual,
         };
       }) ?? [];
 
-    setRowsAuto(autoRows);
-    setRowsManual(manualRows);
-    setRowsDiff(diffRows);
+    setRows(data);
     setLoading(false);
   }
 
@@ -163,106 +137,8 @@ export default function ComparacionPage() {
     if (zonaId) void cargar();
   }, [zonaId, fecha]);
 
-  function renderConsumoTable(title: string, rows: ConsumoRow[]) {
-    return (
-      <div className="overflow-x-auto rounded-xl border bg-white shadow-sm">
-        <h2 className="text-lg font-semibold text-gray-700 p-3">{title}</h2>
-        <table className="min-w-full text-sm text-center">
-          <thead className="bg-gray-50 border-b">
-            <tr>
-              <th className="p-2">Material</th>
-              <th className="p-2">Stock (kg)</th>
-              <th className="p-2">Consumo (kg)</th>
-              <th className="p-2">Cobertura (días)</th>
-              <th className="p-2">Hasta</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.material_id} className="border-b">
-                <td className="p-2">{r.nombre ?? "—"}</td>
-                <td className="p-2">{fmtNum(r.stock_kg)}</td>
-                <td className="p-2">
-                  {r.consumo_kg != null ? fmtNum(r.consumo_kg) : "—"}
-                </td>
-                <td className="p-2">
-                  {r.cobertura != null && r.cobertura >= 0
-                    ? fmtNum(r.cobertura)
-                    : "—"}
-                </td>
-                <td className="p-2">
-                  {r.hasta && r.cobertura && r.cobertura > 0 ? r.hasta : "—"}
-                </td>
-              </tr>
-            ))}
-            {!rows.length && (
-              <tr>
-                <td className="p-4 text-gray-500" colSpan={5}>
-                  No hay datos para esa fecha/zona.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    );
-  }
-
-  function renderDiffTable(rows: DiffRow[]) {
-    return (
-      <div className="overflow-x-auto rounded-xl border bg-white shadow-sm">
-        <h2 className="text-lg font-semibold text-gray-700 p-3">
-          Diferencia Manual - Automático
-        </h2>
-        <table className="min-w-full text-sm text-center">
-          <thead className="bg-gray-50 border-b">
-            <tr>
-              <th className="p-2">Material</th>
-              <th className="p-2">Consumo Auto (kg)</th>
-              <th className="p-2">Consumo Manual (kg)</th>
-              <th className="p-2">Diferencia (kg)</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.material_id} className="border-b">
-                <td className="p-2">{r.nombre ?? "—"}</td>
-                <td className="p-2">
-                  {r.consumo_auto != null ? fmtNum(r.consumo_auto) : "—"}
-                </td>
-                <td className="p-2">
-                  {r.consumo_manual != null ? fmtNum(r.consumo_manual) : "—"}
-                </td>
-                <td
-                  className={`p-2 font-medium ${
-                    r.diferencia != null
-                      ? r.diferencia > 0
-                        ? "text-red-600"
-                        : r.diferencia < 0
-                        ? "text-green-600"
-                        : "text-gray-600"
-                      : "text-gray-400"
-                  }`}
-                >
-                  {r.diferencia != null ? fmtNum(r.diferencia) : "—"}
-                </td>
-              </tr>
-            ))}
-            {!rows.length && (
-              <tr>
-                <td className="p-4 text-gray-500" colSpan={4}>
-                  No hay datos para esa fecha/zona.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    );
-  }
-
   return (
-    <main className="mx-auto max-w-7xl p-6 space-y-6">
+    <main className="mx-auto max-w-7xl p-6 space-y-8">
       <header className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Comparación de Consumos</h1>
         <div className="flex items-center gap-3">
@@ -276,7 +152,7 @@ export default function ComparacionPage() {
           />
           <button
             onClick={cargar}
-            className="rounded-lg border px-3 py-1 text-sm"
+            className="rounded-lg border px-3 py-1 text-sm hover:bg-gray-100"
           >
             Refrescar
           </button>
@@ -285,11 +161,56 @@ export default function ComparacionPage() {
 
       {loading ? (
         <div className="text-sm text-gray-500">Cargando…</div>
+      ) : rows.length > 0 ? (
+        <div className="grid gap-6 md:grid-cols-2">
+          {rows.map((r) => (
+            <div
+              key={r.material_id}
+              className="p-5 border rounded-xl bg-white shadow-sm"
+            >
+              <h2 className="text-lg font-semibold mb-3">{r.nombre}</h2>
+
+              {/* Stock destacado */}
+              <div className="mb-4">
+                <p className="text-sm font-medium text-gray-600">Stock Actual</p>
+                <p className="text-xl font-bold">
+                  {formatUnidad(r.stock, r.unidad)}
+                </p>
+              </div>
+
+              {/* Comparación en dos columnas */}
+              <div className="grid grid-cols-2 gap-6 text-sm">
+                <div>
+                  <p className="font-medium text-blue-600">Consumo Auto</p>
+                  <p>{formatUnidad(r.auto, r.unidad)}</p>
+                  <p className="mt-2 font-medium text-blue-600">
+                    Restante Auto
+                  </p>
+                  <p>
+                    {r.restanteAuto != null
+                      ? formatUnidad(r.restanteAuto, r.unidad)
+                      : "—"}
+                  </p>
+                </div>
+                <div>
+                  <p className="font-medium text-green-600">Consumo Manual</p>
+                  <p>{formatUnidad(r.manual, r.unidad)}</p>
+                  <p className="mt-2 font-medium text-green-600">
+                    Restante Manual
+                  </p>
+                  <p>
+                    {r.restanteManual != null
+                      ? formatUnidad(r.restanteManual, r.unidad)
+                      : "—"}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       ) : (
-        <div className="space-y-6">
-          {renderConsumoTable("Consumo Automático", rowsAuto)}
-          {renderConsumoTable("Consumo Manual", rowsManual)}
-          {renderDiffTable(rowsDiff)}
+        <div className="p-6 text-center text-gray-500 border rounded-lg bg-gray-50">
+          No hay datos para esta fecha/zona.
         </div>
       )}
     </main>
