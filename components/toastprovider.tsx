@@ -1,9 +1,11 @@
 "use client";
 
 import { createContext, useContext, useState } from "react";
-import { Toast } from "@/components/toast"; // 👈 asegúrate que el archivo se llama Toast.tsx con T mayúscula
+import { Toast } from "@/components/toast";
 
-type ToastType = "ok" | "err";
+// 🔹 Ahora aceptamos ambos estilos: nuevos y legacy
+export type ToastType = "success" | "error" | "info" | "warning" | "ok" | "err";
+
 type ToastItem = { id: number; msg: string; type: ToastType };
 
 type ToastCtx = {
@@ -19,7 +21,7 @@ const Ctx = createContext<ToastCtx>({
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
 
-  const push = (msg: string, type: ToastType = "ok") => {
+  const push = (msg: string, type: ToastType = "success") => {
     setToasts((t) => [...t, { id: Date.now() + Math.random(), msg, type }]);
   };
 

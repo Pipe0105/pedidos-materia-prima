@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { fmtNum } from "@/lib/format";
 import { Bell, AlertTriangle } from "lucide-react";
+import { useToast } from "@/components/toastprovider";
 
 type Pedido = {
   id: string;
@@ -24,6 +25,7 @@ type MaterialRow = {
 
 export default function HomePage() {
   const router = useRouter();
+  const { notify } = useToast();
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [materialesCriticos, setMaterialesCriticos] = useState<MaterialRow[]>([]);
   const [notifOpen, setNotifOpen] = useState(false);
@@ -37,6 +39,21 @@ export default function HomePage() {
       .order("fecha_pedido", { ascending: false })
       .limit(5);
     setPedidos(data ?? []);
+  }
+
+  async function marcarCompletado(id: string) {
+    const { error } = await supabase
+      .from("pedidos")
+      .update({ estado: "completado" })
+      .eq("id", id);
+
+    if (error) {
+      notify("Error al completar pedido: " + error.message, "error");
+    } else {
+      // en el home solo muestras pedidos pendientes (estado=enviado)
+      setPedidos((prev) => prev.filter((p) => p.id !== id));
+      notify("Pedido completado ✅", "success");
+    }
   }
 
   async function cargarInventario() {
@@ -80,7 +97,6 @@ export default function HomePage() {
     }
   }, [materialesCriticos]);
 
-  // Resumen global
   const criticos = materialesCriticos.filter((m) => m.cobertura! < 2).length;
   const alerta = materialesCriticos.filter((m) => m.cobertura! >= 2 && m.cobertura! < 4).length;
   const seguros = materialesCriticos.filter((m) => m.cobertura! >= 4).length;
@@ -156,7 +172,9 @@ export default function HomePage() {
 
       {/* Pedidos pendientes */}
       <section className="bg-white shadow-sm rounded-xl border p-4">
-        <h2 className="text-lg font-semibold mb-3">Pedidos pendientes ({pedidos.length})</h2>
+        <h2 className="text-lg font-semibold mb-3">
+          Pedidos pendientes ({pedidos.length})
+        </h2>
         {pedidos.length ? (
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm text-center">
@@ -178,12 +196,18 @@ export default function HomePage() {
                     <td className="p-2">
                       {fmtNum(p.total_bultos ?? 0)} b / {fmtNum(p.total_kg ?? 0)} kg
                     </td>
-                    <td className="p-2">
+                    <td className="p-2 flex justify-center gap-2">
                       <button
                         onClick={() => router.push(`/pedidos/${p.id}/ver`)}
                         className="rounded-lg border px-3 py-1 text-sm hover:bg-gray-100"
                       >
                         Ver
+                      </button>
+                      <button
+                        onClick={() => marcarCompletado(p.id)}
+                        className="rounded-lg bg-green-600 text-white px-3 py-1 text-sm hover:bg-green-700"
+                      >
+                        Completar
                       </button>
                     </td>
                   </tr>

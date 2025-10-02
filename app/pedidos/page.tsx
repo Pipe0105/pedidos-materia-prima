@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { fmtNum } from "@/lib/format";
+import { useToast } from "@/components/toastprovider";
 
 type Pedido = {
   id: string;
@@ -17,6 +18,7 @@ type Pedido = {
 
 export default function PedidosPage() {
   const router = useRouter();
+  const { notify } = useToast();
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [loading, setLoading] = useState(false);
   const [q, setQ] = useState(""); // buscador
@@ -33,7 +35,7 @@ export default function PedidosPage() {
       .order("fecha_pedido", { ascending: false });
 
     if (error) {
-      console.error("Error cargando pedidos:", error);
+      notify("Error cargando pedidos: " + error.message, "error");
     } else {
       setPedidos(data ?? []);
     }
@@ -51,9 +53,7 @@ export default function PedidosPage() {
         q ? (p.solicitante ?? "").toLowerCase().includes(q.toLowerCase()) : true
       )
       .filter((p) => (estadoFiltro ? p.estado === estadoFiltro : true))
-      .filter((p) =>
-        mostrarCompletados ? true : p.estado !== "completado"
-      );
+      .filter((p) => (mostrarCompletados ? true : p.estado !== "completado"));
   }, [pedidos, q, estadoFiltro, mostrarCompletados]);
 
   // eliminar pedido
@@ -61,9 +61,10 @@ export default function PedidosPage() {
     if (!confirm("¿Eliminar este pedido?")) return;
     const { error } = await supabase.from("pedidos").delete().eq("id", id);
     if (error) {
-      console.error("Error al eliminar pedido:", error);
+      notify("Error al eliminar pedido: " + error.message, "error");
     } else {
       setPedidos((prev) => prev.filter((p) => p.id !== id));
+      notify("Pedido eliminado ✅", "success");
     }
   }
 
@@ -87,9 +88,29 @@ export default function PedidosPage() {
       .single();
 
     if (error) {
-      console.error("Error al duplicar:", error);
+      notify("Error al duplicar: " + error.message, "error");
     } else {
+      notify("Pedido duplicado ✅", "success");
       router.push(`/pedidos/${data!.id}`);
+    }
+  }
+
+  // marcar completado
+  async function marcarCompletado(id: string) {
+    const { error } = await supabase
+      .from("pedidos")
+      .update({ estado: "completado" })
+      .eq("id", id);
+
+    if (error) {
+      notify("Error al completar pedido: " + error.message, "error");
+    } else {
+      setPedidos((prev) =>
+        prev.map((p) =>
+          p.id === id ? { ...p, estado: "completado" } : p
+        )
+      );
+      notify("Pedido completado ✅", "success");
     }
   }
 
@@ -202,6 +223,14 @@ export default function PedidosPage() {
                     >
                       Eliminar
                     </button>
+                    {p.estado !== "completado" && (
+                      <button
+                        onClick={() => marcarCompletado(p.id)}
+                        className="rounded-lg bg-green-600 text-white px-2 py-1 text-xs hover:bg-green-700"
+                      >
+                        Completar
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

@@ -21,7 +21,7 @@ type ConsumoRow = {
   hasta: string | null;
 };
 
-export default function ComparacionPage() {
+export default function InventarioPage() {
   const [zonaId, setZonaId] = useState("");
   const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 10));
   const [rows, setRows] = useState<ConsumoRow[]>([]);
@@ -112,7 +112,7 @@ export default function ComparacionPage() {
   return (
     <main className="mx-auto max-w-7xl p-6 space-y-6">
       <header className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Comparación de Consumos</h1>
+        <h1 className="text-2xl font-semibold">Inventario y Consumos</h1>
         <div className="flex items-center gap-3">
           <span className="text-sm text-gray-600">Zona:</span>
           <ZoneSelector value={zonaId} onChange={setZonaId} />
@@ -124,7 +124,7 @@ export default function ComparacionPage() {
           />
           <button
             onClick={cargar}
-            className="rounded-lg border px-3 py-1 text-sm"
+            className="rounded-lg border px-3 py-1 text-sm hover:bg-gray-100"
           >
             Refrescar
           </button>
@@ -143,6 +143,7 @@ export default function ComparacionPage() {
                 <th className="p-2">Consumo diario (kg)</th>
                 <th className="p-2">Cobertura</th>
                 <th className="p-2">Hasta</th>
+                <th className="p-2">Consumo manual</th>
               </tr>
             </thead>
             <tbody>
@@ -171,11 +172,46 @@ export default function ComparacionPage() {
                     )}
                   </td>
                   <td className="p-2">{r.hasta ?? "—"}</td>
+
+                  {/* 👉 Consumo manual */}
+                  <td className="p-2">
+                    <div className="flex gap-2 items-center justify-center">
+                      <input
+                        type="number"
+                        min="0"
+                        placeholder="kg"
+                        className="w-24 rounded border px-2 py-1 text-sm"
+                        id={`manual-${r.material_id}`}
+                      />
+                      <button
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs"
+                        onClick={async () => {
+                          const input = document.getElementById(
+                            `manual-${r.material_id}`
+                          ) as HTMLInputElement;
+                          const value = Number(input.value);
+                          if (!value) return;
+
+                          await supabase.from("consumo_manual").upsert({
+                            zona_id: zonaId,
+                            material_id: r.material_id,
+                            fecha,
+                            kg: value,
+                          });
+
+                          input.value = "";
+                          cargar();
+                        }}
+                      >
+                        Guardar
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))}
               {!rows.length && (
                 <tr>
-                  <td className="p-4 text-gray-500" colSpan={5}>
+                  <td className="p-4 text-gray-500" colSpan={6}>
                     No hay datos para esa fecha/zona.
                   </td>
                 </tr>
