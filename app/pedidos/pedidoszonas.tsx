@@ -14,6 +14,7 @@ type Pedido = {
   estado: "enviado" | "recibido" | "completado";
   total_bultos?: number | null;
   total_kg?: number | null;
+  notas?: string | null;
 };
 
 export default function PedidosZona({
@@ -25,18 +26,20 @@ export default function PedidosZona({
 }) {
   const router = useRouter();
   const { notify } = useToast();
+
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [loading, setLoading] = useState(false);
   const [q, setQ] = useState("");
   const [estadoFiltro, setEstadoFiltro] = useState<Pedido["estado"] | "">("");
   const [mostrarCompletados, setMostrarCompletados] = useState(false);
 
+  // cargar pedidos
   async function cargarPedidos() {
     setLoading(true);
     const { data, error } = await supabase
       .from("pedidos")
       .select(
-        "id, fecha_pedido, fecha_entrega, solicitante, estado, total_bultos, total_kg"
+        "id, fecha_pedido, fecha_entrega, solicitante, estado, total_bultos, total_kg, notas"
       )
       .eq("zona_id", zonaId)
       .order("fecha_pedido", { ascending: false });
@@ -53,6 +56,7 @@ export default function PedidosZona({
     void cargarPedidos();
   }, [zonaId]);
 
+  // filtros
   const filtrados = useMemo(() => {
     return pedidos
       .filter((p) =>
@@ -62,6 +66,7 @@ export default function PedidosZona({
       .filter((p) => (mostrarCompletados ? true : p.estado !== "completado"));
   }, [pedidos, q, estadoFiltro, mostrarCompletados]);
 
+  // acciones
   async function eliminarPedido(id: string) {
     if (!confirm("¿Eliminar este pedido?")) return;
     const { error } = await supabase.from("pedidos").delete().eq("id", id);
@@ -84,7 +89,7 @@ export default function PedidosZona({
         fecha_pedido: new Date().toISOString().slice(0, 10),
         fecha_entrega: pedido.fecha_entrega,
         solicitante: pedido.solicitante,
-        estado: "enviado", // ✅ ahora empieza como enviado
+        estado: "enviado",
         total_bultos: pedido.total_bultos,
         total_kg: pedido.total_kg,
       })
@@ -144,66 +149,54 @@ export default function PedidosZona({
 
   return (
     <main className="space-y-6 p-4">
-      {/* Encabezado */}
-      <header className="space-y-1">
+      <header className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Pedidos – {nombre}</h2>
-        <p className="text-gray-500 text-sm">
-          Aquí puedes gestionar los pedidos de la planta {nombre}.
-        </p>
+        <button
+          onClick={() =>
+            router.push(
+              `/pedidos/nuevo?zonaId=${zonaId}&zonaNombre=${encodeURIComponent(
+                nombre
+              )}`
+            )
+          }
+          className="flex items-center gap-1 rounded bg-blue-600 text-white px-3 py-1 text-sm hover:bg-blue-700"
+        >
+          ➕ Nuevo pedido
+        </button>
       </header>
 
-      {/* Filtros y botón */}
-      <div className="border rounded-lg bg-gray-50 p-4 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex flex-wrap gap-3 items-center">
-            {/* Input búsqueda */}
-            <div className="relative">
-              <span className="absolute left-2 top-2 text-gray-400">🔍</span>
-              <input
-                type="text"
-                placeholder="Buscar por solicitante…"
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                className="pl-7 rounded-lg border px-3 py-1 text-sm"
-              />
-            </div>
-
-            {/* Select estado */}
-            <select
-              className="rounded-lg border px-3 py-1 text-sm"
-              value={estadoFiltro}
-              onChange={(e) => setEstadoFiltro(e.target.value as any)}
-            >
-              <option value="">Todos</option>
-              <option value="enviado">Enviado</option>
-              <option value="recibido">Recibido</option>
-              <option value="completado">Completado</option>
-            </select>
-
-            {/* Checkbox completados */}
-            <label className="flex items-center gap-1 text-sm">
-              <input
-                type="checkbox"
-                checked={mostrarCompletados}
-                onChange={(e) => setMostrarCompletados(e.target.checked)}
-              />
-              Mostrar completados
-            </label>
-          </div>
-
-          {/* Botón nuevo pedido */}
-          <button
-            onClick={() => router.push("/pedidos/nuevo")}
-            className="flex items-center gap-1 rounded bg-blue-600 text-white px-3 py-1 text-sm hover:bg-blue-700"
-          >
-            ➕ Nuevo pedido
-          </button>
-        </div>
+      {/* filtros */}
+      <div className="flex flex-wrap gap-3 items-center">
+        <input
+          type="text"
+          placeholder="Buscar por solicitante…"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          className="rounded-lg border px-2 py-1 text-sm"
+        />
+        <select
+          className="rounded-lg border px-2 py-1 text-sm"
+          value={estadoFiltro}
+          onChange={(e) => setEstadoFiltro(e.target.value as any)}
+        >
+          <option value="">Todos</option>
+          <option value="enviado">Enviado</option>
+          <option value="recibido">Recibido</option>
+          <option value="completado">Completado</option>
+        </select>
+        <label className="flex items-center gap-1 text-sm">
+          <input
+            type="checkbox"
+            checked={mostrarCompletados}
+            onChange={(e) => setMostrarCompletados(e.target.checked)}
+          />
+          Mostrar completados
+        </label>
       </div>
 
-      {/* Tabla o estado vacío */}
+      {/* tabla */}
       {loading ? (
-        <p className="text-gray-500">Cargando pedidos…</p>
+        <p className="text-gray-500">Cargando…</p>
       ) : filtrados.length ? (
         <div className="overflow-x-auto rounded-xl border bg-white shadow-sm">
           <table className="min-w-full text-sm text-center">
@@ -227,7 +220,8 @@ export default function PedidosZona({
                   <td className="p-2">{p.solicitante ?? "—"}</td>
                   <td className="p-2">{badgeEstado(p.estado)}</td>
                   <td className="p-2">
-                    {fmtNum(p.total_bultos ?? 0)} b / {fmtNum(p.total_kg ?? 0)} kg
+                    {fmtNum(p.total_bultos ?? 0)} b / {fmtNum(p.total_kg ?? 0)}{" "}
+                    kg
                   </td>
                   <td className="p-2 space-x-2">
                     <button
@@ -269,18 +263,7 @@ export default function PedidosZona({
           </table>
         </div>
       ) : (
-        <div className="text-center text-gray-500 p-10">
-          <p className="text-lg mb-2">📄 No hay pedidos registrados</p>
-          <p className="text-sm mb-4">
-            Comienza creando un nuevo pedido para esta planta.
-          </p>
-          <button
-            onClick={() => router.push("/pedidos/nuevo")}
-            className="rounded bg-blue-600 text-white px-4 py-2 text-sm hover:bg-blue-700"
-          >
-            ➕ Crear pedido
-          </button>
-        </div>
+        <p className="text-gray-500">No hay pedidos en esta planta.</p>
       )}
     </main>
   );

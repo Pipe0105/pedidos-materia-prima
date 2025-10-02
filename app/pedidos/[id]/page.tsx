@@ -14,6 +14,7 @@ type Pedido = {
   total_bultos?: number | null;
   total_kg?: number | null;
   notas?: string | null;
+  zona_id?: string | null;
 };
 
 export default function PedidoEditor({ params }: { params: { id: string } }) {
@@ -30,7 +31,7 @@ export default function PedidoEditor({ params }: { params: { id: string } }) {
       const { data, error } = await supabase
         .from("pedidos")
         .select(
-          "id, fecha_pedido, fecha_entrega, solicitante, estado, total_bultos, total_kg, notas"
+          "id, fecha_pedido, fecha_entrega, solicitante, estado, total_bultos, total_kg, notas, zona_id, zonas(nombre)"
         )
         .eq("id", pedidoId)
         .single();
@@ -38,7 +39,10 @@ export default function PedidoEditor({ params }: { params: { id: string } }) {
       if (error) {
         notify("Error cargando pedido: " + error.message, "error");
       } else {
-        setPedido(data);
+        setPedido({
+          ...data,
+          zona_id: data.zona_id,
+        });
       }
       setLoading(false);
     };
@@ -105,7 +109,9 @@ export default function PedidoEditor({ params }: { params: { id: string } }) {
       <header className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Editar pedido</h1>
-          <p className="text-gray-500 text-sm">Modifica los datos y guarda los cambios.</p>
+          <p className="text-gray-500 text-sm">
+            Modifica los datos del pedido y guarda los cambios.
+          </p>
         </div>
         <div>{badgeEstado(pedido.estado)}</div>
       </header>
