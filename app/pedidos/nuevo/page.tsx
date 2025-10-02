@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toastprovider";
 import MaterialPicker from "@/components/MaterialPicker";
 
-type Item = {
+type PedidoItem = {
   material_id: string;
   nombre: string;
   bultos: number;
@@ -24,17 +24,23 @@ export default function NuevoPedidoPage() {
   const [solicitante, setSolicitante] = useState("");
   const [fechaEntrega, setFechaEntrega] = useState("");
   const [notas, setNotas] = useState("");
-  const [items, setItems] = useState<Item[]>([]);
+  const [items, setItems] = useState<PedidoItem[]>([]);
   const [saving, setSaving] = useState(false);
 
-  function agregarItem(mat: { id: string; nombre: string; presentacion_kg_por_bulto: number }) {
-    const nuevo: Item = {
-      material_id: mat.id,
-      nombre: mat.nombre,
-      bultos: 1,
-      kg: mat.presentacion_kg_por_bulto,
-    };
-    setItems((prev) => [...prev, nuevo]);
+  function agregarMaterial(
+    id: string,
+    meta?: { nombre: string; presentacion_kg_por_bulto: number }
+  ) {
+    if (!meta) return;
+    setItems((prev) => [
+      ...prev,
+      {
+        material_id: id,
+        nombre: meta.nombre,
+        bultos: 1,
+        kg: meta.presentacion_kg_por_bulto,
+      },
+    ]);
   }
 
   async function guardarPedido() {
@@ -49,19 +55,24 @@ export default function NuevoPedidoPage() {
 
     setSaving(true);
 
+    // Crear pedido
+    const hoy = new Date().toISOString().slice(0, 10);
+
     const { data: pedido, error } = await supabase
-      .from("pedidos")
-      .insert({
+    .from("pedidos")
+    .insert({
         zona_id: zonaId,
         solicitante,
+        fecha_pedido: hoy, // 👈 obligatorio
         fecha_entrega: fechaEntrega || null,
         notas,
         estado: "enviado",
         total_bultos: items.reduce((sum, it) => sum + it.bultos, 0),
         total_kg: items.reduce((sum, it) => sum + it.kg, 0),
-      })
-      .select("id")
-      .single();
+    })
+    .select("id")
+    .single();
+
 
     if (error) {
       setSaving(false);
@@ -69,14 +80,13 @@ export default function NuevoPedidoPage() {
       return;
     }
 
-    // insertar items
+    // Insertar ítems
     const pedidoId = pedido.id;
     const itemsToInsert = items.map((it) => ({
       pedido_id: pedidoId,
       material_id: it.material_id,
       bultos: it.bultos,
       kg: it.kg,
-      notas_item: null,
     }));
 
     const { error: errorItems } = await supabase
@@ -105,85 +115,79 @@ export default function NuevoPedidoPage() {
 
       {/* Datos básicos */}
       <div className="space-y-4 border rounded-lg p-4 bg-gray-50 shadow-sm">
-        <div className="flex flex-col gap-2">
+        <div>
           <label className="text-sm font-medium">Solicitante</label>
           <input
             type="text"
             value={solicitante}
             onChange={(e) => setSolicitante(e.target.value)}
-            className="rounded-lg border px-3 py-1 text-sm"
+            className="w-full rounded-lg border px-3 py-1 text-sm"
           />
         </div>
-        <div className="flex flex-col gap-2">
+        <div>
           <label className="text-sm font-medium">Fecha de entrega</label>
           <input
             type="date"
             value={fechaEntrega}
             onChange={(e) => setFechaEntrega(e.target.value)}
-            className="rounded-lg border px-3 py-1 text-sm"
+            className="w-full rounded-lg border px-3 py-1 text-sm"
           />
         </div>
-        <div className="flex flex-col gap-2">
+        <div>
           <label className="text-sm font-medium">Notas</label>
           <textarea
             value={notas}
             onChange={(e) => setNotas(e.target.value)}
-            className="rounded-lg border px-3 py-1 text-sm"
+            className="w-full rounded-lg border px-3 py-1 text-sm"
           />
         </div>
       </div>
 
-      {/* Agregar materiales */}
+      {/* Materiales */}
       <div className="space-y-4 border rounded-lg p-4 bg-white shadow-sm">
-        <h2 className="text-lg font-semibold">Agregar materiales</h2>
-        {zonaId && (
-          <MaterialPicker zonaId={zonaId} onSelect={(mat) => agregarItem(mat)} />
-        )}
-        <div>
-          {items.length === 0 ? (
-            <p className="text-gray-500 text-sm">No hay materiales agregados.</p>
-          ) : (
-            <table className="w-full text-sm mt-2">
-              <thead>
-                <tr className="bg-gray-50">
-                  <th className="p-2">Material</th>
-                  <th className="p-2">Bultos</th>
-                  <th className="p-2">Kg</th>
+        <h2 className="text-lg font-semibold">Materiales</h2>
+        {zonaId && <MaterialPicker zonaId={zonaId} onChange={agregarMaterial} />}
+        {items.length > 0 && (
+          <table className="w-full text-sm mt-3">
+            <thead>
+              <tr className="bg-gray-50">
+                <th className="p-2 text-left">Material</th>
+                <th className="p-2">Bultos</th>
+                <th className="p-2">Kg</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((it, idx) => (
+                <tr key={idx} className="border-b">
+                  <td className="p-2">{it.nombre}</td>
+                  <td className="p-2" align="center">
+                    <input
+                      type="number"
+                      value={it.bultos}
+                      min={1}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value) || 0;
+                        setItems((prev) =>
+                          prev.map((p, i) =>
+                            i === idx
+                              ? {
+                                  ...p,
+                                  bultos: val,
+                                  kg: val * (p.kg / p.bultos || 1),
+                                }
+                              : p
+                          )
+                        );
+                      }}
+                      className="w-20 border rounded px-2 py-1 text-sm"
+                    />
+                  </td>
+                  <td className="p-2" align="center">{it.kg}</td>
                 </tr>
-              </thead>
-              <tbody>
-                {items.map((it, idx) => (
-                  <tr key={idx} className="border-b">
-                    <td className="p-2">{it.nombre}</td>
-                    <td className="p-2">
-                      <input
-                        type="number"
-                        value={it.bultos}
-                        min={1}
-                        onChange={(e) => {
-                          const val = parseInt(e.target.value) || 0;
-                          setItems((prev) =>
-                            prev.map((p, i) =>
-                              i === idx
-                                ? {
-                                    ...p,
-                                    bultos: val,
-                                    kg: val * (p.kg / p.bultos || 1),
-                                  }
-                                : p
-                            )
-                          );
-                        }}
-                        className="w-20 border rounded px-2 py-1 text-sm"
-                      />
-                    </td>
-                    <td className="p-2">{it.kg}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
 
       {/* Botones */}
