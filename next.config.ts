@@ -1,17 +1,15 @@
-/** @type {import('next').NextConfig} */
-const nextConfig = {
+import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
   eslint: {
-    // 🚫 No bloqueará el build aunque haya errores de ESLint
-    ignoreDuringBuilds: true,
+    ignoreDuringBuilds: true, // 🚫 Ignora errores de lint
   },
   typescript: {
-    // 🚫 No bloqueará el build aunque haya errores de TypeScript
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: true,  // 🚫 Ignora errores de TS
   },
   experimental: {
-    // Opcional: asegura compatibilidad con Turbopack en Next 15
-    turbo: {},
+    turbo: {}, // Opcional: asegura compatibilidad con Turbopack
   },
 };
 
-module.exports = nextConfig;
+export default nextConfig;
