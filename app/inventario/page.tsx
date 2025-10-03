@@ -61,71 +61,112 @@ export default function InventarioPage() {
   const [rows, setRows] = useState<StockRow[]>([]);
   const [loading, setLoading] = useState(false);
 
-  async function cargar() {
-    if (!zonaId) return;
-    setLoading(true);
+async function cargar() {
+  if (!zonaId) return;
+  setLoading(true);
 
-    const { data: mats } = await supabase
-      .from("materiales")
-      .select("id,nombre,presentacion_kg_por_bulto,tasa_consumo_diaria_kg,unidad_medida")
-      .eq("zona_id", zonaId)
-      .eq("activo", true)
-      .order("nombre")
-      .returns<Material[]>();
+  // 1. Traer materiales
+  const { data: mats } = await supabase
+    .from("materiales")
+    .select("id,nombre,presentacion_kg_por_bulto,tasa_consumo_diaria_kg,unidad_medida")
+    .eq("zona_id", zonaId)
+    .eq("activo", true)
+    .order("nombre")
+    .returns<Material[]>();
 
-    const { data: movs } = await supabase
-      .from("movimientos_inventario")
-      .select("material_id,kg,tipo")
-      .eq("zona_id", zonaId);
+  // 2. Traer movimientos de inventario
+  const { data: movs, error: errMovs } = await supabase
+    .from("movimientos_inventario")
+    .select("material_id, bultos, kg, tipo")
+    .eq("zona_id", zonaId);
 
-    const stockKg: Record<string, number> = {};
-    (movs ?? []).forEach((mv) => {
-      const mult = mv.tipo === "entrada" ? 1 : mv.tipo === "salida" ? -1 : 1;
-      stockKg[mv.material_id] =
-        (stockKg[mv.material_id] ?? 0) + Number(mv.kg) * mult;
-    });
+  if (errMovs) {
+    console.error("Error cargando movimientos:", errMovs);
+    setLoading(false);
+    return;
+  }
 
-    const data: StockRow[] =
-      mats?.map((m) => {
-        const stKg = stockKg[m.id] ?? 0;
+  // 3. Acumuladores: uno en kg y otro en unidades
+  const stockKg: Record<string, number> = {};
+  const stockUnidades: Record<string, number> = {};
 
-        // stock en unidad original
-        let stock = stKg;
+  (movs ?? []).forEach((mv) => {
+    const mult = mv.tipo === "entrada" ? 1 : mv.tipo === "salida" ? -1 : 1;
+
+    // acumulador en kg (bultos/litros)
+    stockKg[mv.material_id] =
+      (stockKg[mv.material_id] ?? 0) + Number(mv.kg) * mult;
+
+    // acumulador en unidades
+    stockUnidades[mv.material_id] =
+      (stockUnidades[mv.material_id] ?? 0) + Number(mv.bultos) * mult;
+  });
+
+  // 4. Preparar filas para la tabla
+  const data: StockRow[] =
+    mats?.map((m) => {
+      let stKg = 0;
+      let stock = 0;
+
+      if (m.unidad_medida === "unidad") {
+        // ✅ materiales que se miden en unidades
+        stock = stockUnidades[m.id] ?? 0;
+        stKg = 0; // en inventario no tiene sentido en kg
+      } else {
+        // ✅ materiales que se miden en bultos/litros
+        stKg = stockKg[m.id] ?? 0;
+        stock = stKg;
         if (m.unidad_medida === "bulto" && m.presentacion_kg_por_bulto) {
           stock = stKg / m.presentacion_kg_por_bulto;
         }
+      }
 
-        // consumo diario en kg
-        let consumoKg: number | null = null;
-        if (m.unidad_medida === "bulto" && m.presentacion_kg_por_bulto) {
-          consumoKg = m.tasa_consumo_diaria_kg
-            ? m.tasa_consumo_diaria_kg * m.presentacion_kg_por_bulto
-            : null;
+      // consumo diario en kg (solo aplica para bultos/litros)
+      let consumo: number | null = null;
+
+      if (m.unidad_medida === "unidad") {
+        // 👈 en unidades usamos la tasa de consumo diaria directamente en unidades
+        consumo = m.tasa_consumo_diaria_kg ?? 1; // por ahora mínimo 1 si no está definido
+      } else if (m.unidad_medida === "bulto" && m.presentacion_kg_por_bulto) {
+        consumo = m.tasa_consumo_diaria_kg
+          ? m.tasa_consumo_diaria_kg * m.presentacion_kg_por_bulto
+          : null;
+      } else {
+        consumo = m.tasa_consumo_diaria_kg ?? null;
+      }
+
+      // cobertura y fecha hasta (solo aplica si hay consumo en kg)
+      let cobertura: number | null = null;
+      let hasta: string | null = null;
+
+      if (consumo && consumo > 0) {
+        if (m.unidad_medida === "unidad") {
+          // cobertura en unidades
+          cobertura = Math.floor(stock / consumo);
+          hasta = calcularFechaHasta(fecha, stock, consumo); // stock en unidades
         } else {
-          consumoKg = m.tasa_consumo_diaria_kg ?? null;
+          // cobertura en kg
+          cobertura = Math.floor(stKg / consumo);
+          hasta = calcularFechaHasta(fecha, stKg, consumo);
         }
+      }
+      return {
+        material_id: m.id,
+        nombre: m.nombre,
+        stock,
+        stockKg: stKg,
+        unidad: m.unidad_medida,
+        hasta,
+        cobertura,
+      };
+    }) ?? [];
 
-        // cobertura y fecha hasta
-        let cobertura: number | null = null;
-        if (consumoKg && consumoKg > 0) {
-          cobertura = Math.floor(stKg / consumoKg);
-        }
-        const hasta = calcularFechaHasta(fecha, stKg, consumoKg);
+  setRows(data);
+  setLoading(false);
+}
 
-        return {
-          material_id: m.id,
-          nombre: m.nombre,
-          stock,
-          stockKg: stKg,
-          unidad: m.unidad_medida,
-          hasta,
-          cobertura,
-        };
-      }) ?? [];
 
-    setRows(data);
-    setLoading(false);
-  }
+  
 
 useEffect(() => {
   async function cargarZonas() {
@@ -143,7 +184,14 @@ useEffect(() => {
     }
   }
   void cargarZonas();
+  
 }, []);
+useEffect(() => {
+  if (zonaId) {
+    void cargar();
+  }
+}, [zonaId, fecha]); 
+
 
 
 return (
@@ -206,24 +254,20 @@ return (
                 <tr key={r.material_id} className="border-b">
                   <td className="p-2">{r.nombre}</td>
                   <td className="p-2">{formatUnidad(r.stock, r.unidad)}</td>
-                  <td className="p-2">{fmtNum(r.stockKg)} kg</td>
+                  <td className="p-2">
+                    {r.unidad === "unidad" ? "—" : `${fmtNum(r.stockKg)} kg`}
+                  </td>
                   <td className="p-2">
                     {r.hasta ? new Date(r.hasta).toLocaleDateString("es-ES") : "—"}
                   </td>
                   <td className="p-2">
-                    {r.cobertura != null ? (
+                    {r.cobertura != null ? (  
                       r.cobertura >= 10 ? (
-                        <span className="px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-xs font-medium">
-                          Óptimo
-                        </span>
+                        <span className="text-green-600 text-lg">🟢</span>
                       ) : r.cobertura <= 3 ? (
-                        <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-medium">
-                          Crítico
-                        </span>
+                        <span className="text-red-600 text-lg">🔴</span>
                       ) : (
-                        <span className="px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 text-xs font-medium">
-                          Atención
-                        </span>
+                        <span className="text-yellow-600 text-lg">🟡</span>
                       )
                     ) : (
                       "—"

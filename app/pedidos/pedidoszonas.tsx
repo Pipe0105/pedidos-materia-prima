@@ -6,6 +6,14 @@ import { supabase } from "@/lib/supabase";
 import { fmtNum } from "@/lib/format";
 import { useToast } from "@/components/toastprovider";
 
+type PedidoItem = {
+  bultos: number;
+  kg: number | null;
+  materiales: {
+    unidad_medida: "bulto" | "unidad" | "litro";
+  }[]; // 👈 lo puse como array
+};
+
 type Pedido = {
   id: string;
   fecha_pedido: string;
@@ -15,7 +23,9 @@ type Pedido = {
   total_bultos?: number | null;
   total_kg?: number | null;
   notas?: string | null;
+  pedido_items?: PedidoItem[]; // 👈 agregado
 };
+
 
 export default function PedidosZona({
   zonaId,
@@ -38,11 +48,16 @@ export default function PedidosZona({
     setLoading(true);
     const { data, error } = await supabase
       .from("pedidos")
-      .select(
-        "id, fecha_pedido, fecha_entrega, solicitante, estado, total_bultos, total_kg, notas"
-      )
+      .select(`
+        id, fecha_pedido, fecha_entrega, solicitante, estado, total_bultos, total_kg, notas,
+        pedido_items (
+          bultos, kg,
+          materiales (unidad_medida)
+        )
+      `)
       .eq("zona_id", zonaId)
       .order("fecha_pedido", { ascending: false });
+
 
     if (error) {
       notify("Error cargando pedidos: " + error.message, "error");
@@ -119,18 +134,31 @@ async function marcarCompletado(id: string) {
     return;
   }
 
-  // 2. crear movimientos de inventario
-  const movimientos = (items ?? []).map((it: any) => ({
-    zona_id: zonaId, // 👈 asegúrate de tener zonaId en props/estado
-    material_id: it.material_id,
-    fecha: new Date().toISOString().slice(0, 10),
-    tipo: "entrada",
-    bultos: it.bultos,
-    kg: it.materiales?.unidad_medida === "bulto" ? it.kg : null,
-    ref_tipo: "pedido",
-    ref_id: id,
-    notas: "Ingreso por pedido completado",
-  }));
+  // 2. crear movimientos de inventario (ajustando kg según unidad)
+  const movimientos = (items ?? []).map((it: any) => {
+    const unidad = it.materiales?.unidad_medida;
+    let kg = 0;
+
+    if (unidad === "bulto") {
+      kg = it.kg ?? 0;
+    } else if (unidad === "litro") {
+      kg = it.bultos; // litros = kg (ajusta si es diferente)
+    } else {
+      kg = 0; // unidades
+    }
+
+    return {
+      zona_id: zonaId,
+      material_id: it.material_id,
+      fecha: new Date().toISOString().slice(0, 10),
+      tipo: "entrada",
+      bultos: it.bultos,
+      kg, // ✅ nunca null
+      ref_tipo: "pedido",
+      ref_id: id,
+      notas: "Ingreso por pedido completado",
+    };
+  });
 
   const { error: errMov } = await supabase
     .from("movimientos_inventario")
@@ -156,6 +184,7 @@ async function marcarCompletado(id: string) {
     notify("Pedido completado ✅, inventario actualizado", "success");
   }
 }
+
 
 
   function badgeEstado(estado: Pedido["estado"]) {
@@ -256,8 +285,21 @@ async function marcarCompletado(id: string) {
                   <td className="p-2">{p.solicitante ?? "—"}</td>
                   <td className="p-2">{badgeEstado(p.estado)}</td>
                   <td className="p-2">
-                    {fmtNum(p.total_bultos ?? 0)} b / {fmtNum(p.total_kg ?? 0)}{" "}
-                    kg
+                    {p.pedido_items && p.pedido_items.length > 0 ? (
+                      p.pedido_items.map((it: any) => {
+                        const unidad = it.materiales?.unidad_medida || "";
+                        if (unidad === "unidad") {
+                          return `${fmtNum(it.bultos)} unidades`;
+                        }
+                        if (unidad === "litro") {
+                          return `${fmtNum(it.bultos)} litros / ${fmtNum(it.kg ?? 0)} kg`;
+                        }
+                        // por defecto bulto
+                        return `${fmtNum(it.bultos)} bultos / ${fmtNum(it.kg ?? 0)} kg`;
+                      })
+                    ) : (
+                      "—"
+                    )}
                   </td>
                   <td className="p-2 space-x-2">
                     <button

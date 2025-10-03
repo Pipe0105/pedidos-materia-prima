@@ -32,26 +32,32 @@ export default function NuevoPedidoPage() {
   const [items, setItems] = useState<PedidoItem[]>([]);
   const [saving, setSaving] = useState(false);
 
-  function agregarMaterial(
-    id: string,
-    meta?: {
-      nombre: string;
-      presentacion_kg_por_bulto: number | null;
-      unidad_medida: "bulto" | "unidad" | "litro";
-    }
-  ) {
-    if (!meta) return;
-    setItems((prev) => [
-      ...prev,
-      {
-        material_id: id,
-        nombre: meta.nombre,
-        bultos: 1,
-        kg: meta.unidad_medida === "bulto" ? meta.presentacion_kg_por_bulto : null,
-        materiales: meta,
-      },
-    ]);
+function agregarMaterial(
+  id: string,
+  meta?: {
+    nombre: string;
+    presentacion_kg_por_bulto: number | null;
+    unidad_medida: "bulto" | "unidad" | "litro";
   }
+) {
+  if (!meta) return;
+  setItems((prev) => [
+    ...prev,
+    {
+      material_id: id,
+      nombre: meta.nombre,
+      bultos: 1,
+      kg:
+        meta.unidad_medida === "bulto"
+          ? meta.presentacion_kg_por_bulto || 0
+          : meta.unidad_medida === "litro"
+          ? 1 // si 1 litro = 1kg
+          : 0, // unidades
+      materiales: meta,
+    },
+  ]);
+}
+
 
   async function guardarPedido() {
     if (!zonaId) {
@@ -184,9 +190,10 @@ export default function NuevoPedidoPage() {
                                   bultos: val,
                                   kg:
                                     p.materiales?.unidad_medida === "bulto"
-                                      ? val *
-                                        (p.materiales?.presentacion_kg_por_bulto || 1)
-                                      : null,
+                                      ? val * (p.materiales?.presentacion_kg_por_bulto || 1)
+                                      : p.materiales?.unidad_medida === "litro"
+                                      ? val // litros = kg
+                                      : 0, // unidades
                                 }
                               : p
                           )
