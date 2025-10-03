@@ -11,10 +11,10 @@ import {
 } from "@/components/ui/tabs";
 import PedidosZona from "./pedidoszonas";
 
-type Zona = {
-  id: string;
-  nombre: string;
-};
+  type Zona = {
+    id: string;
+    nombre: string;
+  };
 
 export default function PedidosPage() {
   const router = useRouter();

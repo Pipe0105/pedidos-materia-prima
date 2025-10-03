@@ -4,12 +4,6 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import ZoneSelector from "@/components/ZonaSelector";
 import { fmtNum } from "@/lib/format";
-import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
-} from "@/components/ui/tabs";
 
 type Zona = {
   id: string;
@@ -157,52 +151,38 @@ return (
 <header>
   <h1 className="text-2xl font-semibold mb-4">Inventario</h1>
 
-<Tabs value={zonaId} onValueChange={setZonaId} className="w-full">
-  {/* ✅ Tabs estilo pill */}
-  <TabsList className="flex space-x-2 mb-4">
-    {zonas.map((zona) => (
-      <TabsTrigger
-        key={zona.id}
-        value={zona.id}
-        className="px-6 py-2 text-sm font-medium rounded-full
-                         data-[state=active]:bg-blue-600 
-                         data-[state=active]:text-white 
-                         data-[state=inactive]:bg-gray-200 
-                         data-[state=inactive]:text-gray-700"
+  {/* Tabs de zonas */}
+  <div className="flex gap-2 bg-gray-100 rounded-full p-1 w-fit mb-4">
+    {zonas.map((z) => (
+      <button
+        key={z.id}
+        onClick={() => setZonaId(z.id)}
+        className={`px-4 py-1 rounded-full text-sm font-medium transition-colors ${
+          zonaId === z.id
+            ? "bg-blue-600 text-white"
+            : "text-gray-700 hover:bg-gray-200"
+        }`}
       >
-        {zona.nombre}
-      </TabsTrigger>
+        {z.nombre}
+      </button>
     ))}
-  </TabsList>
+  </div>
 
-  {zonas.map((zona) => (
-    <TabsContent key={zona.id} value={zona.id}>
-      {/* Fecha + refrescar */}
-      <div className="flex items-center gap-3 mb-4">
-        <input
-          type="date"
-          className="rounded-lg border px-2 py-1 text-sm"
-          value={fecha}
-          onChange={(e) => setFecha(e.target.value)}
-        />
-        <button
-          onClick={cargar}
-          className="rounded-lg border px-3 py-1 text-sm hover:bg-gray-100"
-        >
-          Refrescar
-        </button>
-      </div>
-
-      {/* 👇 tu tabla inventario tal cual */}
-      <div className="overflow-x-auto rounded-xl border bg-white shadow-sm">
-        <table className="min-w-full text-sm text-center">
-          {/* ...thead y tbody que ya tienes */}
-        </table>
-      </div>
-    </TabsContent>
-  ))}
-</Tabs>
-
+  {/* Fecha + refrescar */}
+  <div className="flex items-center gap-3">
+    <input
+      type="date"
+      className="rounded-lg border px-2 py-1 text-sm"
+      value={fecha}
+      onChange={(e) => setFecha(e.target.value)}
+    />
+    <button
+      onClick={cargar}
+      className="rounded-lg border px-3 py-1 text-sm hover:bg-gray-100"
+    >
+      Refrescar
+    </button>
+  </div>
 </header>
 
 

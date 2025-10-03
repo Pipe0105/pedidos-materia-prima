@@ -113,7 +113,7 @@ export default function NuevoPedidoPage() {
   return (
     <main className="mx-auto max-w-3xl space-y-6 p-6">
       <header>
-        <h1 className="text-2xl font-bold">➕ Nuevo pedido</h1>
+        <h1 className="text-2xl font-bold"> Nuevo pedido</h1>
         <p className="text-gray-500 text-sm">
           Estás creando un pedido para la planta{" "}
           <span className="font-semibold">{zonaNombre || "Desconocida"}</span>.
