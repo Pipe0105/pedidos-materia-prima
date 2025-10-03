@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { fmtNum } from "@/lib/format";
 import { useToast } from "@/components/toastprovider";
+import PedidoDetalle from "./pedidosdetalles";
+
 
 type PedidoItem = {
   bultos: number;
@@ -301,34 +303,30 @@ async function marcarCompletado(id: string) {
                       "—"
                     )}
                   </td>
-                  <td className="p-2 space-x-2">
-                    <button
-                      onClick={() => router.push(`/pedidos/${p.id}/ver`)}
-                      className="rounded-lg border px-2 py-1 text-xs hover:bg-gray-100"
-                    >
-                      Ver
-                    </button>
-                    <button
-                      onClick={() => router.push(`/pedidos/${p.id}`)}
-                      className="rounded-lg border px-2 py-1 text-xs hover:bg-gray-100"
-                    >
-                      Editar
-                    </button>
-                    <button
-                      onClick={() => eliminarPedido(p.id)}
-                      className="rounded-lg border px-2 py-1 text-xs text-rose-600 hover:bg-rose-50"
-                    >
-                      Eliminar
-                    </button>
-                    {p.estado !== "completado" && (
-                      <button
-                        onClick={() => marcarCompletado(p.id)}
-                        className="rounded-lg bg-green-600 text-white px-2 py-1 text-xs hover:bg-green-700"
-                      >
-                        Completar
-                      </button>
-                    )}
-                  </td>
+
+<td className="p-2 flex gap-2 justify-center">
+  {/* Ver formato con el modal PedidoDetalle */}
+  <PedidoDetalle pedido={p} zonaNombre={nombre} />
+
+  {/* Completar */}
+  {p.estado !== "completado" && (
+    <button
+      onClick={() => marcarCompletado(p.id)}
+      className="flex items-center gap-1 rounded bg-green-600 text-white px-3 py-1 text-sm hover:bg-green-700"
+    >
+      Completar
+    </button>
+  )}
+
+  {/* Eliminar */}
+  <button
+    onClick={() => eliminarPedido(p.id)}
+    className="flex items-center gap-1 rounded bg-red-600 text-white px-3 py-1 text-sm hover:bg-red-700"
+  >
+    Eliminar
+  </button>
+</td>
+
                 </tr>
               ))}
             </tbody>

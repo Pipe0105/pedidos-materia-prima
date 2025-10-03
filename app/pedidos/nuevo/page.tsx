@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toastprovider";
 import MaterialPicker from "@/components/MaterialPicker";
+import { DatePicker } from "@/components/ui/date-picker";
+
 
 type PedidoItem = {
   material_id: string;
@@ -27,10 +29,12 @@ export default function NuevoPedidoPage() {
   const zonaNombre = searchParams.get("zonaNombre");
 
   const [solicitante, setSolicitante] = useState("");
-  const [fechaEntrega, setFechaEntrega] = useState("");
+  const [fechaEntrega, setFechaEntrega] = useState<Date | undefined>(undefined);
   const [notas, setNotas] = useState("");
   const [items, setItems] = useState<PedidoItem[]>([]);
   const [saving, setSaving] = useState(false);
+
+  
 
 function agregarMaterial(
   id: string,
@@ -79,7 +83,7 @@ function agregarMaterial(
         zona_id: zonaId,
         solicitante,
         fecha_pedido: hoy,
-        fecha_entrega: fechaEntrega || null,
+        fecha_entrega: fechaEntrega ? fechaEntrega.toISOString().slice(0, 10) : null,
         notas,
         estado: "enviado",
         total_bultos: items.reduce((sum, it) => sum + it.bultos, 0),
@@ -112,7 +116,7 @@ function agregarMaterial(
       notify("Error agregando materiales: " + errorItems.message, "error");
     } else {
       notify("Pedido creado ✅", "success");
-      router.push(`/pedidos/${pedidoId}`);
+      router.push("/pedidos"); // 👈 redirige al listado principal
     }
   }
 
@@ -138,14 +142,10 @@ function agregarMaterial(
           />
         </div>
         <div>
-          <label className="text-sm font-medium">Fecha de entrega</label>
-          <input
-            type="date"
-            value={fechaEntrega}
-            onChange={(e) => setFechaEntrega(e.target.value)}
-            className="w-full rounded-lg border px-3 py-1 text-sm"
-          />
+          <label className="text-sm font-medium mr-5">Fecha de entrega</label>
+          <DatePicker value={fechaEntrega} onChange={setFechaEntrega} />
         </div>
+
         <div>
           <label className="text-sm font-medium">Notas</label>
           <textarea
@@ -170,42 +170,51 @@ function agregarMaterial(
                 <th className="p-2">Kg</th>
               </tr>
             </thead>
-            <tbody>
-              {items.map((it, idx) => (
-                <tr key={idx} className="border-b">
-                  <td className="p-2">{it.nombre}</td>
-                  <td className="p-2">{it.materiales?.unidad_medida}</td>
-                  <td className="p-2" align="center">
-                    <input
-                      type="number"
-                      value={it.bultos}
-                      min={1}
-                      onChange={(e) => {
-                        const val = parseInt(e.target.value) || 0;
-                        setItems((prev) =>
-                          prev.map((p, i) =>
-                            i === idx
-                              ? {
-                                  ...p,
-                                  bultos: val,
-                                  kg:
-                                    p.materiales?.unidad_medida === "bulto"
-                                      ? val * (p.materiales?.presentacion_kg_por_bulto || 1)
-                                      : p.materiales?.unidad_medida === "litro"
-                                      ? val // litros = kg
-                                      : 0, // unidades
-                                }
-                              : p
-                          )
-                        );
-                      }}
-                      className="w-20 border rounded px-2 py-1 text-sm"
-                    />
-                  </td>
-                  <td className="p-2" align="center">{it.kg ?? "—"}</td>
-                </tr>
-              ))}
-            </tbody>
+<tbody>
+  {items.map((it, idx) => (
+    <tr key={idx} className="border-b">
+      <td className="p-2">{it.nombre}</td>
+      <td className="p-2">{it.materiales?.unidad_medida}</td>
+      <td className="p-2" align="center">
+        <input
+          type="number"
+          value={it.bultos}
+          min={1}
+          onChange={(e) => {
+            const val = parseInt(e.target.value) || 0;
+            setItems((prev) =>
+              prev.map((p, i) =>
+                i === idx
+                  ? {
+                      ...p,
+                      bultos: val,
+                      kg:
+                        p.materiales?.unidad_medida === "bulto"
+                          ? val * (p.materiales?.presentacion_kg_por_bulto || 1)
+                          : null,
+                    }
+                  : p
+              )
+            );
+          }}
+          className="w-20 border rounded px-2 py-1 text-sm"
+        />
+      </td>
+      <td className="p-2" align="center">{it.kg ?? "—"}</td>
+      <td className="p-2" align="center">
+        <button
+          onClick={() =>
+            setItems((prev) => prev.filter((_, i) => i !== idx))
+          }
+          className="rounded bg-red-600 text-white px-2 py-1 text-xs hover:bg-red-700"
+        >
+          Eliminar
+        </button>
+      </td>
+    </tr>
+  ))}
+</tbody>
+
           </table>
         )}
       </div>
