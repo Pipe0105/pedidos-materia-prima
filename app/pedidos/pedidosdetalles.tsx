@@ -1,4 +1,6 @@
-import { useState } from "react";
+"use client";
+import { useState, useRef } from "react";
+import html2canvas from "html2canvas";
 
 export default function PedidoResumen({ pedido, zonaNombre }: { pedido: any; zonaNombre: string }) {
   const [open, setOpen] = useState(false);
@@ -7,12 +9,40 @@ export default function PedidoResumen({ pedido, zonaNombre }: { pedido: any; zon
     { nombre: "COMERCIALIZADORA", kilos: "" },
   ]);
 
+  const modalRef = useRef<HTMLDivElement>(null);
+
   const titulo =
     zonaNombre === "Desposte"
       ? "PEDIDO SALMUERA CARNES"
       : zonaNombre === "Desprese"
       ? "PEDIDO SALMUERA POLLO"
       : "PEDIDO PANIFICADORA";
+
+  // Descargar como PNG
+  const descargarPNG = async () => {
+    if (modalRef.current) {
+      const canvas = await html2canvas(modalRef.current);
+      const link = document.createElement("a");
+      link.download = `${titulo}.png`;
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+    }
+  };
+
+  // Descargar como CSV
+  const descargarCSV = () => {
+    const header = ["EMPRESA", "KILOS"];
+    const rows = empresas.map((e) => [e.nombre, e.kilos || "0"]);
+    const csvContent = [header, ...rows].map((r) => r.join(",")).join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `${titulo}.csv`);
+    link.click();
+  };
 
   return (
     <>
@@ -25,7 +55,10 @@ export default function PedidoResumen({ pedido, zonaNombre }: { pedido: any; zon
 
       {open && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40">
-          <div className="bg-white rounded-lg shadow-lg w-[500px] p-6 space-y-4">
+          <div
+            ref={modalRef}
+            className="bg-white rounded-lg shadow-lg w-[500px] p-6 space-y-4"
+          >
             <h2 className="text-xl font-bold text-center">{titulo}</h2>
 
             <table className="w-full border text-sm text-center">
@@ -59,18 +92,38 @@ export default function PedidoResumen({ pedido, zonaNombre }: { pedido: any; zon
               </tbody>
             </table>
 
-            <p className="text-right mt-4 font-semibold">
+            {/* Fecha de entrega */}
+            <p className="text-left mt-4 font-semibold">
               FECHA DE ENTREGA:{" "}
-              <span className="text-blue-700">
-                {new Date(pedido.fecha_entrega ?? "").toLocaleDateString("es-ES", {
-                  weekday: "long",
-                  day: "numeric",
-                  month: "long",
-                })}
+              <span className="text-lg font-semibold text-blue-700">
+                {(() => {
+                  const fecha = new Date(pedido.fecha_entrega ?? "").toLocaleDateString("es-ES", {
+                    weekday: "long",
+                    day: "numeric",
+                    month: "long",
+                  });
+                  return fecha.charAt(0).toUpperCase() + fecha.slice(1);
+                })()}
               </span>
             </p>
 
-            <div className="flex justify-end gap-2 mt-4">
+            {/* Botones */}
+            <div className="flex justify-between gap-2 mt-4">
+              <div className="flex gap-2">
+                <button
+                  onClick={descargarPNG}
+                  className="px-3 py-1 rounded border bg-green-600 text-white hover:bg-green-700"
+                >
+                  Descargar PNG
+                </button>
+                <button
+                  onClick={descargarCSV}
+                  className="px-3 py-1 rounded border bg-orange-600 text-white hover:bg-orange-700"
+                >
+                  Descargar CSV
+                </button>
+              </div>
+
               <button
                 onClick={() => setOpen(false)}
                 className="px-3 py-1 rounded border hover:bg-gray-100"

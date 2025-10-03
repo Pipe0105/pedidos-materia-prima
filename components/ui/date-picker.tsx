@@ -13,12 +13,20 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 
-export function DatePicker({ value, onChange }: { value: Date | undefined; onChange: (date: Date | undefined) => void }) {
+export function DatePicker({
+  value,
+  onChange,
+}: {
+  value: Date | undefined
+  onChange: (date: Date | undefined) => void
+}) {
+  const [open, setOpen] = React.useState(false)
+
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
-          variant={"outline"}
+          variant="outline"
           className={cn(
             "w-40 justify-start text-left font-normal",
             !value && "text-muted-foreground"
@@ -28,11 +36,15 @@ export function DatePicker({ value, onChange }: { value: Date | undefined; onCha
           {value ? format(value, "dd/MM/yyyy") : <span>Seleccionar fecha</span>}
         </Button>
       </PopoverTrigger>
+
       <PopoverContent className="w-auto p-0" align="start">
         <Calendar
           mode="single"
           selected={value}
-          onSelect={onChange}
+          onSelect={(date) => {
+            onChange(date)
+            setOpen(false) // 🔹 Cierra el popover al seleccionar fecha
+          }}
           initialFocus
         />
       </PopoverContent>
