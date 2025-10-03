@@ -4,6 +4,17 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import ZoneSelector from "@/components/ZonaSelector";
 import { fmtNum } from "@/lib/format";
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+} from "@/components/ui/tabs";
+
+type Zona = {
+  id: string;
+  nombre: string;
+};
 
 type Material = {
   id: string;
@@ -22,6 +33,8 @@ type StockRow = {
   hasta: string | null; // fecha estimada de agotamiento
   cobertura: number | null; // en días
 };
+
+
 
 // 👉 Singular/plural
 function formatUnidad(valor: number, unidad: "bulto" | "unidad" | "litro") {
@@ -47,8 +60,8 @@ function calcularFechaHasta(fechaBase: string, stockKg: number, consumoDiarioKg:
 
   return fecha.toISOString().slice(0, 10);
 }
-
 export default function InventarioPage() {
+  const [zonas, setZonas] = useState<Zona[]>([]);  // 👈 este faltaba
   const [zonaId, setZonaId] = useState("");
   const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 10));
   const [rows, setRows] = useState<StockRow[]>([]);
@@ -120,31 +133,79 @@ export default function InventarioPage() {
     setLoading(false);
   }
 
-  useEffect(() => {
-    if (zonaId) void cargar();
-  }, [zonaId, fecha]);
+useEffect(() => {
+  async function cargarZonas() {
+    const { data, error } = await supabase
+      .from("zonas")
+      .select("id, nombre")
+      .eq("activo", true)
+      .order("nombre");
 
-  return (
-    <main className="mx-auto max-w-7xl p-6 space-y-6">
-      <header className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Inventario</h1>
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-gray-600">Zona:</span>
-          <ZoneSelector value={zonaId} onChange={setZonaId} />
-          <input
-            type="date"
-            className="rounded-lg border px-2 py-1 text-sm"
-            value={fecha}
-            onChange={(e) => setFecha(e.target.value)}
-          />
-          <button
-            onClick={cargar}
-            className="rounded-lg border px-3 py-1 text-sm hover:bg-gray-100"
-          >
-            Refrescar
-          </button>
-        </div>
-      </header>
+    if (!error && data) {
+      setZonas(data);
+      if (data.length > 0 && !zonaId) {
+        setZonaId(data[0].id); // 👈 selecciona la primera zona por defecto
+      }
+    }
+  }
+  void cargarZonas();
+}, []);
+
+
+return (
+  <main className="mx-auto max-w-7xl p-6 space-y-6">
+<header>
+  <h1 className="text-2xl font-semibold mb-4">Inventario</h1>
+
+<Tabs value={zonaId} onValueChange={setZonaId} className="w-full">
+  {/* ✅ Tabs estilo pill */}
+  <TabsList className="flex space-x-2 mb-4">
+    {zonas.map((zona) => (
+      <TabsTrigger
+        key={zona.id}
+        value={zona.id}
+        className="px-6 py-2 text-sm font-medium rounded-full
+                         data-[state=active]:bg-blue-600 
+                         data-[state=active]:text-white 
+                         data-[state=inactive]:bg-gray-200 
+                         data-[state=inactive]:text-gray-700"
+      >
+        {zona.nombre}
+      </TabsTrigger>
+    ))}
+  </TabsList>
+
+  {zonas.map((zona) => (
+    <TabsContent key={zona.id} value={zona.id}>
+      {/* Fecha + refrescar */}
+      <div className="flex items-center gap-3 mb-4">
+        <input
+          type="date"
+          className="rounded-lg border px-2 py-1 text-sm"
+          value={fecha}
+          onChange={(e) => setFecha(e.target.value)}
+        />
+        <button
+          onClick={cargar}
+          className="rounded-lg border px-3 py-1 text-sm hover:bg-gray-100"
+        >
+          Refrescar
+        </button>
+      </div>
+
+      {/* 👇 tu tabla inventario tal cual */}
+      <div className="overflow-x-auto rounded-xl border bg-white shadow-sm">
+        <table className="min-w-full text-sm text-center">
+          {/* ...thead y tbody que ya tienes */}
+        </table>
+      </div>
+    </TabsContent>
+  ))}
+</Tabs>
+
+</header>
+
+
 
       {loading ? (
         <div className="text-sm text-gray-500">Cargando…</div>
