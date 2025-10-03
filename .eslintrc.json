@@ -1,13 +1,10 @@
 {
-  "extends": "next/core-web-vitals",
+  "root": true,
+  "extends": ["next/core-web-vitals"],
   "rules": {
-    // Permitir usar let aunque pueda ser const
-    "prefer-const": "off",
-
-    // Permitir usar any en TypeScript
     "@typescript-eslint/no-explicit-any": "off",
-
-    // Desactivar warning de dependencias en useEffect (a veces molesta en dev)
+    "@typescript-eslint/no-unused-vars": "off",
+    "prefer-const": "off",
     "react-hooks/exhaustive-deps": "off"
   }
 }
