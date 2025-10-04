@@ -38,14 +38,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   <Link href="/inventario" className="hover:underline">
                     Inventario
                   </Link>
-                  <Link href="/comparacion" className="hover:underline">
-                    Comparación
-                  </Link>
                   <Link href="/historial" className="hover:underline">
                     Historial
-                  </Link>
-                  <Link href="/consumos/manual" className="hover:underline">
-                    Consumo 
                   </Link>
                   <button
                     onClick={handleLogout}
