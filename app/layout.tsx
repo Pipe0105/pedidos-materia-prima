@@ -41,6 +41,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   <Link href="/historial" className="hover:underline">
                     Historial
                   </Link>
+                  <Link href="/control" className="hover:underline">
+                    Control
+                  </Link>
                   <button
                     onClick={handleLogout}
                     className="rounded bg-rose-600 text-white px-3 py-1 text-sm"
