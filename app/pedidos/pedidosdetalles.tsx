@@ -13,8 +13,8 @@ export default function PedidoResumen({
 }) {
   const [open, setOpen] = useState(false);
   const [empresas, setEmpresas] = useState([
-    { nombre: "MERCAMIO", kilos: "" },
-    { nombre: "COMERCIALIZADORA", kilos: "" },
+    { nombre: "MERCAMIO", bultos: 0, kilos: 0 },
+    { nombre: "COMERCIALIZADORA", bultos: 0, kilos: 0 },
   ]);
 
   const modalRef = useRef<HTMLDivElement>(null);
@@ -104,24 +104,46 @@ export default function PedidoResumen({
 
   return (
     <>
-      <button
-        onClick={() => setOpen(true)}
-        className="rounded bg-blue-600 text-white px-3 py-1 text-sm hover:bg-blue-700"
-      >
-        Ver formato
-      </button>
+    <button
+      onClick={() => {
+        // calcular reparto automático
+        const bultosTotales = pedido.total_bultos ?? 0;
+        const kilosTotales = pedido.total_kg ?? 0;
 
-      {open && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40">
+        // 60% para Mercamio, 40% para Comercializadora
+        const mercamioBultos = Math.round(bultosTotales * 0.6);
+        const comercialBultos = bultosTotales - mercamioBultos;
+
+        const mercamioKg = Math.round(kilosTotales * 0.6);
+        const comercialKg = kilosTotales - mercamioKg;
+
+        setEmpresas([
+          { nombre: "MERCAMIO", bultos: mercamioBultos, kilos: mercamioKg },
+          { nombre: "COMERCIALIZADORA", bultos: comercialBultos, kilos: comercialKg },
+        ]);
+
+        setOpen(true);
+      }}
+      className="rounded bg-blue-600 text-white px-3 py-1 text-sm hover:bg-blue-700"
+    >
+      Ver formato
+    </button>
+        {open && (
           <div
-            ref={modalRef}
-            className="bg-white rounded-lg shadow-lg w-[500px] p-6 space-y-4"
+            className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40"
+            onClick={() => setOpen(false)} // 👈 cierra al hacer clic fuera
           >
+            <div
+              ref={modalRef}
+              onClick={(e) => e.stopPropagation()} // 👈 evita cierre al hacer clic dentro
+              className="bg-white rounded-lg shadow-lg w-[500px] p-6 space-y-4"
+            >
             <h2 className="text-xl font-bold text-center">{titulo}</h2>
 
             <table className="w-full border border-black text-sm text-center border-collapse">
               <thead>
                 <tr className="bg-gray-100">
+                  <th className="border-black p-2" >CANTIDAD BULTOS</th>
                   <th className="border border-black p-2">CANTIDAD KILOS</th>
                   <th className="border border-black p-2">EMPRESA</th>
                 </tr>
@@ -129,22 +151,17 @@ export default function PedidoResumen({
               <tbody>
                 {empresas.map((e, idx) => (
                   <tr key={idx}>
-                    <td className="border border-black p-2">
-                      <input
-                        type="text"
-                        value={e.kilos}
-                        onChange={(ev) =>
-                          setEmpresas((prev) =>
-                            prev.map((p, i) =>
-                              i === idx ? { ...p, kilos: ev.target.value } : p
-                            )
-                          )
-                        }
-                        className="w-full border rounded px-2 py-1 text-sm export-hidden"
-                        placeholder="0 KG"
-                      />
-                      <span className="export-only hidden">{e.kilos || "0 KG"}</span>
+                    {/* Nueva columna: BULTOS */}
+                    <td className="border border-black p-2 font text-base">
+                      <span>{e.bultos || "0 BULTOS"}</span>
                     </td>
+
+                    {/* Columna existente: KILOS */}
+                    <td className="border border-black p-2 text-base">
+                      <span >{e.kilos || "0 KG"}</span>
+                    </td>
+
+                    {/* EMPRESA */}
                     <td className="border border-black p-2 font-semibold">
                       {e.nombre}
                     </td>
@@ -157,9 +174,11 @@ export default function PedidoResumen({
               FECHA DE ENTREGA:{" "}
               <span className="text-lg font-semibold text-blue-700">
                 {(() => {
-                  const fecha = new Date(
-                    pedido.fecha_entrega ?? ""
-                  ).toLocaleDateString("es-ES", {
+                  const fechaBase = new Date(pedido.fecha_entrega ?? "");
+
+                  fechaBase.setDate(fechaBase.getDate() + 1);
+                  
+                  const fecha = fechaBase.toLocaleDateString("es-ES", {
                     weekday: "long",
                     day: "numeric",
                     month: "long",
