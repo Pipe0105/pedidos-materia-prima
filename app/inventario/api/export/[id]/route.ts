@@ -1,13 +1,34 @@
 // app/api/export/[id]/route.ts
 import PDFDocument from "pdfkit";
+import { z } from "zod";
 import { supabase } from "@/lib/supabase";
+
+const paramsSchema = z.object({
+  id: z
+  .string().nonempty("el Id es obligatorio")
+  .min(1, "El Id es obligatorio")
+  .max(128, "El id es demasiado largo")
+  .refine((value) => /^[a-zA-Z0-9_-]+$/.test(value), {
+    message: "El id contiene caracteres no permitidos",
+  }),
+});
 
 // Fuerza runtime Node (pdfkit necesita Node, no Edge)
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(_: Request, { params }: { params: { id: string } }) {
-  const pedidoId = params.id;
+  const parsedParams = paramsSchema.safeParse(params);
+  if (!parsedParams.success) {
+    return new Response(
+      JSON.stringify({error: "parametros invalidos", issues: parsedParams.error.flatten()}),
+      {status: 400,
+        headers: {"content-type": "application/json"},
+      },
+    );
+  }
+
+  const pedidoId = parsedParams.data.id
 
   // 1) Pedido
   const { data: pedido, error: errPedido } = await supabase

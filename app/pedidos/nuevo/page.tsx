@@ -164,11 +164,17 @@ function agregarMaterial(
         {items.length > 0 && (
           <table className="w-full text-sm mt-3">
             <thead>
-              <tr className="bg-gray-50">
-                <th className="p-2 text-left">Material</th>
+                <tr>
+                <th className="p-2">Material</th>
                 <th className="p-2">Unidad</th>
                 <th className="p-2">Cantidad</th>
-                <th className="p-2">Kg</th>
+
+                {/* Mostrar encabezado “Kg” solo si hay items que lo usan */}
+                {items.some(
+                  (it) =>
+                    it.materiales?.unidad_medida === "bulto" ||
+                    it.materiales?.unidad_medida === "litro"
+                ) && <th className="p-2">Kg</th>}
               </tr>
             </thead>
 <tbody>
@@ -201,7 +207,13 @@ function agregarMaterial(
           className="w-20 border rounded px-2 py-1 text-sm"
         />
       </td>
-      <td className="p-2" align="center">{it.kg ?? "—"}</td>
+    {/* Mostrar Kg solo si la unidad es bulto o litro */}
+      {(it.materiales?.unidad_medida === "bulto" || it.materiales?.unidad_medida === "litro") && (
+        <td className="p-2 text-center">{it.kg ?? "—"}</td>
+      )}
+
+      <td className="p-2 text-center">
+</td>
       <td className="p-2" align="center">
         <button
           onClick={() =>

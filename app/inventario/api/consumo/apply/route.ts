@@ -1,6 +1,22 @@
 // app/api/consumo/apply/route.ts
 import { NextResponse } from "next/server";
+import { date, z } from "zod";
 import { supabase } from "@/lib/supabase";
+import { error } from "console";
+
+const querySchema = z.object({
+  zonaId: z
+    .string().nonempty("Falta el ID de la zona")
+    .min(1, "Falta Id de la zona")
+    .max(128, "El Id es demasiado largo")
+    .refine((value) => /^[a-zA-Z0-9_-]+$/.test(value),{
+      message: "El Id de la zona contiene caracteres no permitidos",
+    }),
+  date: z
+    .string()
+    .regex(/^(\d{4})-(\d{2})-(\d{2})$/, "Formato de fecha inválido (YYYY-MM-DD)")
+    .optional(),
+});
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -8,12 +24,20 @@ export const dynamic = "force-dynamic";
 // POST /api/consumo/apply?zonaId=...&date=YYYY-MM-DD
 export async function POST(req: Request) {
   const { searchParams } = new URL(req.url);
-  const zonaId = searchParams.get("zonaId");
-  const date = searchParams.get("date") ?? new Date().toISOString().slice(0, 10);
+  const parseResult = querySchema.safeParse({
+    zonaId: searchParams.get("ZonaId"),
+    date: searchParams.get("date") ?? undefined,
+  });
 
-  if (!zonaId) {
-    return NextResponse.json({ error: "Falta zonaId" }, { status: 400 });
+  if (!parseResult.success) {
+    return NextResponse.json(
+      {error: "Parametros invalidos", issues: parseResult.error.flatten() },
+      {status: 400},
+    );
   }
+
+  const zonaId = parseResult.data.zonaId;
+  const date = parseResult.data.date ?? new Date().toISOString().slice(0, 10);
 
   // 1) Traer materiales con consumo > 0 en la zona
   const { data: mats, error: errMats } = await supabase

@@ -1,5 +1,29 @@
 import { NextResponse } from "next/server";
+import { email, z } from "zod";
 import { supabaseAdmin } from "@/lib/supabasedamin";
+
+const createUserSchema = z.object({
+  email: z.string().nonempty("El campo es obligatorio"),
+  password: z
+    .string().nonempty("El campo es obligatorio")
+    .min(6, "La contraseña debe tener al menos 6 caracteres")
+    .max(128, "la contraseña es demasiado larga"),
+});
+
+const updatePasswordSchema = z.object({
+  id: z
+  .string().nonempty("El id es obligatorio")
+  .min(1, "El id no puede estar vacio")
+  .max(128, "la contraseña es demasiado larga"),
+  password: createUserSchema.shape.password,
+});
+
+function validationErrorResponse(error: z.ZodError) {
+  return NextResponse.json(
+    {error: "datos invalidos", issues: error.flatten()},
+    {status: 400},
+  );
+}
 
 export async function GET() {
   const { data, error } = await supabaseAdmin.auth.admin.listUsers();
@@ -8,7 +32,19 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const { email, password } = await req.json();
+  let payload: unknown;
+  try {
+    payload = await req.json();
+  }catch{
+    return NextResponse.json({error: "JSON invalido"}, {status: 400});
+  }
+
+  const parsed = createUserSchema.safeParse(payload);
+  if (!parsed.success) {
+    return validationErrorResponse(parsed.error);
+  }
+
+  const {email, password } = parsed.data;
   const { data, error } = await supabaseAdmin.auth.admin.createUser({
     email,
     password,
@@ -19,7 +55,19 @@ export async function POST(req: Request) {
 }
 
 export async function PUT(req: Request) {
-  const { id, password } = await req.json();
+  let payload: unknown;
+  try {
+    payload = await req.json();
+  } catch {
+    return NextResponse.json({error: "JSON Invalido"}, {status:400});
+  }
+
+  const parsed = updatePasswordSchema.safeParse(payload);
+  if (!parsed.success) {
+    return validationErrorResponse(parsed.error);
+  }
+
+  const { id, password} = parsed.data;
   const { data, error } = await supabaseAdmin.auth.admin.updateUserById(id, {
     password,
   });
