@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import {
   Tabs,
@@ -18,8 +18,11 @@ import PedidosZona from "./pedidoszonas";
 
 export default function PedidosPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [zonas, setZonas] = useState<Zona[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedZona, setSelectedZona] = useState<string | undefined>(undefined);
+  const zonaFromQuery = searchParams.get("zonaId");
 
   useEffect(() => {
     const fetchZonas = async () => {
@@ -40,6 +43,7 @@ export default function PedidosPage() {
           });
 
         setZonas(zonasOrdenadas);
+        setSelectedZona((prev) => prev ?? zonasOrdenadas[0]?.id);
       }
       setLoading(false);
     };
@@ -47,7 +51,23 @@ export default function PedidosPage() {
     fetchZonas();
   }, []);
 
+  useEffect(() => {
+    if (zonas.length === 0) return;
+    const zonaValida = zonas.find((z) => z.id === zonaFromQuery)?.id || zonas[0].id;
+    if (zonaValida !== selectedZona) {
+      setSelectedZona(zonaValida);
+    }
+  }, [zonas, zonaFromQuery, selectedZona]);
+
   if (loading) {
+    return <div className="p-6">Cargando zonas...</div>;
+  }
+
+  if (zonas.length === 0) {
+    return <div className="p-6">No hay zonas disponibles.</div>;
+  }
+
+  if (!selectedZona) {
     return <div className="p-6">Cargando zonas...</div>;
   }
 
@@ -58,7 +78,14 @@ export default function PedidosPage() {
 
       </header>
 
-      <Tabs defaultValue={zonas[0]?.id} className="w-full">
+      <Tabs
+        value={selectedZona}
+        onValueChange={(value) => {
+          setSelectedZona(value);
+          router.replace(`/pedidos?zonaId=${value}`);
+        }}
+        className="w-full"
+      >
         {/* ✅ Tabs estilo pill */}
         <TabsList className="flex space-x-2">
           {zonas.map((zona) => (

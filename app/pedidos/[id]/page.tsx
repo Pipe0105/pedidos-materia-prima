@@ -99,7 +99,11 @@ export default function PedidoEditor() {
     if (error) notify("Error al guardar: " + error.message, "error");
     else {
       notify("Pedido actualizado ✅", "success");
-      router.push("/");
+      router.push(
+        pedido.zona_id
+          ? `/pedidos?tab=${encodeURIComponent(pedido.zona_id)}`
+          :"/pedidos"
+      );
     }
   }
 
@@ -233,7 +237,13 @@ export default function PedidoEditor() {
           {saving ? "Guardando..." : "Guardar cambios"}
         </button>
         <button
-          onClick={() => router.push("/pedidos")}
+          onClick={() =>
+            router.push(
+              pedido?.zona_id
+                ? `/pedidos?tab=${encodeURIComponent(pedido.zona_id)}`
+                : "/pedidos"
+            )
+          }
           className="rounded border px-4 py-2 text-sm hover:bg-gray-100"
         >
           Cancelar

@@ -116,7 +116,8 @@ function agregarMaterial(
       notify("Error agregando materiales: " + errorItems.message, "error");
     } else {
       notify("Pedido creado ✅", "success");
-      router.push("/pedidos"); // 👈 redirige al listado principal
+      const redirecUrl = zonaId ? `/pedidos?zonaId=${zonaId}`: "/pedidos";
+      router.push(redirecUrl);   
     }
   }
 
@@ -229,7 +230,11 @@ function agregarMaterial(
           {saving ? "Guardando..." : "Guardar pedido"}
         </button>
         <button
-          onClick={() => router.push("/pedidos")}
+          onClick={() => 
+            router.push(
+              zonaId ? `/pedidos?tab=${encodeURIComponent(zonaId)}` : "/pedidos"
+            )
+          }
           className="rounded border px-4 py-2 text-sm hover:bg-gray-100"
         >
           Cancelar

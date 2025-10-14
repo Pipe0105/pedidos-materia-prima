@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import ZoneSelector from "@/components/ZonaSelector";
 import { fmtNum } from "@/lib/format";
+import { ref } from "pdfkit";
 
 type Zona = {
   id: string;
@@ -135,6 +136,50 @@ export default function InventarioPage() {
       setShowConsumo(false);
       await cargar();
     }
+  }
+
+  // deshacer consumo manual
+
+  async function deshacerConsumoManual() {
+
+    const { id } = materialConsumo;
+
+    // busca el ultimo movimiento
+    const { data: mov, error: errMov } = await supabase
+    .from("movimientos_inventario")
+    .select("id, bultos, kg, fecha")
+    .eq("zona_id", zonaId)
+    .eq("material_id", id)
+    .eq("ref_tipo", "consumo_manual")
+    .order("fecha", { ascending: false })
+    .limit(1)
+    .single();
+
+    if (errMov || !mov) {
+      alert("No hay consumos manuales para deshacer");
+      return;
+    }
+
+    // movimiento inverso
+
+    const { error: errUndo } = await supabase.from("movimientos_inventario").insert({
+      zona_id: zonaId,
+      material_id: id,
+      fecha: new Date().toISOString().slice(0, 10),
+      tipo: "entrada",
+      bultos: mov.bultos,
+      kg: mov.kg,
+      ref_tipo: "deshacer consumo",
+      notas: "deshacer consumo manual anterior"
+    });
+
+    if (errUndo) {
+      alert("error al dehacer consumo" + errUndo.message);
+    }else{
+      alert("consumo manual deshecho correctamente");
+      await cargar();
+    }
+
   }
 
   // 🟦 Editar inventario (igual que tenías)
@@ -426,9 +471,9 @@ const movimiento =
                       onClick={() =>
                         verHistorial(r.material_id, r.nombre)
                       }
-                      className="flex items-center gap-1 rounded-full bg-blue-50 text-blue-600 px-3 py-1 text-sm font-medium hover:bg-blue-100"
+                      className="flex items-center gap-1 rounded-full bg-blue-50 text-gray-700 px-3 py-1 text-sm font-medium hover:bg-gray-200"
                     >
-                      📜 Historial
+                       Historial
                     </button>
                     <button
                       onClick={() =>
@@ -436,7 +481,7 @@ const movimiento =
                       }
                       className="flex items-center gap-1 rounded-full bg-gray-100 text-gray-700 px-3 py-1 text-sm font-medium hover:bg-gray-200"
                     >
-                      ✏️ Editar
+                       Editar
                     </button>
                     <button
                       onClick={() =>
@@ -446,10 +491,20 @@ const movimiento =
                           r.unidad
                         )
                       }
-                      className="flex items-center gap-1 rounded-full bg-green-50 text-green-600 px-3 py-1 text-sm font-medium hover:bg-green-100"
+                      className="flex items-center gap-1 rounded-full bg-green-50 text-green-700 px-3 py-1 text-sm font-medium hover:bg-gray-200"
                     >
-                      ✅ Consumo manual
+                       Consumo manual
                     </button>
+                    <button
+                    onClick={() => {
+                      if (confirm("¿Seguro que deseas deshacer el último consumo manual?")) {
+                        deshacerConsumoManual();
+                      }
+                    }}
+                    className="flex items-center gap-1 rounded-full bg-gray-100 text-red-700 px-3 py-1 text-sm font-medium hover:bg-gray-200"
+                  >
+                    Deshacer Consumo
+                  </button>
                   </td>
                 </tr>
               ))}
@@ -592,6 +647,7 @@ const movimiento =
               >
                 Guardar
               </button>
+
             </div>
           </div>
         </div>

@@ -17,7 +17,7 @@ type Pedido = {
   total_kg?: number | null;
   notas?: string | null;
   zona_id: string;
-  zonas?: { nombre: string }[];
+  zonas?: { nombre: string } | {nombre: string}[] | null;
 };
 
 type PedidoItem = {
@@ -120,10 +120,14 @@ export default function PedidoEditor() {
   if (!pedido)
     return <div className="p-6 text-red-600">Pedido no encontrado.</div>;
 
+  const zonaNombre = Array.isArray(pedido.zonas)
+    ? pedido.zonas[0]?.nombre
+    : pedido.zonas?.nombre;
+
   return (
     <main className="mx-auto max-w-4xl space-y-6 p-6">
       <header className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Pedido</h1>
+        <h1 className="text-2xl font-bold">Pedido {zonaNombre ? `  ${zonaNombre}` : "" } </h1>
       </header>
 
       {/* Materiales */}
