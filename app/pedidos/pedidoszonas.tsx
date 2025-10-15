@@ -24,11 +24,13 @@ import {
 } from "@/components/ui/table";
 import PedidoDetalle from "./pedidosdetalles";
 
+type unidadMedida = "bulto" | "unidad" | "litro" | null;
+
 type PedidoItem = {
   bultos: number;
   kg: number | null;
   materiales: {
-    unidad_medida: "bulto" | "unidad" | "litro" | null;
+    unidad_medida: unidadMedida;
   } | null;
 };
 
@@ -53,6 +55,23 @@ type MovimientoItem = {
     unidad_medida: "bulto" | "unidad" | "litro" | null;
     presentacion_kg_por_bulto: number | null;
   } | null;
+};
+
+type PedidoItemFromSupabase = Omit<PedidoItem, "materiales"> & {
+  materiales: { unidad_medida: unidadMedida }[] | null;
+};
+
+type PedidoFromSupabase = Omit<Pedido, "pedido_items"> & {
+  pedido_items: PedidoItemFromSupabase[] | null;
+};
+
+type MovimientoItemFromSupabase = Omit<MovimientoItem, "materiales"> & {
+  materiales:
+    | {
+        unidad_medida: unidadMedida;
+        presentacion_kg_por_bulto: number | null;
+      }[]
+    | null;
 };
 
 const ESTADO_LABELS: Record<Pedido["estado"], string> = {
@@ -112,7 +131,23 @@ export default function PedidosZona({
     if (error) {
       notify("Error cargando pedidos: " + error.message, "error");
     } else {
-      setPedidos(data ?? []);
+      const normalizados = (data ?? []).map((pedido) => {
+        const pedidoTyped = pedido as PedidoFromSupabase;
+        const items = pedidoTyped.pedido_items?.map((item) => {
+          const itemTyped = item as PedidoItemFromSupabase;
+          return {
+            ...itemTyped,
+            materiales: itemTyped.materiales?.[0] ?? null,
+          } satisfies PedidoItem;
+        });
+
+        return {
+          ...pedidoTyped,
+          pedido_items: items,
+        } satisfies Pedido;
+      });
+
+      setPedidos(normalizados);
     }
     setLoading(false);
   }, [zonaId, notify]);
@@ -155,7 +190,13 @@ export default function PedidosZona({
       return;
     }
 
-    const typedItems = (items ?? []) as MovimientoItem[];
+    const typedItems = (items ?? []).map((item) => {
+      const itemTyped = item as MovimientoItemFromSupabase;
+      return {
+        ...itemTyped,
+        materiales: itemTyped.materiales?.[0] ?? null,
+      } satisfies MovimientoItem;
+    });
     const movimientos = typedItems.map((item) => {
       const unidad = item.materiales?.unidad_medida;
       const presentacion = item.materiales?.presentacion_kg_por_bulto;

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -12,6 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import PedidosZona from "./pedidoszonas";
+import { Button } from "@/components/ui/button";
 
 type Zona = {
   id: string;
@@ -68,7 +70,7 @@ export default function PedidosPage() {
     <main className="mx-auto max-w-6xl space-y-6 p-6">
       <Card>
         <CardHeader>
-          <CardTitle>Gestión de pedidos</CardTitle>
+          <CardTitle>Pedidos de materia prima</CardTitle>
           <CardDescription>{mensaje}</CardDescription>
         </CardHeader>
       </Card>
@@ -85,62 +87,89 @@ export default function PedidosPage() {
     );
   }
 
+  const zonaActual =
+    zonas.find((zona) => zona.id === selectedZona) ?? zonas[0] ?? null;
+
   return (
     <main className="mx-auto max-w-6xl space-y-8 p-6">
-      <section className="space-y-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">
-            Gestión de pedidos
-          </h1>
-          <p className="text-muted-foreground mt-2 max-w-2xl text-sm">
-            Explora los pedidos por planta con un flujo guiado. Selecciona una
-            zona, revisa el resumen paso a paso y completa o crea solicitudes en
-            segundos.
+      <header className="flex flex-col gap-6 rounded-2xl border bg-gradient-to-r from-[#1F4F9C] via-[#1F4F9C]/90 to-[#29B8A6]/80 p-6 text-white shadow-lg lg:flex-row lg:items-center lg:justify-between">
+        <div className="space-y-2">
+          <p className="text-sm uppercase tracking-[0.2em] text-white/80">
+            Pedidos
+          </p>
+          <h1 className="text-3xl font-semibold">Pedidos de materia prima</h1>
+          <p className="text-sm text-white/80">
+            {zonaActual
+              ? `Trabajando en la planta ${zonaActual.nombre}`
+              : "Selecciona una planta para comenzar"}
+          </p>
+          <p className="text-xs text-white/60">
+            {zonas.length
+              ? `${zonas.length} ${
+                  zonas.length === 1 ? "planta" : "plantas"
+                } activas`
+              : "Sin plantas activas"}
           </p>
         </div>
-        <Card>
-          <CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <CardTitle>Plantas operativas</CardTitle>
-              <CardDescription>
-                Cambia de pestaña para ver los pedidos correspondientes a cada
-                zona.
-              </CardDescription>
-            </div>
-            <div className="text-sm font-medium text-muted-foreground">
-              {zonas.length} zonas activas
-            </div>
-          </CardHeader>
-          <CardContent>
-            <Tabs
-              value={selectedZona}
-              onValueChange={(value) => {
-                setSelectedZona(value);
-                router.replace(`/pedidos?zonaId=${value}`);
-              }}
-              className="w-full"
-            >
-              <TabsList className="flex flex-wrap gap-2">
-                {zonas.map((zona) => (
-                  <TabsTrigger
-                    key={zona.id}
-                    value={zona.id}
-                    className="rounded-full px-6 py-2 text-sm font-medium
-                               data-[state=active]:bg-primary data-[state=active]:text-primary-foreground
-                               data-[state=inactive]:bg-muted data-[state=inactive]:text-foreground/70"
-                  >
-                    {zona.nombre}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-              {zonas.map((zona) => (
-                <TabsContent key={zona.id} value={zona.id} className="pt-6">
-                  <PedidosZona zonaId={zona.id} nombre={zona.nombre} />
-                </TabsContent>
-              ))}
-            </Tabs>
-          </CardContent>
-        </Card>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            asChild
+            variant="secondary"
+            className="bg-white/15 text-white hover:bg-white/25"
+          >
+            <Link href="/">Volver al panel</Link>
+          </Button>
+          <Button
+            asChild
+            variant="secondary"
+            className="bg-white/15 text-white hover:bg-white/25"
+          >
+            <Link href="/historial">Ver historial</Link>
+          </Button>
+          <Button
+            variant="secondary"
+            className="border-none bg-white text-primary hover:bg-white/90 hover:text-primary"
+            onClick={() => {
+              if (!zonaActual) return;
+              router.push(
+                `/pedidos/nuevo?zonaId=${
+                  zonaActual.id
+                }&zonaNombre=${encodeURIComponent(zonaActual.nombre)}`
+              );
+            }}
+            disabled={!zonaActual}
+          >
+            Crear nuevo pedido
+          </Button>
+        </div>
+      </header>
+
+      <section className="space-y-6">
+        <Tabs
+          value={selectedZona}
+          onValueChange={(value) => {
+            setSelectedZona(value);
+            router.replace(`/pedidos?zonaId=${value}`);
+          }}
+          className="space-y-6"
+        >
+          <TabsList className="flex w-full flex-wrap gap-2 rounded-2xl bg-muted/80 p-2 shadow-inner">
+            {zonas.map((zona) => (
+              <TabsTrigger
+                key={zona.id}
+                value={zona.id}
+                className="rounded-xl px-6 py-3 text-sm font-semibold transition-all data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow data-[state=inactive]:text-foreground/70"
+              >
+                {zona.nombre}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+          {zonas.map((zona) => (
+            <TabsContent key={zona.id} value={zona.id} className="space-y-6">
+              <PedidosZona zonaId={zona.id} nombre={zona.nombre} />
+            </TabsContent>
+          ))}
+        </Tabs>
       </section>
     </main>
   );
