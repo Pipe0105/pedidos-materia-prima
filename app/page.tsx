@@ -99,7 +99,7 @@ const COBERTURA_TONO: Record<
   },
   seguro: {
     badge: "bg-[#29B8A6]/15 text-[#0F766E] border border-[#29B8A6]/20",
-    accent: "bg-[#29B8A6]",
+    accent: "bg-[#29B8A]",
     label: "Seguro",
     description: `Más de ${COBERTURA_ALERTA} días cubiertos`,
   },
@@ -388,10 +388,7 @@ export default function HomePage() {
                   <h2 className="flex items-center gap-2 text-lg font-semibold">
                     <AlertTriangle className="h-5 w-5" /> Alertas de inventario
                   </h2>
-                  <p className="text-xs text-white/80">
-                    Prioriza los materiales críticos para evitar quiebres de
-                    stock.
-                  </p>
+                  <p className="text-xs text-white/80"></p>
                 </header>
                 <div className="max-h-80 divide-y divide-slate-100 overflow-y-auto">
                   {["critico", "alerta", "seguro"].map((nivel) => {
@@ -428,20 +425,27 @@ export default function HomePage() {
                             </div>
                             {items.length ? (
                               <ul className="space-y-2">
-                                {items.map((m) => (
-                                  <li
-                                    key={m.id}
-                                    className="rounded-xl border border-slate-100 bg-white/90 px-3 py-2 shadow-sm transition hover:border-[#1F4F9C]/30 hover:shadow-md"
-                                  >
-                                    <p className="text-sm font-medium text-slate-900">
-                                      {m.nombre}
-                                    </p>
-                                    <p className="text-xs text-slate-500">
-                                      {fmtNum(m.cobertura ?? 0)} días de
-                                      cobertura
-                                    </p>
-                                  </li>
-                                ))}
+                                {items.map((m) => {
+                                  const diasCobertura =
+                                    m.cobertura != null
+                                      ? Math.max(0, Math.floor(m.cobertura))
+                                      : 0;
+
+                                  return (
+                                    <li
+                                      key={m.id}
+                                      className="rounded-xl border border-slate-100 bg-white/90 px-3 py-2 shadow-sm transition hover:border-[#1F4F9C]/30 hover:shadow-md"
+                                    >
+                                      <p className="text-sm font-medium text-slate-900">
+                                        {m.nombre}
+                                      </p>
+                                      <p className="text-xs text-slate-500">
+                                        {fmtNum(diasCobertura)} días de
+                                        cobertura
+                                      </p>
+                                    </li>
+                                  );
+                                })}
                               </ul>
                             ) : (
                               <p className="flex items-center gap-2 rounded-lg bg-slate-50 p-3 text-xs text-slate-500">
@@ -590,7 +594,18 @@ export default function HomePage() {
                       )}
                     >
                       <TableCell>{fmtDate(p.fecha_pedido)}</TableCell>
-                      <TableCell>{fmtDate(p.fecha_entrega)}</TableCell>
+                      <TableCell>
+                        {p.fecha_entrega
+                          ? fmtDate(
+                              new Date(
+                                new Date(p.fecha_entrega).setDate(
+                                  new Date(p.fecha_entrega).getDate() + 1
+                                )
+                              )
+                            )
+                          : "Sin fecha"}
+                      </TableCell>
+
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <span className="flex h-9 w-9 items-center justify-center rounded-full border border-[#1F4F9C]/40 bg-[#1F4F9C]/10 text-sm font-semibold text-[#1F4F9C]">
