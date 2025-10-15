@@ -256,19 +256,19 @@ export default function HomePage() {
       key: "critico",
       value: criticos.length,
       tone: COBERTURA_TONO.critico,
-      gradient: "from-[#FF6B5A]/90 via-[#FF6B5A]/60 to-[#FF6B5A]/30",
+      gradient: "from-[#FF6B5A]/90 via-[#FF6B5A]/70 to-[#FF6B5A]/60",
     },
     {
       key: "alerta",
       value: alerta.length,
       tone: COBERTURA_TONO.alerta,
-      gradient: "from-[#F5A623]/90 via-[#F5A623]/60 to-[#F5A623]/30",
+      gradient: "from-[#F5A623]/90 via-[#F5A623]/70 to-[#F5A623]/60",
     },
     {
       key: "seguro",
       value: seguros.length,
       tone: COBERTURA_TONO.seguro,
-      gradient: "from-[#29B8A6]/80 via-[#29B8A6]/50 to-[#1F4F9C]/30",
+      gradient: "from-[#29B8A6]/90 via-[#29B8A6]/70 to-[#1F4F9C]/35",
     },
   ];
 
