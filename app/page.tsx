@@ -1,11 +1,36 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
-import { fmtNum } from "@/lib/format";
-import { Bell, AlertTriangle } from "lucide-react";
+import Link from "next/link";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Bell, AlertTriangle, CheckCircle2, Info, Loader2 } from "lucide-react";
+
+import { Skeleton } from "@/components/Skeleton";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { useToast } from "@/components/toastprovider";
+import { fmtDate, fmtNum } from "@/lib/format";
+import { supabase } from "@/lib/supabase";
+import {
+  COBERTURA_ALERTA,
+  COBERTURA_CRITICA,
+  agruparCobertura,
+  obtenerNivelCobertura,
+} from "@/lib/cobertura";
+import { cn } from "@/lib/utils";
 
 type Pedido = {
   id: string;
@@ -23,55 +48,129 @@ type MaterialRow = {
   cobertura: number | null;
 };
 
+type CoberturaPayload = {
+  id: string;
+  nombre: string;
+  cobertura: number | null;
+};
+
+type MaterialConConsumo = {
+  id: string;
+  nombre: string;
+  tasa_consumo_diaria_kg: number | null;
+  unidad_medida: "bulto" | "unidad" | "litro" | null;
+  presentacion_kg_por_bulto: number | null;
+};
+
+const ESTADO_LABEL: Record<Pedido["estado"], string> = {
+  borrador: "Borrador",
+  enviado: "Enviado",
+  recibido: "Recibido",
+  completado: "Completado",
+};
+
+const ESTADO_TONO: Record<Pedido["estado"], string> = {
+  borrador: "bg-slate-100 text-slate-700 border border-slate-200",
+  enviado: "bg-[#1F4F9C]/10 text-[#1F4F9C] border border-[#1F4F9C]/20",
+  recibido: "bg-[#29B8A6]/10 text-[#1F4F9C] border border-[#29B8A6]/20",
+  completado: "bg-[#29B8A6] text-white border border-[#29B8A6]",
+};
+
+const COBERTURA_TONO: Record<
+  NonNullable<ReturnType<typeof obtenerNivelCobertura>>,
+  {
+    badge: string;
+    accent: string;
+    label: string;
+    description: string;
+  }
+> = {
+  critico: {
+    badge: "bg-[#FF6B5A]/15 text-[#FF6B5A] border border-[#FF6B5A]/30",
+    accent: "bg-[#FF6B5A]",
+    label: "Crítico",
+    description: `Menos de ${COBERTURA_CRITICA} días de stock`,
+  },
+  alerta: {
+    badge: "bg-[#F5A623]/15 text-[#B45309] border border-[#F5A623]/30",
+    accent: "bg-[#F5A623]",
+    label: "En alerta",
+    description: `Entre ${COBERTURA_CRITICA} y ${COBERTURA_ALERTA} días`,
+  },
+  seguro: {
+    badge: "bg-[#29B8A6]/15 text-[#0F766E] border border-[#29B8A6]/20",
+    accent: "bg-[#29B8A6]",
+    label: "Seguro",
+    description: `Más de ${COBERTURA_ALERTA} días cubiertos`,
+  },
+};
+
+function initialsFromName(nombre: string | null) {
+  if (!nombre) return "—";
+  const parts = nombre.trim().split(/\s+/).slice(0, 2);
+  return parts.map((p) => p[0]?.toUpperCase() ?? "").join("") || "—";
+}
+
 export default function HomePage() {
-  const router = useRouter();
   const { notify } = useToast();
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
-  const [materialesCriticos, setMaterialesCriticos] = useState<MaterialRow[]>([]);
+  const [materialesConCobertura, setMaterialesConCobertura] = useState<
+    MaterialRow[]
+  >([]);
   const [notifOpen, setNotifOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [pedidosLoading, setPedidosLoading] = useState(true);
+  const [inventarioLoading, setInventarioLoading] = useState(true);
+  const [pedidosError, setPedidosError] = useState<string | null>(null);
+  const [inventarioError, setInventarioError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const prevCriticos = useRef(0);
+  const hasMounted = useRef(false);
 
-  async function cargarPedidos() {
-    const { data } = await supabase
+  const cargarPedidos = useCallback(async () => {
+    setPedidosLoading(true);
+    setPedidosError(null);
+    const { data, error } = await supabase
       .from("pedidos")
-      .select("id,fecha_pedido,fecha_entrega,solicitante,estado,total_bultos,total_kg")
+      .select(
+        "id,fecha_pedido,fecha_entrega,solicitante,estado,total_bultos,total_kg"
+      )
       .eq("estado", "enviado")
       .order("fecha_pedido", { ascending: false })
       .limit(5);
-    setPedidos(data ?? []);
-  }
-
-  async function marcarCompletado(id: string) {
-    const { error } = await supabase
-      .from("pedidos")
-      .update({ estado: "completado" })
-      .eq("id", id);
 
     if (error) {
-      notify("Error al completar pedido: " + error.message, "error");
-    } else {
-      // en el home solo muestras pedidos pendientes (estado=enviado)
-      setPedidos((prev) => prev.filter((p) => p.id !== id));
-      notify("Pedido completado ✅", "success");
+      setPedidosError(error.message);
+      notify("No pudimos cargar los pedidos pendientes", "error");
     }
-  }
 
-  async function cargarInventario() {
-    const { data: mats } = await supabase
-      .from("materiales")
-      .select("id,nombre,tasa_consumo_diaria_kg");
+    setPedidos(data ?? []);
+    setPedidosLoading(false);
+  }, [notify]);
 
-    const { data: movs } = await supabase
-      .from("movimientos_inventario")
-      .select("material_id,kg,tipo");
+  const cargarInventario = useCallback(async () => {
+    setInventarioLoading(true);
+    setInventarioError(null);
+
+    const [{ data: mats, error: matsError }, { data: movs, error: movsError }] =
+      await Promise.all([
+        supabase.from("materiales").select("id,nombre,tasa_consumo_diaria_kg"),
+        supabase.from("movimientos_inventario").select("material_id,kg,tipo"),
+      ]);
+
+    if (matsError || movsError) {
+      setInventarioError(matsError?.message ?? movsError?.message ?? null);
+      notify("No pudimos calcular la cobertura de inventario", "error");
+    }
 
     const stock: Record<string, number> = {};
     (movs ?? []).forEach((mv) => {
       const mult = mv.tipo === "entrada" ? 1 : mv.tipo === "salida" ? -1 : 1;
-      stock[mv.material_id] = (stock[mv.material_id] ?? 0) + Number(mv.kg) * mult;
+      stock[mv.material_id] =
+        (stock[mv.material_id] ?? 0) + Number(mv.kg) * mult;
     });
 
-    const criticos =
+    const materiales =
       mats
         ?.map((m) => {
           const s = stock[m.id] ?? 0;
@@ -83,141 +182,433 @@ export default function HomePage() {
         })
         .filter((m) => m.cobertura !== null) ?? [];
 
-    setMaterialesCriticos(criticos);
+    setMaterialesConCobertura(materiales);
+    setInventarioLoading(false);
+  }, [notify]);
+
+  const cargarDashboard = useCallback(async () => {
+    await Promise.all([cargarPedidos(), cargarInventario()]);
+    setLastUpdated(new Date());
+  }, [cargarPedidos, cargarInventario]);
+
+  async function marcarCompletado(id: string) {
+    const pedido = pedidos.find((p) => p.id === id);
+    const confirmMessage = pedido
+      ? `¿Confirmas completar el pedido #${pedido.id}?`
+      : "¿Confirmas completar este pedido?";
+    if (typeof window !== "undefined" && !window.confirm(confirmMessage)) {
+      return;
+    }
+    const { error } = await supabase
+      .from("pedidos")
+      .update({ estado: "completado" })
+      .eq("id", id);
+
+    if (error) {
+      notify("Error al completar pedido: " + error.message, "error");
+    } else {
+      // en el home solo muestras pedidos pendientes (estado=enviado)
+      setPedidos((prev) => prev.filter((p) => p.id !== id));
+      await cargarPedidos();
+      setLastUpdated(new Date());
+      notify("Pedido completado ✅", "success");
+    }
   }
 
   useEffect(() => {
-    void cargarPedidos();
-    void cargarInventario();
-  }, []);
+    void cargarDashboard();
+  }, [cargarDashboard]);
+
+  const resumenCobertura = useMemo(() => {
+    return agruparCobertura<CoberturaPayload>(
+      materialesConCobertura.map((m) => ({
+        cobertura: m.cobertura,
+        payload: m,
+      }))
+    );
+  }, [materialesConCobertura]);
 
   useEffect(() => {
-    if (materialesCriticos.length > 0) {
-      setUnreadCount(materialesCriticos.filter((m) => m.cobertura! < 4).length);
-    }
-  }, [materialesCriticos]);
+    const totalAlertas =
+      resumenCobertura.critico.length + resumenCobertura.alerta.length;
+    setUnreadCount(totalAlertas);
 
-  const criticos = materialesCriticos.filter((m) => m.cobertura! < 2).length;
-  const alerta = materialesCriticos.filter((m) => m.cobertura! >= 2 && m.cobertura! < 4).length;
-  const seguros = materialesCriticos.filter((m) => m.cobertura! >= 4).length;
+    const nuevosCriticos = resumenCobertura.critico.length;
+    if (hasMounted.current && nuevosCriticos > prevCriticos.current) {
+      notify("Se detectaron nuevos materiales en nivel crítico", "warning");
+    }
+    prevCriticos.current = nuevosCriticos;
+    hasMounted.current = true;
+  }, [notify, resumenCobertura.alerta.length, resumenCobertura.critico.length]);
+
+  const criticos = resumenCobertura.critico
+    .map((item) => item.payload)
+    .filter(Boolean) as MaterialRow[];
+  const alerta = resumenCobertura.alerta
+    .map((item) => item.payload)
+    .filter(Boolean) as MaterialRow[];
+  const seguros = resumenCobertura.seguro
+    .map((item) => item.payload)
+    .filter(Boolean) as MaterialRow[];
+
+  const resumenCards = [
+    {
+      key: "critico",
+      value: criticos.length,
+      tone: COBERTURA_TONO.critico,
+      gradient: "from-[#FF6B5A]/90 via-[#FF6B5A]/60 to-[#FF6B5A]/30",
+    },
+    {
+      key: "alerta",
+      value: alerta.length,
+      tone: COBERTURA_TONO.alerta,
+      gradient: "from-[#F5A623]/90 via-[#F5A623]/60 to-[#F5A623]/30",
+    },
+    {
+      key: "seguro",
+      value: seguros.length,
+      tone: COBERTURA_TONO.seguro,
+      gradient: "from-[#29B8A6]/80 via-[#29B8A6]/50 to-[#1F4F9C]/30",
+    },
+  ];
 
   return (
-    <main className="mx-auto max-w-5xl space-y-10 p-6">
+    <main className="mx-auto max-w-6xl space-y-8 p-6">
       {/* Header con campana */}
-      <header className="flex items-center justify-between bg-white rounded-xl border p-4 shadow-sm">
-        <h1 className="text-2xl font-bold">📊 Dashboard</h1>
-        <div className="relative">
-          <button
-            onClick={() => {
-              setNotifOpen(!notifOpen);
-              if (!notifOpen) setUnreadCount(0);
-            }}
-            className="relative rounded-full p-2 hover:bg-gray-100"
+      <header className="flex flex-col gap-6 rounded-2xl border bg-gradient-to-r from-[#1F4F9C] via-[#1F4F9C]/90 to-[#29B8A6]/80 p-6 text-white shadow-lg lg:flex-row lg:items-center lg:justify-between">
+        <div className="space-y-2">
+          <p className="text-sm uppercase tracking-[0.2em] text-white/80">
+            Mercamio
+          </p>
+          <h1 className="text-3xl font-semibold">Panel de abastecimiento</h1>
+          <p className="text-sm text-white/80">
+            {lastUpdated
+              ? `Actualizado ${fmtDate(
+                  lastUpdated
+                )} a las ${lastUpdated.toLocaleTimeString("es-CO", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}`
+              : "Sincronizando datos..."}
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Button
+            asChild
+            variant="secondary"
+            className="bg-white/15 text-white hover:bg-white/25"
           >
-            <Bell className="h-6 w-6 text-gray-700" />
+            <Link href="/inventario">Ver inventario</Link>
+          </Button>
+          <Button
+            onClick={() => void cargarDashboard()}
+            className="bg-white text-[#1F4F9C] hover:bg-white/90"
+            disabled={pedidosLoading || inventarioLoading}
+          >
+            {pedidosLoading || inventarioLoading ? (
+              <span className="flex items-center gap-2 text-[#1F4F9C]">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Actualizando
+              </span>
+            ) : (
+              "Actualizar"
+            )}
+          </Button>
+          <div className="relative">
+            <Button
+              variant="secondary"
+              size="icon"
+              className={cn(
+                "rounded-full border border-white/40 bg-white/20 text-white transition",
+                (unreadCount > 0 || resumenCobertura.critico.length > 0) &&
+                  "border-[#FF6B5A]/70 bg-[#FF6B5A]/15 text-white animate-[pulse_2s_ease-in-out_infinite]"
+              )}
+              onClick={() => {
+                setNotifOpen((prev) => !prev);
+                if (!notifOpen) setUnreadCount(0);
+              }}
+              aria-label="Abrir panel de alertas"
+            >
+              <Bell className="h-5 w-5" />
+            </Button>
             {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs px-1 rounded-full">
+              <span className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full bg-[#FF6B5A] text-xs font-semibold text-white shadow-lg">
                 {unreadCount}
               </span>
             )}
-          </button>
-          {notifOpen && (
-            <div className="absolute right-0 mt-2 w-80 bg-white border rounded-xl shadow-lg text-sm z-10">
-              <div className="px-4 py-2 border-b font-semibold text-gray-700 flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 text-red-600" />
-                Materiales críticos
-              </div>
-              <ul className="max-h-64 overflow-y-auto">
-                {materialesCriticos.filter((m) => m.cobertura! < 4).map((m) => (
-                  <li
-                    key={m.id}
-                    className="flex items-center justify-between gap-2 p-3 hover:bg-gray-50"
+            <span className="sr-only" aria-live="polite">
+              {unreadCount} alertas sin leer
+            </span>
+            {notifOpen && (
+              <aside className="absolute right-0 top-14 z-20 w-96 overflow-hidden rounded-2xl border border-[#1F4F9C]/20 bg-white text-slate-900 shadow-2xl">
+                <header className="bg-gradient-to-r from-[#1F4F9C]/90 to-[#5169a5] p-4 text-white">
+                  <h2 className="flex items-center gap-2 text-lg font-semibold">
+                    <AlertTriangle className="h-5 w-5" /> Alertas de inventario
+                  </h2>
+                  <p className="text-xs text-white/80">
+                    Prioriza los materiales críticos para evitar quiebres de
+                    stock.
+                  </p>
+                </header>
+                <div className="max-h-80 divide-y divide-slate-100 overflow-y-auto">
+                  {["critico", "alerta", "seguro"].map((nivel) => {
+                    const items =
+                      nivel === "critico"
+                        ? criticos
+                        : nivel === "alerta"
+                        ? alerta
+                        : seguros;
+                    const tone =
+                      COBERTURA_TONO[nivel as keyof typeof COBERTURA_TONO];
+                    return (
+                      <section key={nivel} className="bg-white/80">
+                        <div className="flex items-start gap-3 p-4">
+                          <span
+                            className={cn(
+                              "mt-1 h-10 w-1 rounded-full",
+                              tone.accent
+                            )}
+                          />
+                          <div className="flex-1 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <p className="text-sm font-semibold">
+                                {tone.label}
+                              </p>
+                              <span
+                                className={cn(
+                                  "rounded-full px-2 py-0.5 text-xs font-medium shadow-sm",
+                                  tone.badge
+                                )}
+                              >
+                                {tone.description}
+                              </span>
+                            </div>
+                            {items.length ? (
+                              <ul className="space-y-2">
+                                {items.map((m) => (
+                                  <li
+                                    key={m.id}
+                                    className="rounded-xl border border-slate-100 bg-white/90 px-3 py-2 shadow-sm transition hover:border-[#1F4F9C]/30 hover:shadow-md"
+                                  >
+                                    <p className="text-sm font-medium text-slate-900">
+                                      {m.nombre}
+                                    </p>
+                                    <p className="text-xs text-slate-500">
+                                      {fmtNum(m.cobertura ?? 0)} días de
+                                      cobertura
+                                    </p>
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <p className="flex items-center gap-2 rounded-lg bg-slate-50 p-3 text-xs text-slate-500">
+                                <CheckCircle2 className="h-4 w-4" /> Sin
+                                elementos en esta categoría
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </section>
+                    );
+                  })}
+                </div>
+                <footer className="flex items-center gap-2 border-t border-slate-100 bg-slate-50/80 p-4">
+                  <Button
+                    asChild
+                    className="flex-1 bg-[#FF6B5A] text-white hover:bg-[#FF6B5A]/90"
                   >
-                    <span className="font-medium">{m.nombre}</span>
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                        m.cobertura! < 2
-                          ? "bg-red-100 text-red-700"
-                          : "bg-yellow-100 text-yellow-700"
-                      }`}
-                    >
-                      {fmtNum(m.cobertura ?? 0)} días
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+                    <Link href="/pedidos/nuevo">Crear pedido urgente</Link>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="text-slate-600 hover:text-slate-900"
+                    onClick={() => setNotifOpen(false)}
+                  >
+                    Cerrar
+                  </Button>
+                </footer>
+              </aside>
+            )}
+          </div>
         </div>
       </header>
 
       {/* Resumen global de inventario */}
-      <section>
-        <h2 className="text-lg font-semibold mb-2">Resumen de inventario</h2>
-        <div className="grid grid-cols-3 gap-4">
-          <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-center">
-            <p className="text-lg font-bold text-red-700">{criticos}</p>
-            <p className="text-sm text-red-600">Críticos</p>
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900">
+              Estado de cobertura
+            </h2>
+            <p className="text-sm text-slate-500">
+              Seguimiento de materiales según días disponibles.
+            </p>
           </div>
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-center">
-            <p className="text-lg font-bold text-yellow-700">{alerta}</p>
-            <p className="text-sm text-yellow-600">En alerta</p>
-          </div>
-          <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
-            <p className="text-lg font-bold text-green-700">{seguros}</p>
-            <p className="text-sm text-green-600">Seguros</p>
-          </div>
+          {(inventarioLoading || pedidosLoading) && (
+            <span className="flex items-center gap-2 text-xs font-medium text-[#1F4F9C]">
+              <Loader2 className="h-4 w-4 animate-spin" /> Actualizando datos
+            </span>
+          )}
         </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {resumenCards.map((card) => (
+            <Card
+              key={card.key}
+              className="relative overflow-hidden border-none bg-[#F4F6FB] shadow-md"
+            >
+              <div
+                className={cn(
+                  "pointer-events-none absolute inset-0 bg-gradient-to-br opacity-80",
+                  card.gradient
+                )}
+              />
+              <CardHeader className="relative flex items-center justify-between">
+                <CardTitle className="text-2xl font-semibold text-slate-900">
+                  {card.value}
+                </CardTitle>
+                <span
+                  className={cn(
+                    "rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide",
+                    card.tone.badge
+                  )}
+                >
+                  {card.tone.label}
+                </span>
+              </CardHeader>
+              <CardContent className="relative space-y-3">
+                {inventarioLoading && !materialesConCobertura.length ? (
+                  <Skeleton className="h-6 w-24 bg-white/40" />
+                ) : (
+                  <p className="text-sm text-slate-700">
+                    {card.tone.description}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        {inventarioError && (
+          <div className="flex items-center gap-2 rounded-lg border border-[#F5A623]/40 bg-[#F5A623]/10 p-3 text-sm text-[#92400E]">
+            <Info className="h-4 w-4" /> {inventarioError}
+          </div>
+        )}
       </section>
 
       {/* Pedidos pendientes */}
-      <section className="bg-white shadow-sm rounded-xl border p-4">
-        <h2 className="text-lg font-semibold mb-3">
-          Pedidos pendientes ({pedidos.length})
-        </h2>
-        {pedidos.length ? (
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm text-center">
-              <thead className="bg-gray-50 border-b">
-                <tr>
-                  <th className="p-2">Fecha pedido</th>
-                  <th className="p-2">Fecha entrega</th>
-                  <th className="p-2">Solicitante</th>
-                  <th className="p-2">Totales</th>
-                  <th className="p-2">Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pedidos.map((p) => (
-                  <tr key={p.id} className="border-b hover:bg-gray-50">
-                    <td className="p-2">{p.fecha_pedido?.slice(0, 10)}</td>
-                    <td className="p-2">{p.fecha_entrega ? p.fecha_entrega.slice(0, 10) : "—"}</td>
-                    <td className="p-2">{p.solicitante ?? "—"}</td>
-                    <td className="p-2">
-                      {fmtNum(p.total_bultos ?? 0)} b / {fmtNum(p.total_kg ?? 0)} kg
-                    </td>
-                    <td className="p-2 flex justify-center gap-2">
-                      <button
-                        onClick={() => router.push(`/pedidos/${p.id}/ver`)}
-                        className="rounded-lg border px-3 py-1 text-sm hover:bg-gray-100"
-                      >
-                        Ver
-                      </button>
-                      <button
-                        onClick={() => marcarCompletado(p.id)}
-                        className="rounded-lg bg-green-600 text-white px-3 py-1 text-sm hover:bg-green-700"
-                      >
-                        Completar
-                      </button>
-                    </td>
-                  </tr>
+      <section>
+        <Card className="border-slate-200 bg-white/80 shadow-lg">
+          <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <CardTitle className="text-xl text-slate-900">
+                Pedidos pendientes ({pedidos.length})
+              </CardTitle>
+              <CardDescription>
+                Últimos movimientos listos para seguimiento y cierre.
+              </CardDescription>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                asChild
+                variant="ghost"
+                className="text-slate-600 hover:text-slate-900"
+              >
+                <Link href="/pedidos">Ver todos</Link>
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {pedidosError && (
+              <div className="flex items-center gap-2 rounded-lg border border-[#FF6B5A]/40 bg-[#FF6B5A]/10 p-3 text-sm text-[#B91C1C]">
+                <Info className="h-4 w-4" /> {pedidosError}
+              </div>
+            )}
+            {pedidosLoading && !pedidos.length ? (
+              <div className="space-y-2">
+                {[...Array(3)].map((_, index) => (
+                  <Skeleton key={index} className="h-16 w-full bg-[#F4F6FB]" />
                 ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className="text-gray-500">No hay pedidos pendientes.</p>
-        )}
+              </div>
+            ) : pedidos.length ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Fecha pedido</TableHead>
+                    <TableHead>Fecha entrega</TableHead>
+                    <TableHead>Solicitante</TableHead>
+                    <TableHead>Totales</TableHead>
+                    <TableHead>Estado</TableHead>
+                    <TableHead className="text-center">Acciones</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {pedidos.map((p) => (
+                    <TableRow
+                      key={p.id}
+                      className={cn(
+                        "bg-white/60 transition hover:shadow-sm",
+                        "border-l-4",
+                        resumenCobertura.critico.length
+                          ? "border-l-[#FF6B5A]/70"
+                          : "border-l-[#1F4F9C]/40"
+                      )}
+                    >
+                      <TableCell>{fmtDate(p.fecha_pedido)}</TableCell>
+                      <TableCell>{fmtDate(p.fecha_entrega)}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <span className="flex h-9 w-9 items-center justify-center rounded-full border border-[#1F4F9C]/40 bg-[#1F4F9C]/10 text-sm font-semibold text-[#1F4F9C]">
+                            {initialsFromName(p.solicitante ?? "")}
+                          </span>
+                          <span className="text-sm text-slate-700">
+                            {p.solicitante ?? "—"}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-sm text-slate-600">
+                        {fmtNum(p.total_bultos ?? 0)} b /{" "}
+                        {fmtNum(p.total_kg ?? 0)} kg
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className={cn(
+                            "inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide",
+                            ESTADO_TONO[p.estado]
+                          )}
+                        >
+                          {ESTADO_LABEL[p.estado]}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            asChild
+                            variant="outline"
+                            className="border-[#1F4F9C]/30 text-[#1F4F9C] hover:bg-[#1F4F9C]/10"
+                          >
+                            <Link href={`/pedidos/${p.id}/ver`}>Ver</Link>
+                          </Button>
+                          <Button
+                            className="bg-[#29B8A6] text-white hover:bg-[#29B8A6]/90"
+                            onClick={() => void marcarCompletado(p.id)}
+                          >
+                            Completar
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-[#1F4F9C]/20 bg-[#F4F6FB] p-8 text-center">
+                <CheckCircle2 className="h-8 w-8 text-[#29B8A6]" />
+                <p className="text-sm text-slate-600">
+                  No hay pedidos pendientes en este momento.
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </section>
     </main>
   );
