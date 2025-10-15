@@ -416,7 +416,7 @@ export default function MaterialesPage() {
 
             {/* TABLA */}
             <Card>
-              <CardHeader className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+              <CardHeader className="  flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                   <CardTitle>Paso 2. Revisa el listado</CardTitle>
                   <CardDescription>
@@ -439,7 +439,7 @@ export default function MaterialesPage() {
                       <TableHead>Material</TableHead>
                       <TableHead>Unidad</TableHead>
                       <TableHead>Presentación</TableHead>
-                      <TableHead className="text-right">Acciones</TableHead>
+                      <TableHead className="text-center">Acciones</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -463,12 +463,13 @@ export default function MaterialesPage() {
                             ? "Litros"
                             : "—"}
                         </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
+                        <TableCell className="text-center">
+                          <div className="flex h-full w-full justify-center items-center">
                             <Button
                               variant="outline"
                               size="sm"
                               onClick={() => editarMaterial(m)}
+                              className="ml-19"
                             >
                               Editar
                             </Button>
