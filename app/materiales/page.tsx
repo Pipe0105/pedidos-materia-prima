@@ -221,13 +221,6 @@ export default function MaterialesPage() {
           >
             <Link href="/inventario">Ver inventario</Link>
           </Button>
-          <Button
-            onClick={() => void cargarMateriales()}
-            className="bg-white text-[#1F4F9C] hover:bg-white/90"
-            disabled={!zonaId}
-          >
-            Actualizar
-          </Button>
         </div>
       </header>
 
