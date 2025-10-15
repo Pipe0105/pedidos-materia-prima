@@ -3,25 +3,29 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
-} from "@/components/ui/tabs";
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import PedidosZona from "./pedidoszonas";
 
-  type Zona = {
-    id: string;
-    nombre: string;
-  };
+type Zona = {
+  id: string;
+  nombre: string;
+};
 
 export default function PedidosPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [zonas, setZonas] = useState<Zona[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedZona, setSelectedZona] = useState<string | undefined>(undefined);
+  const [selectedZona, setSelectedZona] = useState<string | undefined>(
+    undefined
+  );
   const zonaFromQuery = searchParams.get("zonaId");
 
   useEffect(() => {
@@ -53,62 +57,91 @@ export default function PedidosPage() {
 
   useEffect(() => {
     if (zonas.length === 0) return;
-    const zonaValida = zonas.find((z) => z.id === zonaFromQuery)?.id || zonas[0].id;
+    const zonaValida =
+      zonas.find((z) => z.id === zonaFromQuery)?.id || zonas[0].id;
     if (zonaValida !== selectedZona) {
       setSelectedZona(zonaValida);
     }
   }, [zonas, zonaFromQuery, selectedZona]);
 
-  if (loading) {
-    return <div className="p-6">Cargando zonas...</div>;
+  const renderLoading = (mensaje: string) => (
+    <main className="mx-auto max-w-6xl space-y-6 p-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Gestión de pedidos</CardTitle>
+          <CardDescription>{mensaje}</CardDescription>
+        </CardHeader>
+      </Card>
+    </main>
+  );
+
+  if (loading || !selectedZona) {
+    return renderLoading("Cargando zonas disponibles...");
   }
 
   if (zonas.length === 0) {
-    return <div className="p-6">No hay zonas disponibles.</div>;
-  }
-
-  if (!selectedZona) {
-    return <div className="p-6">Cargando zonas...</div>;
+    return renderLoading(
+      "No hay plantas activas. Activa una zona para comenzar a tomar pedidos."
+    );
   }
 
   return (
-    <div className="p-6">
-      <header className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold">Gestión de Pedidos</h1>
-
-      </header>
-
-      <Tabs
-        value={selectedZona}
-        onValueChange={(value) => {
-          setSelectedZona(value);
-          router.replace(`/pedidos?zonaId=${value}`);
-        }}
-        className="w-full"
-      >
-        {/* ✅ Tabs estilo pill */}
-        <TabsList className="flex space-x-2">
-          {zonas.map((zona) => (
-            <TabsTrigger
-              key={zona.id}
-              value={zona.id}
-              className="px-6 py-2 text-sm font-medium rounded-full
-                         data-[state=active]:bg-blue-600 
-                         data-[state=active]:text-white 
-                         data-[state=inactive]:bg-gray-200 
-                         data-[state=inactive]:text-gray-700"
+    <main className="mx-auto max-w-6xl space-y-8 p-6">
+      <section className="space-y-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">
+            Gestión de pedidos
+          </h1>
+          <p className="text-muted-foreground mt-2 max-w-2xl text-sm">
+            Explora los pedidos por planta con un flujo guiado. Selecciona una
+            zona, revisa el resumen paso a paso y completa o crea solicitudes en
+            segundos.
+          </p>
+        </div>
+        <Card>
+          <CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <CardTitle>Plantas operativas</CardTitle>
+              <CardDescription>
+                Cambia de pestaña para ver los pedidos correspondientes a cada
+                zona.
+              </CardDescription>
+            </div>
+            <div className="text-sm font-medium text-muted-foreground">
+              {zonas.length} zonas activas
+            </div>
+          </CardHeader>
+          <CardContent>
+            <Tabs
+              value={selectedZona}
+              onValueChange={(value) => {
+                setSelectedZona(value);
+                router.replace(`/pedidos?zonaId=${value}`);
+              }}
+              className="w-full"
             >
-              {zona.nombre}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-
-        {zonas.map((zona) => (
-          <TabsContent key={zona.id} value={zona.id}>
-            <PedidosZona zonaId={zona.id} nombre={zona.nombre} />
-          </TabsContent>
-        ))}
-      </Tabs>
-    </div>
+              <TabsList className="flex flex-wrap gap-2">
+                {zonas.map((zona) => (
+                  <TabsTrigger
+                    key={zona.id}
+                    value={zona.id}
+                    className="rounded-full px-6 py-2 text-sm font-medium
+                               data-[state=active]:bg-primary data-[state=active]:text-primary-foreground
+                               data-[state=inactive]:bg-muted data-[state=inactive]:text-foreground/70"
+                  >
+                    {zona.nombre}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+              {zonas.map((zona) => (
+                <TabsContent key={zona.id} value={zona.id} className="pt-6">
+                  <PedidosZona zonaId={zona.id} nombre={zona.nombre} />
+                </TabsContent>
+              ))}
+            </Tabs>
+          </CardContent>
+        </Card>
+      </section>
+    </main>
   );
 }

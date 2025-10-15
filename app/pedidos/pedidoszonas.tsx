@@ -1,19 +1,35 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { fmtNum } from "@/lib/format";
 import { useToast } from "@/components/toastprovider";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import PedidoDetalle from "./pedidosdetalles";
-
 
 type PedidoItem = {
   bultos: number;
   kg: number | null;
   materiales: {
-    unidad_medida: "bulto" | "unidad" | "litro";
-  }[]; // 👈 lo puse como array
+    unidad_medida: "bulto" | "unidad" | "litro" | null;
+  } | null;
 };
 
 type Pedido = {
@@ -25,9 +41,31 @@ type Pedido = {
   total_bultos?: number | null;
   total_kg?: number | null;
   notas?: string | null;
-  pedido_items?: PedidoItem[]; // 👈 agregado
+  pedido_items?: PedidoItem[];
 };
 
+type MovimientoItem = {
+  id: string;
+  material_id: string;
+  bultos: number;
+  kg: number | null;
+  materiales: {
+    unidad_medida: "bulto" | "unidad" | "litro" | null;
+    presentacion_kg_por_bulto: number | null;
+  } | null;
+};
+
+const ESTADO_LABELS: Record<Pedido["estado"], string> = {
+  enviado: "Enviados",
+  recibido: "Recibidos",
+  completado: "Completados",
+};
+
+const ESTADO_HELPERS: Record<Pedido["estado"], string> = {
+  enviado: "Pedidos recién solicitados",
+  recibido: "Pendientes de completar",
+  completado: "Ingresados al inventario",
+};
 
 export default function PedidosZona({
   zonaId,
@@ -45,21 +83,31 @@ export default function PedidosZona({
   const [estadoFiltro, setEstadoFiltro] = useState<Pedido["estado"] | "">("");
   const [mostrarCompletados, setMostrarCompletados] = useState(false);
 
-  // cargar pedidos
-  async function cargarPedidos() {
+  const resumenPorEstado = useMemo(() => {
+    return pedidos.reduce<Record<Pedido["estado"], number>>(
+      (acc, pedido) => {
+        acc[pedido.estado] = acc[pedido.estado] + 1;
+        return acc;
+      },
+      { enviado: 0, recibido: 0, completado: 0 }
+    );
+  }, [pedidos]);
+
+  const cargarPedidos = useCallback(async () => {
     setLoading(true);
     const { data, error } = await supabase
       .from("pedidos")
-      .select(`
+      .select(
+        `
         id, fecha_pedido, fecha_entrega, solicitante, estado, total_bultos, total_kg, notas,
         pedido_items (
           bultos, kg,
           materiales (unidad_medida)
         )
-      `)
+      `
+      )
       .eq("zona_id", zonaId)
       .order("fecha_pedido", { ascending: false });
-
 
     if (error) {
       notify("Error cargando pedidos: " + error.message, "error");
@@ -67,13 +115,12 @@ export default function PedidosZona({
       setPedidos(data ?? []);
     }
     setLoading(false);
-  }
+  }, [zonaId, notify]);
 
   useEffect(() => {
     void cargarPedidos();
-  }, [zonaId]);
+  }, [cargarPedidos]);
 
-  // filtros
   const filtrados = useMemo(() => {
     return pedidos
       .filter((p) =>
@@ -83,7 +130,6 @@ export default function PedidosZona({
       .filter((p) => (mostrarCompletados ? true : p.estado !== "completado"));
   }, [pedidos, q, estadoFiltro, mostrarCompletados]);
 
-  // acciones
   async function eliminarPedido(id: string) {
     if (!confirm("¿Eliminar este pedido?")) return;
     const { error } = await supabase.from("pedidos").delete().eq("id", id);
@@ -95,246 +141,322 @@ export default function PedidosZona({
     }
   }
 
-  async function duplicarPedido(id: string) {
-    const pedido = pedidos.find((p) => p.id === id);
-    if (!pedido) return;
+  async function marcarCompletado(id: string) {
+    const { data: items, error: errItems } = await supabase
+      .from("pedido_items")
+      .select(
+        `id, material_id, bultos, kg,
+         materiales ( unidad_medida, presentacion_kg_por_bulto )`
+      )
+      .eq("pedido_id", id);
 
-    const { data, error } = await supabase
-      .from("pedidos")
-      .insert({
+    if (errItems) {
+      notify("Error cargando materiales: " + errItems.message, "error");
+      return;
+    }
+
+    const typedItems = (items ?? []) as MovimientoItem[];
+    const movimientos = typedItems.map((item) => {
+      const unidad = item.materiales?.unidad_medida;
+      let kg = 0;
+      if (unidad === "bulto") {
+        kg = item.kg ?? 0;
+      } else if (unidad === "litro") {
+        kg = item.bultos;
+      } else {
+        kg = 0;
+      }
+
+      return {
         zona_id: zonaId,
-        fecha_pedido: new Date().toISOString().slice(0, 10),
-        fecha_entrega: pedido.fecha_entrega,
-        solicitante: pedido.solicitante,
-        estado: "enviado",
-        total_bultos: pedido.total_bultos,
-        total_kg: pedido.total_kg,
-      })
-      .select("id")
-      .single();
+        material_id: item.material_id,
+        fecha: new Date().toISOString().slice(0, 10),
+        tipo: "entrada",
+        bultos: item.bultos,
+        kg,
+        ref_tipo: "pedido",
+        ref_id: id,
+        notas: "Ingreso por pedido completado",
+      };
+    });
+
+    const { error: errMov } = await supabase
+      .from("movimientos_inventario")
+      .insert(movimientos);
+
+    if (errMov) {
+      notify("Error registrando inventario: " + errMov.message, "error");
+      return;
+    }
+
+    const { error } = await supabase
+      .from("pedidos")
+      .update({ estado: "completado" })
+      .eq("id", id);
 
     if (error) {
-      notify("Error al duplicar: " + error.message, "error");
+      notify("Error al completar pedido: " + error.message, "error");
     } else {
-      notify("Pedido duplicado ✅", "success");
-      router.push(`/pedidos/${data!.id}`);
+      setPedidos((prev) =>
+        prev.map((p) => (p.id === id ? { ...p, estado: "completado" } : p))
+      );
+      notify("Pedido completado ✅, inventario actualizado", "success");
     }
   }
 
-async function marcarCompletado(id: string) {
-  // 1. obtener items del pedido
-  const { data: items, error: errItems } = await supabase
-    .from("pedido_items")
-    .select(
-      `id, material_id, bultos, kg,
-       materiales ( unidad_medida, presentacion_kg_por_bulto )`
-    )
-    .eq("pedido_id", id);
-
-  if (errItems) {
-    notify("Error cargando materiales: " + errItems.message, "error");
-    return;
-  }
-
-  // 2. crear movimientos de inventario (ajustando kg según unidad)
-  const movimientos = (items ?? []).map((it: any) => {
-    const unidad = it.materiales?.unidad_medida;
-    let kg = 0;
-
-    if (unidad === "bulto") {
-      kg = it.kg ?? 0;
-    } else if (unidad === "litro") {
-      kg = it.bultos; // litros = kg (ajusta si es diferente)
-    } else {
-      kg = 0; // unidades
-    }
-
-    return {
-      zona_id: zonaId,
-      material_id: it.material_id,
-      fecha: new Date().toISOString().slice(0, 10),
-      tipo: "entrada",
-      bultos: it.bultos,
-      kg, // ✅ nunca null
-      ref_tipo: "pedido",
-      ref_id: id,
-      notas: "Ingreso por pedido completado",
-    };
-  });
-
-  const { error: errMov } = await supabase
-    .from("movimientos_inventario")
-    .insert(movimientos);
-
-  if (errMov) {
-    notify("Error registrando inventario: " + errMov.message, "error");
-    return;
-  }
-
-  // 3. actualizar estado del pedido
-  const { error } = await supabase
-    .from("pedidos")
-    .update({ estado: "completado" })
-    .eq("id", id);
-
-  if (error) {
-    notify("Error al completar pedido: " + error.message, "error");
-  } else {
-    setPedidos((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, estado: "completado" } : p))
-    );
-    notify("Pedido completado ✅, inventario actualizado", "success");
-  }
-}
-
-
-
-  function badgeEstado(estado: Pedido["estado"]) {
+  const badgeEstado = (estado: Pedido["estado"]) => {
     const base =
-      "px-3 py-1 rounded-full text-xs font-semibold inline-block";
+      "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold";
     switch (estado) {
       case "enviado":
         return (
-          <span className={`${base} bg-blue-100 text-blue-700`}>
-            Enviado
-          </span>
+          <span className={`${base} bg-blue-100 text-blue-700`}>Enviado</span>
         );
       case "recibido":
         return (
-          <span className={`${base} bg-yellow-100 text-yellow-700`}>
+          <span className={`${base} bg-amber-100 text-amber-700`}>
             Recibido
           </span>
         );
       case "completado":
         return (
-          <span className={`${base} bg-green-100 text-green-700`}>
+          <span className={`${base} bg-emerald-100 text-emerald-700`}>
             Completado
           </span>
         );
     }
-  }
+  };
+
+  const renderTotales = (pedido: Pedido) => {
+    if (!pedido.pedido_items?.length) {
+      return <span className="text-muted-foreground">Sin materiales</span>;
+    }
+
+    return (
+      <div className="flex flex-wrap gap-2">
+        {pedido.pedido_items.map((item: PedidoItem, index) => {
+          const unidad = item.materiales?.unidad_medida ?? "bulto";
+          let texto = "";
+
+          if (unidad === "unidad") {
+            texto = `${fmtNum(item.bultos)} unidades`;
+          } else if (unidad === "litro") {
+            texto = `${fmtNum(item.bultos)} litros · ${fmtNum(
+              item.kg ?? 0
+            )} kg`;
+          } else {
+            texto = `${fmtNum(item.bultos)} bultos · ${fmtNum(
+              item.kg ?? 0
+            )} kg`;
+          }
+
+          return (
+            <span
+              key={`${pedido.id}-${index}`}
+              className="rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground"
+            >
+              {texto}
+            </span>
+          );
+        })}
+      </div>
+    );
+  };
 
   return (
-    <main className="space-y-6 p-4">
-      <header className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Pedidos – {nombre}</h2>
-        <button
-          onClick={() =>
-            router.push(
-              `/pedidos/nuevo?zonaId=${zonaId}&zonaNombre=${encodeURIComponent(
-                nombre
-              )}`
-            )
-          }
-          className="flex items-center gap-1 rounded bg-blue-600 text-white px-3 py-1 text-sm hover:bg-blue-700"
-        >
-          ➕ Nuevo pedido
-        </button>
-      </header>
+    <section className="space-y-6">
+      <Card>
+        <CardHeader className="gap-6 md:flex md:items-center md:justify-between">
+          <div>
+            <CardTitle className="text-2xl">Pedidos de {nombre}</CardTitle>
+            <CardDescription>
+              Estás viendo las solicitudes de esta planta. Sigue los pasos para
+              localizar, revisar y completar los pedidos.
+            </CardDescription>
+          </div>
+          <Button
+            onClick={() =>
+              router.push(
+                `/pedidos/nuevo?zonaId=${zonaId}&zonaNombre=${encodeURIComponent(
+                  nombre
+                )}`
+              )
+            }
+          >
+            Crear nuevo pedido
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-3 md:grid-cols-3">
+            {(Object.keys(resumenPorEstado) as Pedido["estado"][]).map(
+              (estado) => (
+                <div
+                  key={estado}
+                  className="rounded-xl border bg-gradient-to-br from-background via-background to-muted/60 p-4"
+                >
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    {ESTADO_LABELS[estado]}
+                  </p>
+                  <p className="mt-2 text-3xl font-semibold">
+                    {fmtNum(resumenPorEstado[estado])}
+                  </p>
+                  <p className="text-muted-foreground mt-1 text-xs">
+                    {ESTADO_HELPERS[estado]}
+                  </p>
+                </div>
+              )
+            )}
+          </div>
+          <div className="rounded-lg bg-muted/40 p-4 text-sm text-muted-foreground">
+            <p className="font-medium text-foreground">¿Cómo funciona?</p>
+            <ol className="mt-2 list-decimal space-y-1 pl-5">
+              <li>Busca al solicitante o filtra por estado.</li>
+              <li>Revisa el detalle del pedido y confirma sus materiales.</li>
+              <li>
+                Completa el pedido cuando llegue la mercancía para actualizar el
+                inventario.
+              </li>
+            </ol>
+          </div>
+        </CardContent>
+      </Card>
 
-      {/* filtros */}
-      <div className="flex flex-wrap gap-3 items-center">
-        <input
-          type="text"
-          placeholder="Buscar por solicitante…"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          className="rounded-lg border px-2 py-1 text-sm"
-        />
-        <select
-          className="rounded-lg border px-2 py-1 text-sm"
-          value={estadoFiltro}
-          onChange={(e) => setEstadoFiltro(e.target.value as any)}
-        >
-          <option value="">Todos</option>
-          <option value="enviado">Enviado</option>
-          <option value="recibido">Recibido</option>
-          <option value="completado">Completado</option>
-        </select>
-        <label className="flex items-center gap-1 text-sm">
-          <input
-            type="checkbox"
-            checked={mostrarCompletados}
-            onChange={(e) => setMostrarCompletados(e.target.checked)}
-          />
-          Mostrar completados
-        </label>
-      </div>
+      <Card>
+        <CardHeader className="space-y-1">
+          <CardTitle>Paso 1. Busca un pedido</CardTitle>
+          <CardDescription>
+            Estos filtros están pensados para personas nuevas: rellena solo lo
+            que necesites y verás los resultados al instante.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]">
+            <div className="space-y-2">
+              <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Paso 1 · Solicitante
+              </label>
+              <Input
+                placeholder="Ej. Juan Pérez"
+                value={q}
+                onChange={(event) => setQ(event.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Paso 2 · Estado
+              </label>
+              <select
+                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                value={estadoFiltro}
+                onChange={(event) =>
+                  setEstadoFiltro(event.target.value as Pedido["estado"] | "")
+                }
+              >
+                <option value="">Todos los estados</option>
+                <option value="enviado">Enviado</option>
+                <option value="recibido">Recibido</option>
+                <option value="completado">Completado</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Paso 3 · Mostrar completados
+              </label>
+              <label className="flex h-10 items-center gap-3 rounded-md border border-input bg-background px-3 text-sm">
+                <input
+                  type="checkbox"
+                  className="size-4 rounded border-input text-primary focus:ring-primary"
+                  checked={mostrarCompletados}
+                  onChange={(event) =>
+                    setMostrarCompletados(event.target.checked)
+                  }
+                />
+                Sí, quiero verlos
+              </label>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
-      {/* tabla */}
-      {loading ? (
-        <p className="text-gray-500">Cargando…</p>
-      ) : filtrados.length ? (
-        <div className="overflow-x-auto rounded-xl border bg-white shadow-sm">
-          <table className="min-w-full text-sm text-center">
-            <thead className="bg-gray-50 border-b">
-              <tr>
-                <th className="p-2">Fecha pedido</th>
-                <th className="p-2">Fecha entrega</th>
-                <th className="p-2">Solicitante</th>
-                <th className="p-2">Estado</th>
-                <th className="p-2">Totales</th>
-                <th className="p-2">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtrados.map((p) => (
-                <tr key={p.id} className="border-b hover:bg-gray-50">
-                  <td className="p-2">{p.fecha_pedido?.slice(0, 10)}</td>
-                  <td className="p-2">
-                    {p.fecha_entrega ? p.fecha_entrega.slice(0, 10) : "—"}
-                  </td>
-                  <td className="p-2">{p.solicitante ?? "—"}</td>
-                  <td className="p-2">{badgeEstado(p.estado)}</td>
-                  <td className="p-2">
-                    {p.pedido_items && p.pedido_items.length > 0 ? (
-                      p.pedido_items.map((it: any) => {
-                        const unidad = it.materiales?.unidad_medida || "";
-                        if (unidad === "unidad") {
-                          return `${fmtNum(it.bultos)} unidades`;
-                        }
-                        if (unidad === "litro") {
-                          return `${fmtNum(it.bultos)} litros / ${fmtNum(it.kg ?? 0)} kg`;
-                        }
-                        // por defecto bulto
-                        return `${fmtNum(it.bultos)} bultos / ${fmtNum(it.kg ?? 0)} kg`;
-                      })
-                    ) : (
-                      "—"
-                    )}
-                  </td>
-
-<td className="p-2 flex gap-2 justify-center">
-  {/* Ver formato con el modal PedidoDetalle */}
-  <PedidoDetalle pedido={p} zonaNombre={nombre} />
-
-  {/* Completar */}
-  {p.estado !== "completado" && (
-    <button
-      onClick={() => marcarCompletado(p.id)}
-      className="flex items-center gap-1 rounded bg-green-600 text-white px-3 py-1 text-sm hover:bg-green-700"
-    >
-      Completar
-    </button>
-  )}
-
-  {/* Eliminar */}
-  <button
-    onClick={() => eliminarPedido(p.id)}
-    className="flex items-center gap-1 rounded bg-red-600 text-white px-3 py-1 text-sm hover:bg-red-700"
-  >
-    Eliminar
-  </button>
-</td>
-
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <p className="text-gray-500">No hay pedidos en esta planta.</p>
-      )}
-    </main>
+      <Card>
+        <CardHeader className="space-y-1">
+          <CardTitle>Paso 2. Revisa y actúa</CardTitle>
+          <CardDescription>
+            Selecciona un pedido para ver su detalle, completarlo o eliminarlo
+            si fue un error.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {loading ? (
+            <div className="space-y-3">
+              <div className="h-10 animate-pulse rounded-lg bg-muted" />
+              <div className="h-10 animate-pulse rounded-lg bg-muted" />
+              <div className="h-10 animate-pulse rounded-lg bg-muted" />
+            </div>
+          ) : filtrados.length ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Fecha pedido</TableHead>
+                  <TableHead>Fecha entrega</TableHead>
+                  <TableHead>Solicitante</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead>Totales</TableHead>
+                  <TableHead className="text-right">Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filtrados.map((pedido) => (
+                  <TableRow key={pedido.id}>
+                    <TableCell>
+                      {pedido.fecha_pedido?.slice(0, 10) ?? "—"}
+                    </TableCell>
+                    <TableCell>
+                      {pedido.fecha_entrega
+                        ? pedido.fecha_entrega.slice(0, 10)
+                        : "Pendiente"}
+                    </TableCell>
+                    <TableCell>
+                      {pedido.solicitante ?? "Sin solicitante"}
+                    </TableCell>
+                    <TableCell>{badgeEstado(pedido.estado)}</TableCell>
+                    <TableCell>{renderTotales(pedido)}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap items-center justify-end gap-2">
+                        <PedidoDetalle pedido={pedido} zonaNombre={nombre} />
+                        {pedido.estado !== "completado" && (
+                          <Button
+                            variant="secondary"
+                            onClick={() => marcarCompletado(pedido.id)}
+                          >
+                            Completar
+                          </Button>
+                        )}
+                        <Button
+                          variant="destructive"
+                          onClick={() => eliminarPedido(pedido.id)}
+                        >
+                          Eliminar
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <div className="rounded-lg border border-dashed p-6 text-center">
+              <p className="font-semibold text-foreground">
+                No encontramos pedidos en esta planta
+              </p>
+              <p className="text-muted-foreground mt-2 text-sm">
+                Usa el botón “Crear nuevo pedido” para registrar la primera
+                solicitud.
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </section>
   );
 }
