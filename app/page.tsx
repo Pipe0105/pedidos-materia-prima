@@ -159,9 +159,9 @@ export default function HomePage() {
           .select(
             "id,nombre,tasa_consumo_diaria_kg,unidad_medida,presentacion_kg_por_bulto"
           ),
-          .select(
-            "id,nombre,tasa_consumo_diaria_kg,unidad_medida,presentacion_kg_por_bulto"
-          ),
+        supabase
+          .from("movimientos_inventario")
+          .select("material_id,kg,bultos,tipo"),
       ]);
 
     if (matsError || movsError) {
@@ -169,21 +169,58 @@ export default function HomePage() {
       notify("No pudimos calcular la cobertura de inventario", "error");
     }
 
-    const stock: Record<string, number> = {};
+    const stockKg: Record<string, number> = {};
+    const stockBultos: Record<string, number> = {};
     (movs ?? []).forEach((mv) => {
       const mult = mv.tipo === "entrada" ? 1 : mv.tipo === "salida" ? -1 : 1;
-      stock[mv.material_id] =
-        (stock[mv.material_id] ?? 0) + Number(mv.kg) * mult;
+      const materialId = mv.material_id;
+      stockKg[materialId] =
+        (stockKg[materialId] ?? 0) + Number(mv.kg ?? 0) * mult;
+      stockBultos[materialId] =
+        (stockBultos[materialId] ?? 0) + Number(mv.bultos ?? 0) * mult;
     });
 
     const materiales =
-      mats
+      (mats as MaterialConConsumo[] | null)
         ?.map((m) => {
-          const s = stock[m.id] ?? 0;
-          const cobertura =
-            m.tasa_consumo_diaria_kg && m.tasa_consumo_diaria_kg > 0
-              ? s / m.tasa_consumo_diaria_kg
-              : null;
+          const unidad = m.unidad_medida ?? "bulto";
+          const stockActualKg = stockKg[m.id] ?? 0;
+          const stockActualBultos = stockBultos[m.id] ?? 0;
+
+          let cobertura: number | null = null;
+
+          if (unidad === "unidad") {
+            const consumoUnidades =
+              m.tasa_consumo_diaria_kg && m.tasa_consumo_diaria_kg > 0
+                ? m.tasa_consumo_diaria_kg
+                : null;
+            if (consumoUnidades) {
+              cobertura = stockActualBultos / consumoUnidades;
+            }
+          } else {
+            let consumoKg: number | null = null;
+
+            if (unidad === "bulto") {
+              if (
+                m.tasa_consumo_diaria_kg &&
+                m.tasa_consumo_diaria_kg > 0 &&
+                m.presentacion_kg_por_bulto &&
+                m.presentacion_kg_por_bulto > 0
+              ) {
+                consumoKg =
+                  m.tasa_consumo_diaria_kg * m.presentacion_kg_por_bulto;
+              }
+            } else {
+              consumoKg =
+                m.tasa_consumo_diaria_kg && m.tasa_consumo_diaria_kg > 0
+                  ? m.tasa_consumo_diaria_kg
+                  : null;
+            }
+            if (consumoKg) {
+              cobertura = stockActualKg / consumoKg;
+            }
+          }
+
           return { id: m.id, nombre: m.nombre, cobertura };
         })
         .filter((m) => m.cobertura !== null) ?? [];
@@ -420,14 +457,8 @@ export default function HomePage() {
                 </div>
                 <footer className="flex items-center gap-2 border-t border-slate-100 bg-slate-50/80 p-4">
                   <Button
-                    asChild
-                    className="flex-1 bg-[#FF6B5A] text-white hover:bg-[#FF6B5A]/90"
-                  >
-                    <Link href="/pedidos/nuevo">Crear pedido urgente</Link>
-                  </Button>
-                  <Button
                     variant="ghost"
-                    className="text-slate-600 hover:text-slate-900"
+                    className="text-slate-700 hover:text-slate-900 hover:border-[#1F4F9C]/30 hover:shadow-sm"
                     onClick={() => setNotifOpen(false)}
                   >
                     Cerrar
