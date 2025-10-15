@@ -154,8 +154,14 @@ export default function HomePage() {
 
     const [{ data: mats, error: matsError }, { data: movs, error: movsError }] =
       await Promise.all([
-        supabase.from("materiales").select("id,nombre,tasa_consumo_diaria_kg"),
-        supabase.from("movimientos_inventario").select("material_id,kg,tipo"),
+        supabase
+          .from("materiales")
+          .select(
+            "id,nombre,tasa_consumo_diaria_kg,unidad_medida,presentacion_kg_por_bulto"
+          ),
+          .select(
+            "id,nombre,tasa_consumo_diaria_kg,unidad_medida,presentacion_kg_por_bulto"
+          ),
       ]);
 
     if (matsError || movsError) {
