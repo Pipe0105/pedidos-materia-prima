@@ -158,13 +158,15 @@ export default function PedidosZona({
     const typedItems = (items ?? []) as MovimientoItem[];
     const movimientos = typedItems.map((item) => {
       const unidad = item.materiales?.unidad_medida;
+      const presentacion = item.materiales?.presentacion_kg_por_bulto;
       let kg = 0;
+
       if (unidad === "bulto") {
-        kg = item.kg ?? 0;
+        kg = item.kg ?? (presentacion ? item.bultos * presentacion : 0);
       } else if (unidad === "litro") {
-        kg = item.bultos;
+        kg = item.kg ?? item.bultos;
       } else {
-        kg = 0;
+        kg = item.kg ?? (presentacion ? item.bultos * presentacion : 0);
       }
 
       return {
