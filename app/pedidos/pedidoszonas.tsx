@@ -312,10 +312,7 @@ export default function PedidosZona({
         <CardHeader className="gap-6 md:flex md:items-center md:justify-between">
           <div>
             <CardTitle className="text-2xl">Pedidos de {nombre}</CardTitle>
-            <CardDescription>
-              Estás viendo las solicitudes de esta planta. Sigue los pasos para
-              localizar, revisar y completar los pedidos.
-            </CardDescription>
+            <CardDescription></CardDescription>
           </div>
           <Button
             onClick={() =>
@@ -351,32 +348,24 @@ export default function PedidosZona({
             )}
           </div>
           <div className="rounded-lg bg-muted/40 p-4 text-sm text-muted-foreground">
-            <p className="font-medium text-foreground">¿Cómo funciona?</p>
-            <ol className="mt-2 list-decimal space-y-1 pl-5">
-              <li>Busca al solicitante o filtra por estado.</li>
-              <li>Revisa el detalle del pedido y confirma sus materiales.</li>
-              <li>
-                Completa el pedido cuando llegue la mercancía para actualizar el
-                inventario.
-              </li>
-            </ol>
+            <p className="font-medium text-foreground"></p>
+            <p>
+              Completa el pedido cuando llegue la mercancía para actualizar el
+              inventario.
+            </p>
           </div>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader className="space-y-1">
-          <CardTitle>Paso 1. Busca un pedido</CardTitle>
-          <CardDescription>
-            Estos filtros están pensados para personas nuevas: rellena solo lo
-            que necesites y verás los resultados al instante.
-          </CardDescription>
+          <CardTitle>Filtros Pedidos</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]">
             <div className="space-y-2">
               <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Paso 1 · Solicitante
+                Solicitante
               </label>
               <Input
                 placeholder="Ej. Juan Pérez"
@@ -386,7 +375,7 @@ export default function PedidosZona({
             </div>
             <div className="space-y-2">
               <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Paso 2 · Estado
+                Estado
               </label>
               <select
                 className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
@@ -403,7 +392,7 @@ export default function PedidosZona({
             </div>
             <div className="space-y-2">
               <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Paso 3 · Mostrar completados
+                Mostrar completados
               </label>
               <label className="flex h-10 items-center gap-3 rounded-md border border-input bg-background px-3 text-sm">
                 <input
@@ -414,7 +403,7 @@ export default function PedidosZona({
                     setMostrarCompletados(event.target.checked)
                   }
                 />
-                Sí, quiero verlos
+                Sí
               </label>
             </div>
           </div>
@@ -423,7 +412,7 @@ export default function PedidosZona({
 
       <Card>
         <CardHeader className="space-y-1">
-          <CardTitle>Paso 2. Revisa y actúa</CardTitle>
+          <CardTitle>Pedidos Enviados</CardTitle>
           <CardDescription>
             Selecciona un pedido para ver su detalle, completarlo o eliminarlo
             si fue un error.
@@ -469,6 +458,7 @@ export default function PedidosZona({
                         <PedidoDetalle pedido={pedido} zonaNombre={nombre} />
                         {pedido.estado !== "completado" && (
                           <Button
+                            className="bg-green-700 text-white h-7 border-current"
                             variant="secondary"
                             onClick={() => marcarCompletado(pedido.id)}
                           >
@@ -476,8 +466,9 @@ export default function PedidosZona({
                           </Button>
                         )}
                         <Button
-                          variant="destructive"
+                          variant="secondary"
                           onClick={() => eliminarPedido(pedido.id)}
+                          className="bg-red-600 h-7 text-white"
                         >
                           Eliminar
                         </Button>

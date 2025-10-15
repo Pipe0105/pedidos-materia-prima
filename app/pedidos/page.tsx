@@ -153,12 +153,13 @@ export default function PedidosPage() {
           }}
           className="space-y-6"
         >
-          <TabsList className="flex w-full flex-wrap gap-2 rounded-2xl bg-muted/80 p-2 shadow-inner">
+          <TabsList className="flex w-full h-10 flex-wrap gap-1 rounded-2xl bg-muted/80 shadow-inner">
             {zonas.map((zona) => (
               <TabsTrigger
                 key={zona.id}
                 value={zona.id}
-                className="rounded-xl px-6 py-3 text-sm font-semibold transition-all data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow data-[state=inactive]:text-foreground/70"
+                className={`
+                          flex gap-2 bg-gray-100 rounded-full p-1 w-fit mb-4`}
               >
                 {zona.nombre}
               </TabsTrigger>
