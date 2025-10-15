@@ -3,7 +3,7 @@ import {
   COBERTURA_CRITICA,
   obtenerNivelCobertura,
 } from "@/lib/cobertura";
-import { PedidoEstado } from "../_types";
+import { PedidoEstado } from "@/app/(dashboard)/_components/_types";
 
 export const ESTADO_LABEL: Record<PedidoEstado, string> = {
   borrador: "Borrador",

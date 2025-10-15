@@ -4,8 +4,8 @@ import { AlertTriangle, Bell, CheckCircle2, Key } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { fmtNum } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { COBERTURA_TONO } from "../_constants/dashboard";
-import { MaterialRow } from "../_types";
+import { COBERTURA_TONO } from "@/app/(dashboard)/_components/dashboard";
+import { MaterialRow } from "@/app/(dashboard)/_components/_types";
 
 type notificationBellProps = {
   unreadCount: number;

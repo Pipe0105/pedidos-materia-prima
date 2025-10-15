@@ -5,7 +5,11 @@ import { useCallback, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 import { ToastType } from "@/components/toastprovider";
-import { MaterialConConsumo, MaterialRow, Pedido } from "../_types";
+import {
+  MaterialConConsumo,
+  MaterialRow,
+  Pedido,
+} from "@/app/(dashboard)/_components/_types";
 
 type UseDashboardDataArgs = {
   notify: (msg: string, type?: ToastType) => void;

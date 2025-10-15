@@ -4,7 +4,7 @@ import { Info, Loader2 } from "lucide-react";
 import { Skeleton } from "@/components/Skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { COBERTURA_TONO } from "../_constants/dashboard";
+import { COBERTURA_TONO } from "@/app/(dashboard)/_components/dashboard";
 
 type InventoryCard = {
   key: keyof typeof COBERTURA_TONO;

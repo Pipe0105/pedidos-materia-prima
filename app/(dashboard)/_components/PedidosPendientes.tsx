@@ -24,8 +24,11 @@ import { Skeleton } from "@/components/Skeleton";
 import { fmtDate, fmtNum } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-import { ESTADO_LABEL, ESTADO_TONO } from "../_constants/dashboard";
-import { Pedido } from "../_types";
+import {
+  ESTADO_LABEL,
+  ESTADO_TONO,
+} from "@/app/(dashboard)/_components/dashboard";
+import { Pedido } from "@/app/(dashboard)/_components/_types";
 
 type PedidosPendientesProps = {
   pedidos: Pedido[];

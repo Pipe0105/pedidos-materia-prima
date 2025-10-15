@@ -1,21 +1,27 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
-} from "@/components/ui/tabs";
+import Link from "next/link";
+import { useCallback, useEffect, useState } from "react";
 
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { supabase } from "@/lib/supabase";
 
 type Zona = { id: string; nombre: string };
 
@@ -34,7 +40,6 @@ export default function MaterialesPage() {
   const [zonas, setZonas] = useState<Zona[]>([]);
   const [zonaId, setZonaId] = useState<string>("");
   const [items, setItems] = useState<Material[]>([]);
-  const [editando, setEditando] = useState<Material | null>(null);
   const [form, setForm] = useState({
     id: "",
     nombre: "",
@@ -44,37 +49,12 @@ export default function MaterialesPage() {
     unidad_medida: "bulto" as "bulto" | "unidad" | "litro",
   });
   const [err, setErr] = useState<string | null>(null);
+  const [ultimaActualizacion, setUltimaActualizacion] = useState<Date | null>(
+    null
+  );
 
-  async function eliminarMaterial(id: string) {
-  const { error } = await supabase
-    .from("materiales")
-    .update({ activo: false })
-    .eq("id", id);
-
-  if (error) {
-    alert("❌ Error al eliminar: " + error.message);
-  } else {
-    alert("✅ Material eliminado");
-    await cargarMateriales();
-  }
-}
-
-function editarMaterial(material: Material) {
-  // 👇 cargamos los datos en el formulario para editarlos
-  setForm({
-    id: material.id,
-    nombre: material.nombre,
-    presentacion: material.presentacion_kg_por_bulto?.toString() ?? "",
-    consumo: material.tasa_consumo_diaria_kg?.toString() ?? "",
-    proveedor: material.proveedor ?? "",
-    unidad_medida: material.unidad_medida,
-  });
-  setZonaId(material.zona_id);
-}
-
-
-  // cargar zonas
-  async function cargarZonas() {
+  // === FUNCIONES DE CARGA ===
+  const cargarZonas = useCallback(async () => {
     const { data, error } = await supabase.from("zonas").select("*");
     if (error) {
       console.error(error);
@@ -87,377 +67,440 @@ function editarMaterial(material: Material) {
     );
     setZonas(filtradas);
     if (filtradas.length > 0) setZonaId(filtradas[0].id);
-  }
+  }, []);
 
-  // cargar materiales
-  async function cargarMateriales() {
+  const cargarMateriales = useCallback(async () => {
     if (!zonaId) return;
     const { data, error } = await supabase
       .from("materiales")
       .select("*")
       .eq("zona_id", zonaId)
-      .eq("activo", true)  
+      .eq("activo", true)
       .returns<Material[]>();
     if (error) {
       console.error(error);
       return;
     }
     setItems(data ?? []);
+    setUltimaActualizacion(new Date());
+  }, [zonaId]);
+
+  // === CRUD ===
+  async function eliminarMaterial(id: string) {
+    const { error } = await supabase
+      .from("materiales")
+      .update({ activo: false })
+      .eq("id", id);
+
+    if (error) {
+      alert("❌ Error al eliminar: " + error.message);
+    } else {
+      alert("✅ Material eliminado");
+      await cargarMateriales();
+    }
   }
 
+  function editarMaterial(material: Material) {
+    setForm({
+      id: material.id,
+      nombre: material.nombre,
+      presentacion: material.presentacion_kg_por_bulto?.toString() ?? "",
+      consumo: material.tasa_consumo_diaria_kg?.toString() ?? "",
+      proveedor: material.proveedor ?? "",
+      unidad_medida: material.unidad_medida,
+    });
+    setZonaId(material.zona_id);
+  }
+
+  async function guardarMaterial() {
+    if (!zonaId) return setErr("Selecciona una zona.");
+    const nombre = form.nombre.trim();
+    if (!nombre) return setErr("El nombre es obligatorio.");
+
+    const presentacion =
+      form.unidad_medida === "bulto" ? parseFloat(form.presentacion) || 0 : 1;
+
+    const consumo =
+      form.consumo.trim() === "" ? null : parseFloat(form.consumo);
+
+    if (consumo !== null && (Number.isNaN(consumo) || consumo < 0)) {
+      return setErr("Consumo diario inválido.");
+    }
+
+    const nuevo = {
+      zona_id: zonaId,
+      nombre,
+      presentacion_kg_por_bulto: presentacion,
+      tasa_consumo_diaria_kg: consumo,
+      proveedor: form.proveedor.trim() || null,
+      unidad_medida: form.unidad_medida,
+      activo: true,
+    };
+
+    let error;
+    if (form.id) {
+      ({ error } = await supabase
+        .from("materiales")
+        .update(nuevo)
+        .eq("id", form.id));
+    } else {
+      ({ error } = await supabase.from("materiales").insert(nuevo));
+    }
+
+    if (error) {
+      console.error(
+        "❌ Error al guardar material:",
+        JSON.stringify(error, null, 2)
+      );
+      setErr("Error al guardar material.");
+    } else {
+      setForm({
+        id: "",
+        nombre: "",
+        presentacion: "",
+        consumo: "",
+        proveedor: "",
+        unidad_medida: "bulto",
+      });
+      setErr(null);
+      await cargarMateriales();
+    }
+  }
+
+  // === EFECTOS ===
   useEffect(() => {
     void cargarZonas();
-  }, []);
+  }, [cargarZonas]);
 
   useEffect(() => {
     if (zonaId) void cargarMateriales();
-  }, [zonaId]);
+  }, [zonaId, cargarMateriales]);
 
-  async function guardarMaterial() {
-  if (!zonaId) return setErr("Selecciona una zona.");
-  const nombre = form.nombre.trim();
-  if (!nombre) return setErr("El nombre es obligatorio.");
+  const zonaSeleccionada = zonas.find((z) => z.id === zonaId) ?? null;
 
-  const presentacion =
-    form.unidad_medida === "bulto"
-      ? parseFloat(form.presentacion) || 0
-      : 1;
-
-  const consumo =
-    form.consumo.trim() === "" ? null : parseFloat(form.consumo);
-
-  if (consumo !== null && (Number.isNaN(consumo) || consumo < 0)) {
-    return setErr("Consumo diario inválido.");
-  }
-
-  const nuevo = {
-    zona_id: zonaId,
-    nombre,
-    presentacion_kg_por_bulto: presentacion,
-    tasa_consumo_diaria_kg: consumo,
-    proveedor: form.proveedor.trim() || null,
-    unidad_medida: form.unidad_medida,
-    activo: true,
-  };
-
-  let error;
-  if (form.id) {
-    // 👇 actualizar
-    ({ error } = await supabase.from("materiales").update(nuevo).eq("id", form.id));
-  } else {
-    // 👇 insertar
-    ({ error } = await supabase.from("materiales").insert(nuevo));
-  }
-
-  if (error) {
-    console.error("❌ Error al guardar material:", JSON.stringify(error, null, 2));
-    setErr("Error al guardar material.");
-  } else {
-    setForm({
-      id: "",
-      nombre: "",
-      presentacion: "",
-      consumo: "",
-      proveedor: "",
-      unidad_medida: "bulto",
-    });
-    setErr(null);
-    await cargarMateriales();
-  }
-}
-
-
+  // === UI ===
   return (
-    <main className="mx-auto max-w-6xl p-6 space-y-6">
-      <header>
-        <h1 className="text-2xl font-semibold mb-4">Materiales</h1>
-        {/* Tabs de zonas */}
-<Tabs value={zonaId} onValueChange={setZonaId} className="w-full">
-  <TabsList className="flex space-x-2 mb-4">
-    {zonas.map((zona) => (
-      <TabsTrigger
-        key={zona.id}
-        value={zona.id}
-        className="px-6 py-2 text-sm font-medium rounded-full
-                   data-[state=active]:bg-blue-600 
-                   data-[state=active]:text-white 
-                   data-[state=inactive]:bg-gray-200 
-                   data-[state=inactive]:text-gray-700"
-      >
-        {zona.nombre}
-      </TabsTrigger>
-    ))}
-  </TabsList>
-
-  {zonas.map((zona) => (
-    <TabsContent key={zona.id} value={zona.id}>
-    </TabsContent>
-  ))}
-</Tabs>
-
+    <main className="mx-auto max-w-6xl space-y-8 p-6">
+      {/* Encabezado */}
+      <header className="flex flex-col gap-6 rounded-2xl border bg-gradient-to-r from-[#1F4F9C] via-[#1F4F9C]/90 to-[#29B8A6]/80 p-6 text-white shadow-lg lg:flex-row lg:items-center lg:justify-between">
+        <div className="space-y-2">
+          <p className="text-sm uppercase tracking-[0.2em] text-white/80">
+            Materiales
+          </p>
+          <h1 className="text-3xl font-semibold">Centro de suministros</h1>
+          <p className="text-sm text-white/80">
+            {zonaSeleccionada
+              ? `Trabajando en la zona ${zonaSeleccionada.nombre}`
+              : "Selecciona una zona para comenzar"}
+          </p>
+          <p className="text-xs text-white/60">
+            {ultimaActualizacion
+              ? `Actualizado ${ultimaActualizacion.toLocaleDateString("es-CO", {
+                  day: "2-digit",
+                  month: "short",
+                  year: "numeric",
+                })} a las ${ultimaActualizacion.toLocaleTimeString("es-CO", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}`
+              : "Sincronizando inventario..."}
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            asChild
+            variant="secondary"
+            className="bg-white/15 text-white hover:bg-white/25"
+          >
+            <Link href="/">Volver al panel</Link>
+          </Button>
+          <Button
+            asChild
+            variant="secondary"
+            className="bg-white/15 text-white hover:bg-white/25"
+          >
+            <Link href="/inventario">Ver inventario</Link>
+          </Button>
+          <Button
+            onClick={() => void cargarMateriales()}
+            className="bg-white text-[#1F4F9C] hover:bg-white/90"
+            disabled={!zonaId}
+          >
+            Actualizar
+          </Button>
+        </div>
       </header>
 
-      {/* Formulario */}
-      <section className="rounded-xl border bg-white p-4 shadow-sm space-y-3">
-        <h2 className="text-lg font-medium flex items-center gap-2">
-          <span className="text-blue-600 text-xl">＋</span> Nuevo material
-        </h2>
-        {err && <p className="text-sm text-red-600">{err}</p>}
-
-        <div className="grid md:grid-cols-5 gap-4">
-          <label className="text-sm col-span-1">
-            <span className="mb-1 block">Nombre *</span>
-            <input
-              type="text"
-              className="w-full rounded-lg border px-3 py-2"
-              value={form.nombre}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, nombre: e.target.value }))
-              }
-              placeholder="Ej: Salmuera X"
-            />
-          </label>
-
-          <label className="text-sm col-span-1">
-            <span className="mb-1 block">Unidad de medida *</span>
-            <select
-              className="w-full rounded-lg border px-3 py-2"
-              value={form.unidad_medida}
-              onChange={(e) =>
-                setForm((f) => ({
-                  ...f,
-                  unidad_medida: e.target.value as
-                    | "bulto"
-                    | "unidad"
-                    | "litro",
-                }))
-              }
+      {/* Contenido principal */}
+      <Tabs value={zonaId} onValueChange={setZonaId} className="space-y-6">
+        <TabsList className="flex w-full flex-initial justify-start gap-1.5 rounded-xl bg-muted/95 p-7 px-1 text">
+          {zonas.map((zona) => (
+            <TabsTrigger
+              key={zona.id}
+              value={zona.id}
+              className="rounded-lg border border-b-transparent px-10 py-6 text-md font-sem data-[state=active]:border-b-[#3e74cc] data-[state=active]:bg-white data-[state=active]:text-[#1F4F9C]"
             >
-              <option value="bulto">Bultos (kg por bulto)</option>
-              <option value="unidad">Unidades</option>
-              <option value="litro">Litros</option>
-            </select>
-          </label>
+              {zona.nombre}
+            </TabsTrigger>
+          ))}
+        </TabsList>
 
-          {form.unidad_medida === "bulto" && (
-            <label className="text-sm col-span-1">
-              <span className="mb-1 block">Presentación (kg/bulto) *</span>
-              <input
-                type="number"
-                step="0.01"
-                className="w-full rounded-lg border px-3 py-2"
-                value={form.presentacion}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, presentacion: e.target.value }))
-                }
-                placeholder="20.00"
-              />
-            </label>
-          )}
+        {zonas.map((zona) => (
+          <TabsContent key={zona.id} value={zona.id} className="space-y-6">
+            {/* RESUMEN */}
+            <Card className="bg-slate-50">
+              <CardHeader>
+                <CardTitle>Resumen rápido</CardTitle>
+                <CardDescription>
+                  Sigue estos indicadores antes de crear o editar un material.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-4 md:grid-cols-3">
+                <div className="rounded-lg border border-dashed bg-white/70 p-4">
+                  <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
+                    Zona activa
+                  </p>
+                  <p className="text- font-semibold text-slate-800">
+                    {zona.nombre}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-dashed bg-white/70 p-4">
+                  <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
+                    Materiales activos
+                  </p>
+                  <p className="text-lg font-semibold text-slate-800">
+                    {zona.id === zonaId ? items.length : "—"}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-dashed bg-white/70 p-4">
+                  <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
+                    Última Actualización
+                  </p>
+                  <p className="text-lg font-semibold text-slate-800">
+                    {zona.id === zonaId && ultimaActualizacion
+                      ? ultimaActualizacion.toLocaleTimeString("es-CO", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
+                      : "—"}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
 
-          <label className="text-sm col-span-1">
-            <span className="mb-1 block">
-              Consumo diario (
-              {form.unidad_medida === "bulto"
-                ? "bultos"
-                : form.unidad_medida === "unidad"
-                ? "unidades"
-                : "litros"}
-              )
-            </span>
-            <input
-              type="number"
-              step="0.01"
-              className="w-full rounded-lg border px-3 py-2"
-              value={form.consumo}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, consumo: e.target.value }))
-              }
-              placeholder="Ej: 5.25"
-            />
-          </label>
+            {/* FORMULARIO */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Paso 1. Registra el material</CardTitle>
+                <CardDescription>
+                  Completa los campos: nombre, unidad y cantidades. Guarda o
+                  cancela los cambios antes de continuar.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {err && (
+                  <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-600">
+                    {err}
+                  </p>
+                )}
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  <label className="space-y-2 text-sm font-medium text-slate-700">
+                    <span>Nombre *</span>
+                    <Input
+                      value={form.nombre}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, nombre: e.target.value }))
+                      }
+                      placeholder="Ej: Salmuera X"
+                    />
+                  </label>
 
-          <label className="text-sm col-span-1">
-            <span className="mb-1 block">Proveedor (opcional)</span>
-            <input
-              type="text"
-              className="w-full rounded-lg border px-3 py-2"
-              value={form.proveedor}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, proveedor: e.target.value }))
-              }
-              placeholder="ACME"
-            />
-          </label>
-        </div>
+                  <label className="space-y-2 text-sm font-medium text-slate-700">
+                    <span>Unidad de medida *</span>
+                    <select
+                      className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+                      value={form.unidad_medida}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          unidad_medida: e.target.value as
+                            | "bulto"
+                            | "unidad"
+                            | "litro",
+                        }))
+                      }
+                    >
+                      <option value="bulto">Bultos (kg por bulto)</option>
+                      <option value="unidad">Unidades</option>
+                      <option value="litro">Litros</option>
+                    </select>
+                  </label>
 
-        <button
-          onClick={guardarMaterial}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm"
-        >
-          Guardar material
-        </button>
-      </section>
+                  {form.unidad_medida === "bulto" && (
+                    <label className="space-y-2 text-sm font-medium text-slate-700">
+                      <span>Presentación (kg/bulto) *</span>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={form.presentacion}
+                        onChange={(e) =>
+                          setForm((f) => ({
+                            ...f,
+                            presentacion: e.target.value,
+                          }))
+                        }
+                        placeholder="20.00"
+                      />
+                    </label>
+                  )}
 
-      {/* Tabla */}
-      <section className="rounded-xl border bg-white shadow-sm">
-        <div className="flex justify-between items-center p-4">
-          <h2 className="font-medium">Listado ({items.length})</h2>
-          <button
-            onClick={cargarMateriales}
-            className="rounded-lg border px-3 py-1 text-sm hover:bg-gray-100"
-          >
-            Refrescar
-          </button>
-        </div>
-        <table className="min-w-full text-sm text-center">
-          <thead className="bg-gray-50 border-b">
-            <tr>
-              <th className="p-2">Material</th>
-              <th className="p-2">Unidad</th>
-              <th className="p-2">Presentación</th>
-              <th className="p-2">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((m) => (
-              <tr key={m.id} className="border-b">
-                <td className="p-2">{m.nombre}</td>
-                <td className="p-2">{m.unidad_medida}</td>
-                <td className="p-2">
-                  {m.unidad_medida === "bulto" && m.presentacion_kg_por_bulto
-                    ? `${m.presentacion_kg_por_bulto} kg/bulto`
-                    : m.unidad_medida === "unidad"
-                    ? "unidades"
-                    : m.unidad_medida === "litro"
-                    ? "litros"
-                    : "—"}
-                </td>
-                <td className="p-2">
-                <button
-                  onClick={() => setEditando(m)} // 👈 abre el modal con este material
-                  className="px-2 py-1 text-xs rounded bg-yellow-500 text-white hover:bg-yellow-600 mr-2"
+                  <label className="space-y-2 text-sm font-medium text-slate-700">
+                    <span>
+                      Consumo diario (
+                      {form.unidad_medida === "bulto"
+                        ? "bultos"
+                        : form.unidad_medida === "unidad"
+                        ? "unidades"
+                        : "litros"}
+                      )
+                    </span>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={form.consumo}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, consumo: e.target.value }))
+                      }
+                      placeholder="Ej: 5.25"
+                    />
+                  </label>
+
+                  <label className="space-y-2 text-sm font-medium text-slate-700">
+                    <span>Proveedor (opcional)</span>
+                    <Input
+                      value={form.proveedor}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, proveedor: e.target.value }))
+                      }
+                      placeholder="ACME"
+                    />
+                  </label>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3">
+                  <Button onClick={() => void guardarMaterial()}>
+                    {form.id ? "Guardar cambios" : "Guardar material"}
+                  </Button>
+                  {form.id && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => {
+                        setForm({
+                          id: "",
+                          nombre: "",
+                          presentacion: "",
+                          consumo: "",
+                          proveedor: "",
+                          unidad_medida: "bulto",
+                        });
+                        setErr(null);
+                      }}
+                    >
+                      Cancelar edición
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* TABLA */}
+            <Card>
+              <CardHeader className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <CardTitle>Paso 2. Revisa el listado</CardTitle>
+                  <CardDescription>
+                    Usa los botones para editar o dar de baja materiales sin
+                    borrarlos del historial.
+                  </CardDescription>
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={() => void cargarMateriales()}
+                  disabled={!zonaId}
                 >
-                  Editar
-                </button>
-                  <button
-                    onClick={() => eliminarMaterial(m.id)}
-                    className="px-2 py-1 text-xs  rounded bg-red-600 text-white hover:bg-red-700"
-                  >
-                    Eliminar
-                  </button>
-                </td>
-              </tr>
-            ))}
-
-            {!items.length && (
-              <tr>
-                <td colSpan={8} className="p-4 text-gray-500">
-                  No hay materiales en esta zona.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-        <Dialog open={!!editando} onOpenChange={() => setEditando(null)}>
-  <DialogContent className="max-w-2xl">
-    <DialogHeader>
-      <DialogTitle>Editar material</DialogTitle>
-    </DialogHeader>
-
-    {editando && (
-      <form
-        onSubmit={async (e) => {
-          e.preventDefault();
-          const { error } = await supabase
-            .from("materiales")
-            .update({
-              nombre: editando.nombre,
-              presentacion_kg_por_bulto:
-                editando.unidad_medida === "bulto"
-                  ? editando.presentacion_kg_por_bulto
-                  : 1,
-              tasa_consumo_diaria_kg: editando.tasa_consumo_diaria_kg,
-              proveedor: editando.proveedor,
-              unidad_medida: editando.unidad_medida,
-            })
-            .eq("id", editando.id);
-
-          if (!error) {
-            await cargarMateriales();
-            setEditando(null);
-          } else {
-            console.error(error);
-            alert("❌ Error al editar: " + error.message);
-          }
-        }}
-        className="space-y-4"
-      >
-        {/* Nombre */}
-        <div>
-          <label className="text-sm block mb-1">Nombre *</label>
-          <input
-            type="text"
-            className="w-full rounded-lg border px-3 py-2"
-            value={editando.nombre}
-            onChange={(e) =>
-              setEditando({ ...editando, nombre: e.target.value })
-            }
-          />
-        </div>
-
-        {/* Unidad de medida */}
-        <div>
-          <label className="text-sm block mb-1">Unidad de medida *</label>
-          <select
-            className="w-full rounded-lg border px-3 py-2"
-            value={editando.unidad_medida}
-            onChange={(e) =>
-              setEditando({
-                ...editando,
-                unidad_medida: e.target.value as "bulto" | "unidad" | "litro",
-              })
-            }
-          >
-            <option value="bulto">Bultos (kg por bulto)</option>
-            <option value="unidad">Unidades</option>
-            <option value="litro">Litros</option>
-          </select>
-        </div>
-
-        {/* Presentación */}
-        {editando.unidad_medida === "bulto" && (
-          <div>
-            <label className="text-sm block mb-1">Presentación (kg/bulto) *</label>
-            <input
-              type="number"
-              step="0.01"
-              className="w-full rounded-lg border px-3 py-2"
-              value={editando.presentacion_kg_por_bulto ?? ""}
-              onChange={(e) =>
-                setEditando({
-                  ...editando,
-                  presentacion_kg_por_bulto: parseFloat(e.target.value) || 0,
-                })
-              }
-            />
-          </div>
-        )}
-
-        <DialogFooter>
-          <button
-            type="submit"
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm"
-          >
-            Guardar cambios
-          </button>
-        </DialogFooter>
-      </form>
-    )}
-  </DialogContent>
-</Dialog>
-
-      </section>
+                  Refrescar
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Material</TableHead>
+                      <TableHead>Unidad</TableHead>
+                      <TableHead>Presentación</TableHead>
+                      <TableHead className="text-right">Acciones</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {items.map((m) => (
+                      <TableRow key={m.id}>
+                        <TableCell className="font-medium">
+                          {m.nombre}
+                        </TableCell>
+                        <TableCell>
+                          <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-700">
+                            {m.unidad_medida}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          {m.unidad_medida === "bulto" &&
+                          m.presentacion_kg_por_bulto
+                            ? `${m.presentacion_kg_por_bulto} kg/bulto`
+                            : m.unidad_medida === "unidad"
+                            ? "Unidades sueltas"
+                            : m.unidad_medida === "litro"
+                            ? "Litros"
+                            : "—"}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => editarMaterial(m)}
+                            >
+                              Editar
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => void eliminarMaterial(m.id)}
+                            >
+                              Eliminar
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {!items.length && (
+                      <TableRow>
+                        <TableCell
+                          colSpan={4}
+                          className="text-center text-sm text-muted-foreground"
+                        >
+                          No hay materiales en esta zona. Usa el formulario de
+                          arriba para crear el primero.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        ))}
+      </Tabs>
     </main>
   );
 }
