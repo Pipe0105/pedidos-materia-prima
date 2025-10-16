@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { supabase } from "@/lib/supabase";
@@ -47,6 +47,8 @@ export default function InventarioPage() {
   const [showHistorial, setShowHistorial] = useState(false);
   const [materialHistorial, setMaterialHistorial] = useState("");
   const [showEditar, setShowEditar] = useState(false);
+  const zonasInicializadas = useRef(false);
+  const ultimaZonaQuery = useRef<string | null>(null);
   const [materialEditar, setMaterialEditar] =
     useState<MaterialEditar>(EMPTY_EDITAR);
   const [showConsumo, setShowConsumo] = useState(false);
@@ -373,25 +375,34 @@ export default function InventarioPage() {
   }, []);
 
   useEffect(() => {
-    if (!zonas.length) return;
+    if (!zonas.length) {
+      ultimaZonaQuery.current = null;
+      zonasInicializadas.current = false;
+      if (zonaId !== null) {
+        setZonaId(null);
+      }
+      return;
+    }
 
-    const zonaValida =
-      zonas.find((zona) => zona.id === zonaFromQuery)?.id ??
-      zonas[0]?.id ??
-      null;
+    const zonaQueryValida =
+      zonas.find((zona) => zona.id === zonaFromQuery)?.id ?? null;
+    if (
+      zonasInicializadas.current &&
+      zonaQueryValida === ultimaZonaQuery.current
+    ) {
+      return;
+    }
 
-    if (zonaValida && zonaValida !== zonaId) {
+    const zonaValida = zonaQueryValida ?? zonas[0]?.id ?? null;
+
+    ultimaZonaQuery.current = zonaQueryValida;
+
+    if (zonaValida !== zonaId) {
       setZonaId(zonaValida);
     }
+
+    zonasInicializadas.current = true;
   }, [zonas, zonaFromQuery, zonaId]);
-
-  useEffect(() => {
-    if (!zonaId || zonaFromQuery === zonaId) return;
-
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("zonaId", zonaId);
-    router.replace(`/inventario?${params.toString()}`);
-  }, [zonaId, zonaFromQuery, router, searchParams]);
 
   useEffect(() => {
     if (zonaId) void cargar();
