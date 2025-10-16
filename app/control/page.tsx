@@ -173,7 +173,6 @@ export default function ControlPage() {
 
       const stockData = Array.isArray(stockPayload) ? stockPayload : [];
       stockData.forEach((stock: InventarioActualRow) => {
-      stockData.forEach((stock: InventarioActualRow) => {
         stockIndex.set(`${stock.zona_id}-${stock.material_id}`, stock);
       });
 
