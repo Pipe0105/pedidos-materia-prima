@@ -467,19 +467,7 @@ export default function InventarioPage() {
                         {new Date().toLocaleDateString("es-AR")}
                       </CardDescription>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          if (!zonaId) return;
-                          void cargar();
-                        }}
-                        disabled={loading}
-                      >
-                        {loading ? "Actualizando…" : "Actualizar"}
-                      </Button>
-                    </div>
+                    <div className="flex flex-wrap gap-2"></div>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="overflow-hidden rounded-xl border">

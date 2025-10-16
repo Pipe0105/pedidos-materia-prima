@@ -33,7 +33,7 @@ export const obtenerEtiquetaCobertura = (cobertura: number | null) => {
   }
   if (cobertura <= 2) {
     return {
-      text: "Critico",
+      texto: "Critico",
       estilo: "bg-red-100 text-red-800",
     } as const;
   }
