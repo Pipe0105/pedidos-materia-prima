@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { date, z } from "zod";
 import { supabase } from "@/lib/supabase";
+import { error } from "console";
 
 const querySchema = z.object({
   zonaId: z
@@ -28,16 +29,13 @@ export const dynamic = "force-dynamic";
 export async function POST(req: Request) {
   const { searchParams } = new URL(req.url);
   const parseResult = querySchema.safeParse({
-    zonaId: searchParams.get("zonaId"),
+    zonaId: searchParams.get("ZonaId"),
     date: searchParams.get("date") ?? undefined,
   });
 
   if (!parseResult.success) {
     return NextResponse.json(
-      {
-        error: "Parametros invalidos",
-        issues: parseResult.error.flatten(),
-      },
+      { error: "Parametros invalidos", issues: parseResult.error.flatten() },
       { status: 400 }
     );
   }

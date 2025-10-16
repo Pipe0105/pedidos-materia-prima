@@ -124,14 +124,44 @@ export default function ControlPage() {
     setLoading(true);
     setError(null);
     try {
-      const [zonasRes, stockRes, autoRes] = await Promise.all([
+      const stockPromise = fetch("/api/inventario", {
+        cache: "no-store",
+      }).then(async (response) => {
+        let payload: unknown = null;
+        try {
+          payload = await response.json();
+        } catch (error) {
+          console.error("Error parseando inventario_actual", error);
+        }
+
+        if (!response.ok) {
+          const message =
+            payload &&
+            typeof payload === "object" &&
+            payload !== null &&
+            "error" in payload &&
+            typeof (payload as { error?: unknown }).error === "string"
+              ? (payload as { error: string }).error ??
+                "No se pudo obtener el inventario actual."
+              : "No se pudo obtener el inventario actual.";
+          throw new Error(message);
+        }
+
+        if (!Array.isArray(payload)) {
+          throw new Error("Respuesta de inventario inválida.");
+        }
+
+        return payload as InventarioActualRow[];
+      });
+
+      const [zonasRes, stockData, autoRes] = await Promise.all([
         supabase
           .from("zonas")
           .select("id, nombre")
           .eq("activo", true)
           .order("nombre")
           .returns<Zona[]>(),
-        supabase.rpc("get_stock_actual").returns<InventarioActualRow[]>(),
+        stockPromise,
         supabase
           .from("consumo_auto")
           .select(
@@ -144,7 +174,6 @@ export default function ControlPage() {
       if (!isMounted.current) return;
 
       if (zonasRes.error) throw zonasRes.error;
-      if (stockRes.error) throw stockRes.error;
       if (autoRes.error) throw autoRes.error;
 
       const zonasData = zonasRes.data ?? [];
@@ -157,21 +186,7 @@ export default function ControlPage() {
       });
 
       const stockIndex = new Map<string, InventarioActualRow>();
-      const stockPayload = stockRes.data;
-      if (stockPayload && !Array.isArray(stockPayload)) {
-        const rpcMessage =
-          typeof stockPayload === "object" &&
-          stockPayload !== null &&
-          "Error" in stockPayload &&
-          typeof stockPayload.Error === "string"
-            ? stockPayload.Error
-            : null;
-        throw new Error(
-          rpcMessage ?? "No se pudo obtener el inventario actual."
-        );
-      }
 
-      const stockData = Array.isArray(stockPayload) ? stockPayload : [];
       stockData.forEach((stock: InventarioActualRow) => {
         stockIndex.set(`${stock.zona_id}-${stock.material_id}`, stock);
       });
@@ -440,52 +455,6 @@ export default function ControlPage() {
               Se usará la fecha seleccionada como corte para registrar el
               movimiento diario.
             </span>
-          </div>
-
-          <div className="space-y-2 rounded-md border border-dashed p-4 text-sm">
-            <div className="flex items-start gap-2">
-              <Info className="mt-0.5 h-4 w-4 text-muted-foreground" />
-              <p>
-                Programa una tarea (por ejemplo en Vercel Cron o Supabase Edge
-                Jobs) que ejecute una petición <code>POST</code> diaria al
-                endpoint indicado. Usa la expresión cron
-                <code className="ml-1 rounded bg-muted px-2 py-0.5 text-xs">
-                  {cronExpresion}
-                </code>
-                en la zona horaria <strong>{timezone}</strong>.
-              </p>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-muted">
-                <thead>
-                  <tr className="text-left text-xs font-semibold uppercase text-muted-foreground">
-                    <th className="px-3 py-2">Zona</th>
-                    <th className="px-3 py-2">Endpoint</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {zonas.map((zona) => (
-                    <tr key={`endpoint-${zona.id}`} className="text-xs">
-                      <td className="px-3 py-2 font-medium">{zona.nombre}</td>
-                      <td className="px-3 py-2 font-mono">
-                        {endpointBase}/inventario/api/consumo/apply?zonaId=
-                        {zona.id}
-                      </td>
-                    </tr>
-                  ))}
-                  {zonas.length === 0 && (
-                    <tr>
-                      <td
-                        colSpan={2}
-                        className="px-3 py-2 text-center text-muted-foreground"
-                      >
-                        No hay zonas activas para configurar.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
           </div>
         </CardContent>
       </Card>
