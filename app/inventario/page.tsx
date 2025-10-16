@@ -419,7 +419,7 @@ export default function InventarioPage() {
   const mostrarColumnaKg = rows.some((row) => row.unidad !== "unidad");
 
   return (
-    <main className="mx-auto max-w-6xl space-y-8 p-6">
+    <div className="space-y-8">
       <InventarioHeader
         zonaActual={zonaActual}
         totalMateriales={totalMateriales}
@@ -442,12 +442,13 @@ export default function InventarioPage() {
             }}
             className="space-y-6"
           >
-            <TabsList className="flex w-full flex-initial justify-start gap-1.5 rounded-xl bg-muted/95 p-7 px-1 text">
+            <TabsList className="flex w-full flex-wrap justify-start gap-2 rounded-xl bg-muted/95 p-1 sm:gap-3 sm:p-2">
+              {" "}
               {zonas.map((zona) => (
                 <TabsTrigger
                   key={zona.id}
                   value={zona.id}
-                  className="rounded-lg border border-b-transparent px-10 py-6 text-md font-sem data-[state=active]:border-b-[#3e74cc] data-[state=active]:bg-white data-[state=active]:text-[#1F4F9C]"
+                  className="rounded-lg border border-transparent px-6 py-3 text-sm font-semibold text-muted-foreground transition data-[state=active]:border-b-2 data-[state=active]:border-b-[#3e74cc] data-[state=active]:bg-white data-[state=active]:text-[#1F4F9C] data-[state=inactive]:hover:text-[#1F4F9C]"
                 >
                   {zona.nombre}
                 </TabsTrigger>
@@ -535,6 +536,6 @@ export default function InventarioPage() {
         onChange={setValorConsumo}
         onSubmit={() => void guardarConsumoManual()}
       />
-    </main>
+    </div>
   );
 }
