@@ -442,12 +442,12 @@ export default function InventarioPage() {
             }}
             className="space-y-6"
           >
-            <TabsList className="flex w-full flex-wrap justify-start gap-1.5 rounded-xl bg-muted/95 p-1">
+            <TabsList className="flex w-full flex-initial justify-start gap-1.5 rounded-xl bg-muted/95 p-7 px-1 text">
               {zonas.map((zona) => (
                 <TabsTrigger
                   key={zona.id}
                   value={zona.id}
-                  className="rounded-lg border border-transparent px-6 py-3 text-sm font-semibold transition-all data-[state=active]:border-b-[#3e74cc] data-[state=active]:bg-white data-[state=active]:text-[#1F4F9C]"
+                  className="rounded-lg border border-b-transparent px-10 py-6 text-md font-sem data-[state=active]:border-b-[#3e74cc] data-[state=active]:bg-white data-[state=active]:text-[#1F4F9C]"
                 >
                   {zona.nombre}
                 </TabsTrigger>
