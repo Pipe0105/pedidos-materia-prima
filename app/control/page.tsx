@@ -246,7 +246,19 @@ export default function ControlPage() {
       });
 
       registros.sort((a, b) => b.timestamp - a.timestamp);
-      setRows(registros);
+      const registrosUnicos: Row[] = [];
+      const combinacionesVistas = new Set<string>();
+
+      for (const registro of registros) {
+        const llave = `${registro.zona_id}-${registro.material_id}`;
+        if (combinacionesVistas.has(llave)) {
+          continue;
+        }
+        combinacionesVistas.add(llave);
+        registrosUnicos.push(registro);
+      }
+
+      setRows(registrosUnicos);
     } catch (err) {
       if (!isMounted.current) return;
       console.error("Error cargando datos de control", err);
