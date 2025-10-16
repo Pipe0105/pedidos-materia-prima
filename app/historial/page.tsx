@@ -220,7 +220,7 @@ export default function HistorialPage() {
   }
 
   return (
-    <main className="space-y-8">
+    <main className="mx-auto max-w-6xl space-y-8 p-6">
       <section className="flex flex-col gap-6 rounded-2xl border bg-gradient-to-r from-[#1F4F9C] via-[#1F4F9C]/90 to-[#29B8A6]/80 p-6 text-white shadow-lg lg:flex-row lg:items-center lg:justify-between">
         <div className="space-y-2">
           <p className="text-sm uppercase tracking-[0.2em] text-white/80">
