@@ -23,6 +23,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import PedidoDetalle from "./pedidosdetalles";
+import {
+  getPedidosCache,
+  invalidatePedidosCache,
+  PEDIDOS_CACHE_TTL,
+  setPedidosCache,
+} from "./pedidosCache";
 
 type unidadMedida = "bulto" | "unidad" | "litro" | null;
 
@@ -86,9 +92,6 @@ const ESTADO_HELPERS: Record<Pedido["estado"], string> = {
   completado: "Ingresados al inventario",
 };
 
-const CACHE_TTL = 1000 * 60 * 2; // 2 minutos
-const pedidosCache = new Map<string, { data: Pedido[]; fetchedAt: number }>();
-
 export default function PedidosZona({
   zonaId,
   nombre,
@@ -99,7 +102,7 @@ export default function PedidosZona({
   const router = useRouter();
   const { notify } = useToast();
 
-  const cached = pedidosCache.get(zonaId);
+  const cached = getPedidosCache<Pedido[]>(zonaId);
   const [pedidos, setPedidos] = useState<Pedido[]>(cached?.data ?? []);
   const [loading, setLoading] = useState(!cached);
   const [q, setQ] = useState("");
@@ -118,11 +121,11 @@ export default function PedidosZona({
 
   const cargarPedidos = useCallback(
     async ({ force } = { force: false }) => {
-      const cache = pedidosCache.get(zonaId);
+      const cache = getPedidosCache<Pedido[]>(zonaId);
 
       if (!force && cache) {
         setPedidos(cache.data);
-        if (Date.now() - cache.fetchedAt < CACHE_TTL) {
+        if (Date.now() - cache.fetchedAt < PEDIDOS_CACHE_TTL) {
           setLoading(false);
           return;
         }
@@ -163,10 +166,7 @@ export default function PedidosZona({
         });
 
         setPedidos(normalizados);
-        pedidosCache.set(zonaId, {
-          data: normalizados,
-          fetchedAt: Date.now(),
-        });
+        setPedidosCache(zonaId, normalizados);
       }
       setLoading(false);
     },
@@ -194,10 +194,7 @@ export default function PedidosZona({
     } else {
       setPedidos((prev) => {
         const actualizados = prev.filter((p) => p.id !== id);
-        pedidosCache.set(zonaId, {
-          data: actualizados,
-          fetchedAt: Date.now(),
-        });
+        setPedidosCache(zonaId, actualizados);
         return actualizados;
       });
       notify("Pedido eliminado ✅", "success");
@@ -272,15 +269,27 @@ export default function PedidosZona({
         const actualizados = prev.map(
           (p): Pedido => (p.id === id ? { ...p, estado: "completado" } : p)
         );
-        pedidosCache.set(zonaId, {
-          data: actualizados,
-          fetchedAt: Date.now(),
-        });
+        setPedidosCache(zonaId, actualizados);
         return actualizados;
       });
       notify("Pedido completado ✅, inventario actualizado", "success");
     }
   }
+
+  useEffect(() => {
+    const handleInvalidate = (event: Event) => {
+      const customEvent = event as CustomEvent<{ zonaId?: string }>;
+      if (!customEvent.detail?.zonaId || customEvent.detail.zonaId === zonaId) {
+        invalidatePedidosCache(customEvent.detail?.zonaId);
+        void cargarPedidos({ force: true });
+      }
+    };
+
+    window.addEventListener("pedidos:invalidate", handleInvalidate);
+    return () => {
+      window.removeEventListener("pedidos:invalidate", handleInvalidate);
+    };
+  }, [zonaId, cargarPedidos]);
 
   const badgeEstado = (estado: Pedido["estado"]) => {
     const base =

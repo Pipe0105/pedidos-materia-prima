@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toastprovider";
 import MaterialPicker from "@/components/MaterialPicker";
 import { DatePicker } from "@/components/ui/date-picker";
-
+import { invalidatePedidosCache } from "@/app/pedidos/pedidosCache";
 
 type PedidoItem = {
   material_id: string;
@@ -34,34 +34,31 @@ export default function NuevoPedidoPage() {
   const [items, setItems] = useState<PedidoItem[]>([]);
   const [saving, setSaving] = useState(false);
 
-  
-
-function agregarMaterial(
-  id: string,
-  meta?: {
-    nombre: string;
-    presentacion_kg_por_bulto: number | null;
-    unidad_medida: "bulto" | "unidad" | "litro";
+  function agregarMaterial(
+    id: string,
+    meta?: {
+      nombre: string;
+      presentacion_kg_por_bulto: number | null;
+      unidad_medida: "bulto" | "unidad" | "litro";
+    }
+  ) {
+    if (!meta) return;
+    setItems((prev) => [
+      ...prev,
+      {
+        material_id: id,
+        nombre: meta.nombre,
+        bultos: 1,
+        kg:
+          meta.unidad_medida === "bulto"
+            ? meta.presentacion_kg_por_bulto || 0
+            : meta.unidad_medida === "litro"
+            ? 1 // si 1 litro = 1kg
+            : 0, // unidades
+        materiales: meta,
+      },
+    ]);
   }
-) {
-  if (!meta) return;
-  setItems((prev) => [
-    ...prev,
-    {
-      material_id: id,
-      nombre: meta.nombre,
-      bultos: 1,
-      kg:
-        meta.unidad_medida === "bulto"
-          ? meta.presentacion_kg_por_bulto || 0
-          : meta.unidad_medida === "litro"
-          ? 1 // si 1 litro = 1kg
-          : 0, // unidades
-      materiales: meta,
-    },
-  ]);
-}
-
 
   async function guardarPedido() {
     if (!zonaId) {
@@ -83,7 +80,9 @@ function agregarMaterial(
         zona_id: zonaId,
         solicitante,
         fecha_pedido: hoy,
-        fecha_entrega: fechaEntrega ? fechaEntrega.toISOString().slice(0, 10) : null,
+        fecha_entrega: fechaEntrega
+          ? fechaEntrega.toISOString().slice(0, 10)
+          : null,
         notas,
         estado: "enviado",
         total_bultos: items.reduce((sum, it) => sum + it.bultos, 0),
@@ -116,8 +115,14 @@ function agregarMaterial(
       notify("Error agregando materiales: " + errorItems.message, "error");
     } else {
       notify("Pedido creado ✅", "success");
-      const redirecUrl = zonaId ? `/pedidos?zonaId=${zonaId}`: "/pedidos";
-      router.push(redirecUrl);   
+      if (zonaId) {
+        invalidatePedidosCache(zonaId);
+        window.dispatchEvent(
+          new CustomEvent("pedidos:invalidate", { detail: { zonaId } })
+        );
+      }
+      const redirecUrl = zonaId ? `/pedidos?zonaId=${zonaId}` : "/pedidos";
+      router.push(redirecUrl);
     }
   }
 
@@ -160,11 +165,13 @@ function agregarMaterial(
       {/* Materiales */}
       <div className="space-y-4 border rounded-lg p-4 bg-white shadow-sm">
         <h2 className="text-lg font-semibold">Materiales</h2>
-        {zonaId && <MaterialPicker zonaId={zonaId} onChange={agregarMaterial} />}
+        {zonaId && (
+          <MaterialPicker zonaId={zonaId} onChange={agregarMaterial} />
+        )}
         {items.length > 0 && (
           <table className="w-full text-sm mt-3">
             <thead>
-                <tr>
+              <tr>
                 <th className="p-2">Material</th>
                 <th className="p-2">Unidad</th>
                 <th className="p-2">Cantidad</th>
@@ -177,57 +184,58 @@ function agregarMaterial(
                 ) && <th className="p-2">Kg</th>}
               </tr>
             </thead>
-<tbody>
-  {items.map((it, idx) => (
-    <tr key={idx} className="border-b">
-      <td className="p-2">{it.nombre}</td>
-      <td className="p-2">{it.materiales?.unidad_medida}</td>
-      <td className="p-2" align="center">
-        <input
-          type="number"
-          value={it.bultos}
-          min={1}
-          onChange={(e) => {
-            const val = parseInt(e.target.value) || 0;
-            setItems((prev) =>
-              prev.map((p, i) =>
-                i === idx
-                  ? {
-                      ...p,
-                      bultos: val,
-                      kg:
-                        p.materiales?.unidad_medida === "bulto"
-                          ? val * (p.materiales?.presentacion_kg_por_bulto || 1)
-                          : null,
-                    }
-                  : p
-              )
-            );
-          }}
-          className="w-20 border rounded px-2 py-1 text-sm"
-        />
-      </td>
-    {/* Mostrar Kg solo si la unidad es bulto o litro */}
-      {(it.materiales?.unidad_medida === "bulto" || it.materiales?.unidad_medida === "litro") && (
-        <td className="p-2 text-center">{it.kg ?? "—"}</td>
-      )}
+            <tbody>
+              {items.map((it, idx) => (
+                <tr key={idx} className="border-b">
+                  <td className="p-2">{it.nombre}</td>
+                  <td className="p-2">{it.materiales?.unidad_medida}</td>
+                  <td className="p-2" align="center">
+                    <input
+                      type="number"
+                      value={it.bultos}
+                      min={1}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value) || 0;
+                        setItems((prev) =>
+                          prev.map((p, i) =>
+                            i === idx
+                              ? {
+                                  ...p,
+                                  bultos: val,
+                                  kg:
+                                    p.materiales?.unidad_medida === "bulto"
+                                      ? val *
+                                        (p.materiales
+                                          ?.presentacion_kg_por_bulto || 1)
+                                      : null,
+                                }
+                              : p
+                          )
+                        );
+                      }}
+                      className="w-20 border rounded px-2 py-1 text-sm"
+                    />
+                  </td>
+                  {/* Mostrar Kg solo si la unidad es bulto o litro */}
+                  {(it.materiales?.unidad_medida === "bulto" ||
+                    it.materiales?.unidad_medida === "litro") && (
+                    <td className="p-2 text-center">{it.kg ?? "—"}</td>
+                  )}
 
-      <td className="p-2 text-center">
-</td>
-      <td className="p-2" align="center">
-        <button
-          onClick={() =>
-            setItems((prev) => prev.filter((_, i) => i !== idx))
-          }
-          className="rounded bg-red-600 text-white px-2 py-1 text-xs hover:bg-red-700"
-        >
-          Eliminar
-        </button>
-      </td>
-    </tr>
-  ))}
-</tbody>
-
+                  <td className="p-2 text-center"></td>
+                  <td className="p-2" align="center">
+                    <button
+                      onClick={() =>
+                        setItems((prev) => prev.filter((_, i) => i !== idx))
+                      }
+                      className="rounded bg-red-600 text-white px-2 py-1 text-xs hover:bg-red-700"
+                    >
+                      Eliminar
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
           </table>
         )}
       </div>
@@ -242,7 +250,7 @@ function agregarMaterial(
           {saving ? "Guardando..." : "Guardar pedido"}
         </button>
         <button
-          onClick={() => 
+          onClick={() =>
             router.push(
               zonaId ? `/pedidos?tab=${encodeURIComponent(zonaId)}` : "/pedidos"
             )
