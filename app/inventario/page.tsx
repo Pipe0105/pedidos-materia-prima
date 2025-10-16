@@ -31,12 +31,12 @@ function formatUnidad(valor: number, unidad: "bulto" | "unidad" | "litro") {
 // 👉 Fecha de agotamiento saltando domingos
 function calcularFechaHasta(
   fechaBase: string,
-  stockKg: number,
-  consumoDiarioKg: number | null
+  stockDisponible: number,
+  consumoDiario: number | null
 ) {
-  if (!consumoDiarioKg || consumoDiarioKg <= 0) return null;
-  let dias = Math.floor(stockKg / consumoDiarioKg);
-  let fecha = new Date(fechaBase);
+  if (!consumoDiario || consumoDiario <= 0) return null;
+  let dias = Math.floor(stockDisponible / consumoDiario);
+  const fecha = new Date(fechaBase);
   while (dias > 0) {
     fecha.setDate(fecha.getDate() + 1);
     if (fecha.getDay() !== 0) dias--;
@@ -44,13 +44,22 @@ function calcularFechaHasta(
   return fecha.toISOString().slice(0, 10);
 }
 
+type MovimientoInventario = {
+  fecha: string | null;
+  tipo: string;
+  bultos: number | null;
+  kg: number | null;
+  notas: string | null;
+  created_at: string;
+};
+
 export default function InventarioPage() {
   const [zonas, setZonas] = useState<Zona[]>([]);
   const [zonaId, setZonaId] = useState("");
   const fecha = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const [rows, setRows] = useState<StockRow[]>([]);
   const [loading, setLoading] = useState(false);
-  const [movimientos, setMovimientos] = useState<any[]>([]);
+  const [movimientos, setMovimientos] = useState<MovimientoInventario[]>([]);
   const [showHistorial, setShowHistorial] = useState(false);
   const [materialHistorial, setMaterialHistorial] = useState("");
   const [showEditar, setShowEditar] = useState(false);
@@ -297,7 +306,7 @@ export default function InventarioPage() {
       console.error("Error cargando historial:", error.message);
       setMovimientos([]);
     } else {
-      setMovimientos(movs ?? []);
+      setMovimientos((movs ?? []) as MovimientoInventario[]);
     }
     setShowHistorial(true);
   }
@@ -310,16 +319,16 @@ export default function InventarioPage() {
     try {
       const response = await fetch(`/api/inventario?zonaId=${zonaId}`);
 
-    if (!response.ok) {
+      if (!response.ok) {
         throw new Error("No se pudo obtener el inventario");
       }
 
-    const payload = (await response.json()) as InventarioActualRow[];
+      const payload = (await response.json()) as InventarioActualRow[];
 
       const data = payload.map((item) => {
-          const unidad = item.unidad_medida;
-          const presentacion = item.presentacion_kg_por_bulto;    
-  
+        const unidad = item.unidad_medida;
+        const presentacion = item.presentacion_kg_por_bulto;
+
         let consumo: number | null = null;
         if (unidad === "unidad") {
           consumo = item.tasa_consumo_diaria_kg ?? 1;
@@ -336,8 +345,8 @@ export default function InventarioPage() {
 
         if (consumo && consumo > 0) {
           if (unidad === "unidad") {
-            cobertura = Math.floor(item.stock / consumo);
-            hasta = calcularFechaHasta(fecha, item.stock, consumo);
+            cobertura = Math.floor(item.stock_bultos / consumo);
+            hasta = calcularFechaHasta(fecha, item.stock_bultos, consumo);
           } else {
             cobertura = Math.floor(item.stock_kg / consumo);
             hasta = calcularFechaHasta(fecha, item.stock_kg, consumo);
@@ -360,9 +369,9 @@ export default function InventarioPage() {
       console.error(err);
       alert("❌ Error obteniendo el inventario actual");
       setRows([]);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-  }
   }, [fecha, zonaId]);
 
   // useEffect zonas
@@ -375,7 +384,7 @@ export default function InventarioPage() {
         .order("nombre");
       if (data?.length) {
         setZonas(data);
-        if (!zonaId) setZonaId(data[0].id);
+        setZonaId((prev) => prev || data[0].id);
       }
     }
     void cargarZonas();
