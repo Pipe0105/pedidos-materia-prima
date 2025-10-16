@@ -86,6 +86,9 @@ const ESTADO_HELPERS: Record<Pedido["estado"], string> = {
   completado: "Ingresados al inventario",
 };
 
+const CACHE_TTL = 1000 * 60 * 2; // 2 minutos
+const pedidosCache = new Map<string, { data: Pedido[]; fetchedAt: number }>();
+
 export default function PedidosZona({
   zonaId,
   nombre,
@@ -96,8 +99,9 @@ export default function PedidosZona({
   const router = useRouter();
   const { notify } = useToast();
 
-  const [pedidos, setPedidos] = useState<Pedido[]>([]);
-  const [loading, setLoading] = useState(false);
+  const cached = pedidosCache.get(zonaId);
+  const [pedidos, setPedidos] = useState<Pedido[]>(cached?.data ?? []);
+  const [loading, setLoading] = useState(!cached);
   const [q, setQ] = useState("");
   const [estadoFiltro, setEstadoFiltro] = useState<Pedido["estado"] | "">("");
   const [mostrarCompletados, setMostrarCompletados] = useState(false);
@@ -112,45 +116,62 @@ export default function PedidosZona({
     );
   }, [pedidos]);
 
-  const cargarPedidos = useCallback(async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from("pedidos")
-      .select(
-        `
-        id, fecha_pedido, fecha_entrega, solicitante, estado, total_bultos, total_kg, notas,
+  const cargarPedidos = useCallback(
+    async ({ force } = { force: false }) => {
+      const cache = pedidosCache.get(zonaId);
+
+      if (!force && cache) {
+        setPedidos(cache.data);
+        if (Date.now() - cache.fetchedAt < CACHE_TTL) {
+          setLoading(false);
+          return;
+        }
+      }
+
+      setLoading(!cache || force);
+      const { data, error } = await supabase
+        .from("pedidos")
+        .select(
+          `
+          id, fecha_pedido, fecha_entrega, solicitante, estado, total_bultos, total_kg, notas,
         pedido_items (
           bultos, kg,
           materiales (unidad_medida)
         )
       `
-      )
-      .eq("zona_id", zonaId)
-      .order("fecha_pedido", { ascending: false });
+        )
+        .eq("zona_id", zonaId)
+        .order("fecha_pedido", { ascending: false });
 
-    if (error) {
-      notify("Error cargando pedidos: " + error.message, "error");
-    } else {
-      const normalizados = (data ?? []).map((pedido) => {
-        const pedidoTyped = pedido as PedidoFromSupabase;
-        const items = pedidoTyped.pedido_items?.map((item) => {
-          const itemTyped = item as PedidoItemFromSupabase;
+      if (error) {
+        notify("Error cargando pedidos: " + error.message, "error");
+      } else {
+        const normalizados = (data ?? []).map((pedido) => {
+          const pedidoTyped = pedido as PedidoFromSupabase;
+          const items = pedidoTyped.pedido_items?.map((item) => {
+            const itemTyped = item as PedidoItemFromSupabase;
+            return {
+              ...itemTyped,
+              materiales: itemTyped.materiales?.[0] ?? null,
+            } satisfies PedidoItem;
+          });
+
           return {
-            ...itemTyped,
-            materiales: itemTyped.materiales?.[0] ?? null,
-          } satisfies PedidoItem;
+            ...pedidoTyped,
+            pedido_items: items,
+          } satisfies Pedido;
         });
 
-        return {
-          ...pedidoTyped,
-          pedido_items: items,
-        } satisfies Pedido;
-      });
-
-      setPedidos(normalizados);
-    }
-    setLoading(false);
-  }, [zonaId, notify]);
+        setPedidos(normalizados);
+        pedidosCache.set(zonaId, {
+          data: normalizados,
+          fetchedAt: Date.now(),
+        });
+      }
+      setLoading(false);
+    },
+    [zonaId, notify]
+  );
 
   useEffect(() => {
     void cargarPedidos();
@@ -171,7 +192,14 @@ export default function PedidosZona({
     if (error) {
       notify("Error al eliminar pedido: " + error.message, "error");
     } else {
-      setPedidos((prev) => prev.filter((p) => p.id !== id));
+      setPedidos((prev) => {
+        const actualizados = prev.filter((p) => p.id !== id);
+        pedidosCache.set(zonaId, {
+          data: actualizados,
+          fetchedAt: Date.now(),
+        });
+        return actualizados;
+      });
       notify("Pedido eliminado ✅", "success");
     }
   }
@@ -240,9 +268,16 @@ export default function PedidosZona({
     if (error) {
       notify("Error al completar pedido: " + error.message, "error");
     } else {
-      setPedidos((prev) =>
-        prev.map((p) => (p.id === id ? { ...p, estado: "completado" } : p))
-      );
+      setPedidos((prev) => {
+        const actualizados = prev.map((p) =>
+          p.id === id ? { ...p, estado: "completado" } : p
+        );
+        pedidosCache.set(zonaId, {
+          data: actualizados,
+          fetchedAt: Date.now(),
+        });
+        return actualizados;
+      });
       notify("Pedido completado ✅, inventario actualizado", "success");
     }
   }

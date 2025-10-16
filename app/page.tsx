@@ -77,12 +77,12 @@ export default function HomePage() {
       {
         key: "critico" as const,
         value: criticos.length,
-        gradient: "from-[#FF6B5A]/90 via-[#FF6B5A]/70 to-[#FF6B5A]/60",
+        gradient: "from-[#FF6B5A]/90 via-[#FF6B5A]/70 to-[#FF6B5A]/30",
       },
       {
         key: "alerta" as const,
         value: alerta.length,
-        gradient: "from-[#F5A623]/90 via-[#F5A623]/70 to-[#F5A623]/60",
+        gradient: "from-[#F5A623]/90 via-[#F5A623]/70 to-[#F5A623]/30",
       },
       {
         key: "seguro" as const,
