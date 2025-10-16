@@ -2,19 +2,22 @@
 import { NextResponse } from "next/server";
 import { date, z } from "zod";
 import { supabase } from "@/lib/supabase";
-import { error } from "console";
 
 const querySchema = z.object({
   zonaId: z
-    .string().nonempty("Falta el ID de la zona")
+    .string()
+    .nonempty("Falta el ID de la zona")
     .min(1, "Falta Id de la zona")
     .max(128, "El Id es demasiado largo")
-    .refine((value) => /^[a-zA-Z0-9_-]+$/.test(value),{
+    .refine((value) => /^[a-zA-Z0-9_-]+$/.test(value), {
       message: "El Id de la zona contiene caracteres no permitidos",
     }),
   date: z
     .string()
-    .regex(/^(\d{4})-(\d{2})-(\d{2})$/, "Formato de fecha inválido (YYYY-MM-DD)")
+    .regex(
+      /^(\d{4})-(\d{2})-(\d{2})$/,
+      "Formato de fecha inválido (YYYY-MM-DD)"
+    )
     .optional(),
 });
 
@@ -25,14 +28,17 @@ export const dynamic = "force-dynamic";
 export async function POST(req: Request) {
   const { searchParams } = new URL(req.url);
   const parseResult = querySchema.safeParse({
-    zonaId: searchParams.get("ZonaId"),
+    zonaId: searchParams.get("zonaId"),
     date: searchParams.get("date") ?? undefined,
   });
 
   if (!parseResult.success) {
     return NextResponse.json(
-      {error: "Parametros invalidos", issues: parseResult.error.flatten() },
-      {status: 400},
+      {
+        error: "Parametros invalidos",
+        issues: parseResult.error.flatten(),
+      },
+      { status: 400 }
     );
   }
 
@@ -46,9 +52,17 @@ export async function POST(req: Request) {
     .eq("zona_id", zonaId)
     .eq("activo", true)
     .gt("tasa_consumo_diaria_kg", 0)
-    .returns<{ id: string; presentacion_kg_por_bulto: number; tasa_consumo_diaria_kg: number; activo: boolean }[]>();
+    .returns<
+      {
+        id: string;
+        presentacion_kg_por_bulto: number;
+        tasa_consumo_diaria_kg: number;
+        activo: boolean;
+      }[]
+    >();
 
-  if (errMats) return NextResponse.json({ error: errMats.message }, { status: 500 });
+  if (errMats)
+    return NextResponse.json({ error: errMats.message }, { status: 500 });
 
   // 2) Evitar duplicados: ya existe consumo para esa fecha?
   const { data: exist } = await supabase
@@ -80,11 +94,23 @@ export async function POST(req: Request) {
     });
 
   if (!payload.length) {
-    return NextResponse.json({ ok: true, inserted: 0, message: "Nada por hacer (ya aplicado o sin consumos > 0)." });
+    return NextResponse.json({
+      ok: true,
+      inserted: 0,
+      message: "Nada por hacer (ya aplicado o sin consumos > 0).",
+    });
   }
 
-  const { error: errIns } = await supabase.from("movimientos_inventario").insert(payload);
-  if (errIns) return NextResponse.json({ error: errIns.message }, { status: 500 });
+  const { error: errIns } = await supabase
+    .from("movimientos_inventario")
+    .insert(payload);
+  if (errIns)
+    return NextResponse.json({ error: errIns.message }, { status: 500 });
 
-  return NextResponse.json({ ok: true, inserted: payload.length, date, zonaId });
+  return NextResponse.json({
+    ok: true,
+    inserted: payload.length,
+    date,
+    zonaId,
+  });
 }
