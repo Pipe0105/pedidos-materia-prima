@@ -23,10 +23,16 @@ type PedidoSupabase = Omit<Pedido, "zonas" | "pedido_items"> & {
     | {
         bultos: number | null;
         kg: number | null;
-        materiales: {
-          nombre: string;
-          unidad_medida: "bulto" | "unidad" | "litro";
-        } | null;
+        materiales:
+          | {
+              nombre: string;
+              unidad_medida: "bulto" | "unidad" | "litro";
+            }[]
+          | {
+              nombre: string;
+              unidad_medida: "bulto" | "unidad" | "litro";
+            }
+          | null;
       }[]
     | null;
 };
@@ -86,6 +92,16 @@ export default function HistorialPage() {
             : pedido.zonas ?? { nombre: null },
           pedido_items: Array.isArray(pedido.pedido_items)
             ? pedido.pedido_items
+                .filter((item): item is NonNullable<typeof item> =>
+                  Boolean(item)
+                )
+                .map((item) => ({
+                  bultos: item.bultos,
+                  kg: item.kg,
+                  materiales: Array.isArray(item.materiales)
+                    ? item.materiales[0] ?? null
+                    : item.materiales ?? null,
+                }))
             : [],
         }));
 
@@ -145,6 +161,29 @@ export default function HistorialPage() {
       );
   }, [pedidos, q, desde, hasta]);
 
+  const rangoActivo = useMemo(() => {
+    const format = (value: string) =>
+      new Date(value + "T00:00:00").toLocaleDateString("es-CO", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      });
+
+    if (desde && hasta) {
+      return `Del ${format(desde)} al ${format(hasta)}`;
+    }
+
+    if (desde) {
+      return `Desde ${format(desde)}`;
+    }
+
+    if (hasta) {
+      return `Hasta ${format(hasta)}`;
+    }
+
+    return "Sin rango de fechas";
+  }, [desde, hasta]);
+
   const filtrosActivos = [
     q
       ? {
@@ -181,36 +220,63 @@ export default function HistorialPage() {
   }
 
   return (
-    <main className="mx-auto max-w-6xl space-y-6 p-6">
-      <header className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-slate-900">
-            Historial de pedidos
-          </h1>
-          <p className="text-sm text-slate-500">
+    <main className="space-y-8">
+      <section className="flex flex-col gap-6 rounded-2xl border bg-gradient-to-r from-[#1F4F9C] via-[#1F4F9C]/90 to-[#29B8A6]/80 p-6 text-white shadow-lg lg:flex-row lg:items-center lg:justify-between">
+        <div className="space-y-2">
+          <p className="text-sm uppercase tracking-[0.2em] text-white/80">
+            Historial
+          </p>
+          <h1 className="text-3xl font-semibold">Historial de pedidos</h1>
+          <p className="text-sm text-white/80">
             Consulta el histórico por zona y obtén contexto del estado actual.
           </p>
         </div>
-      </header>
+        <dl className="grid gap-4 text-sm text-white/80 sm:grid-cols-3 lg:text-right">
+          <div className="space-y-1">
+            <dt className="text-xs uppercase tracking-[0.2em] text-white/60">
+              Zonas activas
+            </dt>
+            <dd className="text-2xl font-semibold text-white">
+              {zonas.length}
+            </dd>
+          </div>
+          <div className="space-y-1">
+            <dt className="text-xs uppercase tracking-[0.2em] text-white/60">
+              Pedidos filtrados
+            </dt>
+            <dd className="text-2xl font-semibold text-white">
+              {filtrados.length}
+            </dd>
+          </div>
+          <div className="space-y-1">
+            <dt className="text-xs uppercase tracking-[0.2em] text-white/60">
+              Rango seleccionado
+            </dt>
+            <dd className="text-sm font-medium text-white/90">{rangoActivo}</dd>
+          </div>
+        </dl>
+      </section>
 
-      <FilterPanel
-        q={q}
-        desde={desde}
-        hasta={hasta}
-        onChangeQ={setQ}
-        onChangeDesde={setDesde}
-        onChangeHasta={setHasta}
-        onApplyRange={aplicarRango}
-      />
+      <section className="space-y-4">
+        <FilterPanel
+          q={q}
+          desde={desde}
+          hasta={hasta}
+          onChangeQ={setQ}
+          onChangeDesde={setDesde}
+          onChangeHasta={setHasta}
+          onApplyRange={aplicarRango}
+        />
 
-      <FilterSummary
-        filters={filtrosActivos}
-        onClearAll={() => {
-          setQ("");
-          setDesde("");
-          setHasta("");
-        }}
-      />
+        <FilterSummary
+          filters={filtrosActivos}
+          onClearAll={() => {
+            setQ("");
+            setDesde("");
+            setHasta("");
+          }}
+        />
+      </section>
 
       {loading ? (
         <HistorialLoading />
@@ -221,14 +287,15 @@ export default function HistorialPage() {
           <Tabs
             value={currentTab}
             onValueChange={setActiveTab}
-            className="space-y-4"
+            className="space-y-6"
           >
-            <TabsList className="flex w-full gap-2 overflow-x-auto rounded-full bg-slate-100 p-1">
+            <TabsList className="flex w-full flex-wrap justify-start gap-2 rounded-xl bg-muted/95 p-1 sm:gap-3 sm:p-2">
+              {" "}
               {zonas.map((zona) => (
                 <TabsTrigger
                   key={zona.id}
                   value={zona.id}
-                  className="whitespace-nowrap rounded-full px-5 py-2 text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=inactive]:text-slate-500"
+                  className="rounded-lg border border-transparent px-6 py-3 text-sm font-semibold text-muted-foreground transition data-[state=active]:border-b-2 data-[state=active]:border-b-[#3e74cc] data-[state=active]:bg-white data-[state=active]:text-[#1F4F9C] data-[state=inactive]:hover:text-[#1F4F9C]"
                 >
                   {zona.nombre}
                 </TabsTrigger>
