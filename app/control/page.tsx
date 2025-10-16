@@ -157,7 +157,23 @@ export default function ControlPage() {
       });
 
       const stockIndex = new Map<string, InventarioActualRow>();
-      (stockRes.data ?? []).forEach((stock) => {
+      const stockPayload = stockRes.data;
+      if (stockPayload && !Array.isArray(stockPayload)) {
+        const rpcMessage =
+          typeof stockPayload === "object" &&
+          stockPayload !== null &&
+          "Error" in stockPayload &&
+          typeof stockPayload.Error === "string"
+            ? stockPayload.Error
+            : null;
+        throw new Error(
+          rpcMessage ?? "No se pudo obtener el inventario actual."
+        );
+      }
+
+      const stockData = Array.isArray(stockPayload) ? stockPayload : [];
+      stockData.forEach((stock: InventarioActualRow) => {
+      stockData.forEach((stock: InventarioActualRow) => {
         stockIndex.set(`${stock.zona_id}-${stock.material_id}`, stock);
       });
 
@@ -195,9 +211,7 @@ export default function ControlPage() {
     } catch (err) {
       if (!isMounted.current) return;
       console.error("Error cargando datos de control", err);
-      const message =
-        err instanceof Error ? err.message : "No se pudieron cargar los datos.";
-      setError(message);
+      setError("No se pudieron cargar los datos.");
     } finally {
       if (isMounted.current) {
         setLoading(false);
