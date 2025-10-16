@@ -7,11 +7,14 @@ import { ToastProvider } from "@/components/toastprovider";
 import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const pathname = usePathname();
   const router = useRouter();
   const esLogin = pathname.startsWith("/auth/login");
-
 
   async function handleLogout() {
     await supabase.auth.signOut();
@@ -54,7 +57,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </nav>
             </header>
           )}
-          <main className="mx-auto max-w-6xl p-6">{children}</main>
+          <main className="mx-auto w-full max-w-6xl px-6 py-8">{children}</main>
         </ToastProvider>
       </body>
     </html>

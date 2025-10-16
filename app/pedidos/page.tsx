@@ -7,13 +7,13 @@ import { supabase } from "@/lib/supabase";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Card,
-  CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import PedidosZona from "./pedidoszonas";
 import { Button } from "@/components/ui/button";
+import { PageContainer } from "@/components/PageContainer";
 
 type Zona = {
   id: string;
@@ -67,14 +67,14 @@ export default function PedidosPage() {
   }, [zonas, zonaFromQuery, selectedZona]);
 
   const renderLoading = (mensaje: string) => (
-    <main className="mx-auto max-w-6xl space-y-6 p-6">
+    <PageContainer className="space-y-6">
       <Card>
         <CardHeader>
           <CardTitle>Pedidos de materia prima</CardTitle>
           <CardDescription>{mensaje}</CardDescription>
         </CardHeader>
       </Card>
-    </main>
+    </PageContainer>
   );
 
   if (loading || !selectedZona) {
@@ -91,7 +91,7 @@ export default function PedidosPage() {
     zonas.find((zona) => zona.id === selectedZona) ?? zonas[0] ?? null;
 
   return (
-    <main className="mx-auto max-w-6xl space-y-8 p-6">
+    <PageContainer>
       <header className="flex flex-col gap-6 rounded-2xl border bg-gradient-to-r from-[#1F4F9C] via-[#1F4F9C]/90 to-[#29B8A6]/80 p-6 text-white shadow-lg lg:flex-row lg:items-center lg:justify-between">
         <div className="space-y-2">
           <p className="text-sm uppercase tracking-[0.2em] text-white/80">
@@ -172,6 +172,6 @@ export default function PedidosPage() {
           ))}
         </Tabs>
       </section>
-    </main>
+    </PageContainer>
   );
 }

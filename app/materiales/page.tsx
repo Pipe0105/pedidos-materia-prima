@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/lib/supabase";
+import { PageContainer } from "@/components/PageContainer";
 
 type Zona = { id: string; nombre: string };
 
@@ -180,7 +181,7 @@ export default function MaterialesPage() {
 
   // === UI ===
   return (
-    <main className="mx-auto max-w-6xl space-y-8 p-6">
+    <PageContainer>
       {/* Encabezado */}
       <header className="flex flex-col gap-6 rounded-2xl border bg-gradient-to-r from-[#1F4F9C] via-[#1F4F9C]/90 to-[#29B8A6]/80 p-6 text-white shadow-lg lg:flex-row lg:items-center lg:justify-between">
         <div className="space-y-2">
@@ -495,6 +496,6 @@ export default function MaterialesPage() {
           </TabsContent>
         ))}
       </Tabs>
-    </main>
+    </PageContainer>
   );
 }

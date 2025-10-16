@@ -8,6 +8,7 @@ import { InventorySummary } from "@/app/(dashboard)/_components/InventorySummary
 import { PedidosPendientes } from "@/app/(dashboard)/_components/PedidosPendientes";
 import { useDashboardData } from "@/app/(dashboard)/_hooks/use-dashboard-data";
 import { MaterialRow } from "@/app/(dashboard)/_components/_types";
+import { PageContainer } from "@/components/PageContainer";
 
 export default function HomePage() {
   const { notify } = useToast();
@@ -98,7 +99,7 @@ export default function HomePage() {
   };
 
   return (
-    <main className="mx-auto max-w-6xl space-y-8 p-6">
+    <PageContainer>
       <DashboardHeader
         lastUpdated={lastUpdated}
         isRefreshing={pedidosLoading || inventarioLoading}
@@ -128,6 +129,6 @@ export default function HomePage() {
         hasCriticos={criticos.length > 0}
         onCompletar={handleCompletar}
       />
-    </main>
+    </PageContainer>
   );
 }

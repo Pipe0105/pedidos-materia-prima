@@ -4,12 +4,8 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { fmtNum } from "@/lib/format";
 import { Loader2 } from "lucide-react";
-import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
-} from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { PageContainer } from "@/components/PageContainer";
 
 type Zona = {
   id: string;
@@ -70,8 +66,7 @@ export default function ControlPage() {
     (autoData || []).forEach((a: any) => {
       const key = `${a.zona_id}-${a.material_id}`;
       const stockRow = stockData?.find(
-        (s: any) =>
-          s.zona_id === a.zona_id && s.material_id === a.material_id
+        (s: any) => s.zona_id === a.zona_id && s.material_id === a.material_id
       );
 
       const unidad = a.materiales?.unidad_medida || "bulto";
@@ -125,7 +120,7 @@ export default function ControlPage() {
   }
 
   return (
-    <main className="mx-auto max-w-7xl p-6 space-y-6">
+    <PageContainer className="space-y-6">
       <header className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Control de Consumo</h1>
       </header>
@@ -210,6 +205,6 @@ export default function ControlPage() {
           </TabsContent>
         ))}
       </Tabs>
-    </main>
+    </PageContainer>
   );
 }

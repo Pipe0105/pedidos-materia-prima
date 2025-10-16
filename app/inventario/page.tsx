@@ -13,7 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { PageContainer } from "@/components/PageContainer";
 
 import { InventarioHeader } from "./_components/InventarioHeader";
 import { InventarioTable } from "./_components/InventarioTable";
@@ -34,7 +34,6 @@ const EMPTY_EDITAR: MaterialEditar = { id: "", nombre: "", stockKg: 0 };
 const EMPTY_CONSUMO: MaterialConsumo = { id: "", nombre: "", unidad: "bulto" };
 
 export default function InventarioPage() {
-  const router = useRouter();
   const searchParams = useSearchParams();
 
   const [zonas, setZonas] = useState<Zona[]>([]);
@@ -419,7 +418,7 @@ export default function InventarioPage() {
   const mostrarColumnaKg = rows.some((row) => row.unidad !== "unidad");
 
   return (
-    <div className="space-y-8">
+    <PageContainer>
       <InventarioHeader
         zonaActual={zonaActual}
         totalMateriales={totalMateriales}
@@ -536,6 +535,6 @@ export default function InventarioPage() {
         onChange={setValorConsumo}
         onSubmit={() => void guardarConsumoManual()}
       />
-    </div>
+    </PageContainer>
   );
 }
