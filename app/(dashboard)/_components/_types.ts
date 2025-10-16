@@ -23,3 +23,15 @@ export type MaterialConConsumo = {
   unidad_medida: "bulto" | "unidad" | "litro" | null;
   presentacion_kg_por_bulto: number | null;
 };
+
+export type InventarioActualRow = {
+  zona_id: string;
+  material_id: string;
+  nombre: string;
+  unidad_medida: "bulto" | "unidad" | "litro";
+  presentacion_kg_por_bulto: number | null;
+  tasa_consumo_diaria_kg: number | null;
+  stock: number;
+  stock_kg: number;
+  stock_bultos: number;
+};

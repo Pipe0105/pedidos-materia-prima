@@ -269,8 +269,8 @@ export default function PedidosZona({
       notify("Error al completar pedido: " + error.message, "error");
     } else {
       setPedidos((prev) => {
-        const actualizados = prev.map((p) =>
-          p.id === id ? { ...p, estado: "completado" } : p
+        const actualizados = prev.map(
+          (p): Pedido => (p.id === id ? { ...p, estado: "completado" } : p)
         );
         pedidosCache.set(zonaId, {
           data: actualizados,

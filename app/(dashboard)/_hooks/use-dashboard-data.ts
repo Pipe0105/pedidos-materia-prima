@@ -6,9 +6,9 @@ import { supabase } from "@/lib/supabase";
 
 import { ToastType } from "@/components/toastprovider";
 import {
-  MaterialConConsumo,
   MaterialRow,
   Pedido,
+  InventarioActualRow,
 } from "@/app/(dashboard)/_components/_types";
 
 type UseDashboardDataArgs = {
@@ -65,81 +65,69 @@ export function useDashboardData({
     setInventarioLoading(true);
     setInventarioError(null);
 
-    const [{ data: mats, error: matsError }, { data: movs, error: movsError }] =
-      await Promise.all([
-        supabase
-          .from("materiales")
-          .select(
-            "id,nombre,tasa_consumo_diaria_kg,unidad_medida,presentacion_kg_por_bulto"
-          ),
-        supabase
-          .from("movimientos_inventario")
-          .select("material_id,kg,bultos,tipo"),
-      ]);
+    try {
+      const response = await fetch("/api/inventario");
 
-    if (matsError || movsError) {
-      setInventarioError(matsError?.message ?? movsError?.message ?? null);
-      notify("No pudimos calcular la cobertura de inventario", "error");
-    }
+      if (!response.ok) {
+        throw new Error("No pudimos obtener el inventario");
+      }
 
-    const stockKg: Record<string, number> = {};
-    const stockBultos: Record<string, number> = {};
-    (movs ?? []).forEach((mv) => {
-      const mult = mv.tipo === "entrada" ? 1 : mv.tipo === "salida" ? -1 : 1;
-      const materialId = mv.material_id;
-      stockKg[materialId] =
-        (stockKg[materialId] ?? 0) + Number(mv.kg ?? 0) * mult;
-      stockBultos[materialId] =
-        (stockBultos[materialId] ?? 0) + Number(mv.bultos ?? 0) * mult;
-    });
+      const payload = (await response.json()) as InventarioActualRow[];
 
-    const materiales =
-      (mats as MaterialConConsumo[] | null)
-        ?.map((m) => {
-          const unidad = m.unidad_medida ?? "bulto";
-          const stockActualKg = stockKg[m.id] ?? 0;
-          const stockActualBultos = stockBultos[m.id] ?? 0;
+      const materiales = payload.reduce<MaterialRow[]>((acc, item) => {
+        const unidad = item.unidad_medida;
+        let cobertura: number | null = null;
 
-          let cobertura: number | null = null;
+        if (unidad === "unidad") {
+          const consumoUnidades =
+            item.tasa_consumo_diaria_kg && item.tasa_consumo_diaria_kg > 0
+              ? item.tasa_consumo_diaria_kg
+              : null;
+          if (consumoUnidades) {
+            cobertura = item.stock_bultos / consumoUnidades;
+          }
+        } else {
+          let consumoKg: number | null = null;
 
-          if (unidad === "unidad") {
-            const consumoUnidades =
-              m.tasa_consumo_diaria_kg && m.tasa_consumo_diaria_kg > 0
-                ? m.tasa_consumo_diaria_kg
-                : null;
-            if (consumoUnidades) {
-              cobertura = stockActualBultos / consumoUnidades;
+          if (unidad === "bulto") {
+            if (
+              item.tasa_consumo_diaria_kg &&
+              item.tasa_consumo_diaria_kg > 0 &&
+              item.presentacion_kg_por_bulto &&
+              item.presentacion_kg_por_bulto > 0
+            ) {
+              consumoKg =
+                item.tasa_consumo_diaria_kg * item.presentacion_kg_por_bulto;
             }
           } else {
-            let consumoKg: number | null = null;
-
-            if (unidad === "bulto") {
-              if (
-                m.tasa_consumo_diaria_kg &&
-                m.tasa_consumo_diaria_kg > 0 &&
-                m.presentacion_kg_por_bulto &&
-                m.presentacion_kg_por_bulto > 0
-              ) {
-                consumoKg =
-                  m.tasa_consumo_diaria_kg * m.presentacion_kg_por_bulto;
-              }
-            } else {
-              consumoKg =
-                m.tasa_consumo_diaria_kg && m.tasa_consumo_diaria_kg > 0
-                  ? m.tasa_consumo_diaria_kg
-                  : null;
-            }
-            if (consumoKg) {
-              cobertura = stockActualKg / consumoKg;
-            }
+            consumoKg =
+              item.tasa_consumo_diaria_kg && item.tasa_consumo_diaria_kg > 0
+                ? item.tasa_consumo_diaria_kg
+                : null;
           }
+          if (consumoKg) {
+            cobertura = item.stock_kg / consumoKg;
+          }
+        }
 
-          return { id: m.id, nombre: m.nombre, cobertura };
-        })
-        .filter((m) => m.cobertura !== null) ?? [];
+        if (cobertura !== null) {
+          acc.push({ id: item.material_id, nombre: item.nombre, cobertura });
+        }
 
-    setMaterialesConCobertura(materiales);
-    setInventarioLoading(false);
+        return acc;
+      }, []);
+
+      setMaterialesConCobertura(materiales);
+    } catch (error) {
+      console.error(error);
+      setInventarioError(
+        error instanceof Error ? error.message : "Error inesperado"
+      );
+      notify("No pudimos calcular la cobertura de inventario", "error");
+      setMaterialesConCobertura([]);
+    } finally {
+      setInventarioLoading(false);
+    }
   }, [notify]);
 
   const cargarDashboard = useCallback(async () => {

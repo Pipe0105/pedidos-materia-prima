@@ -1,22 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import ZoneSelector from "@/components/ZonaSelector";
 import { fmtNum } from "@/lib/format";
-import { ref } from "pdfkit";
+import { InventarioActualRow } from "@/app/(dashboard)/_components/_types";
 
 type Zona = {
   id: string;
   nombre: string;
-};
-
-type Material = {
-  id: string;
-  nombre: string;
-  presentacion_kg_por_bulto: number | null;
-  tasa_consumo_diaria_kg: number | null;
-  unidad_medida: "bulto" | "unidad" | "litro";
 };
 
 type StockRow = {
@@ -38,7 +29,11 @@ function formatUnidad(valor: number, unidad: "bulto" | "unidad" | "litro") {
 }
 
 // 👉 Fecha de agotamiento saltando domingos
-function calcularFechaHasta(fechaBase: string, stockKg: number, consumoDiarioKg: number | null) {
+function calcularFechaHasta(
+  fechaBase: string,
+  stockKg: number,
+  consumoDiarioKg: number | null
+) {
   if (!consumoDiarioKg || consumoDiarioKg <= 0) return null;
   let dias = Math.floor(stockKg / consumoDiarioKg);
   let fecha = new Date(fechaBase);
@@ -52,14 +47,18 @@ function calcularFechaHasta(fechaBase: string, stockKg: number, consumoDiarioKg:
 export default function InventarioPage() {
   const [zonas, setZonas] = useState<Zona[]>([]);
   const [zonaId, setZonaId] = useState("");
-  const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 10));
+  const fecha = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const [rows, setRows] = useState<StockRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [movimientos, setMovimientos] = useState<any[]>([]);
   const [showHistorial, setShowHistorial] = useState(false);
   const [materialHistorial, setMaterialHistorial] = useState("");
   const [showEditar, setShowEditar] = useState(false);
-  const [materialEditar, setMaterialEditar] = useState<{ id: string; nombre: string; stockKg: number }>({
+  const [materialEditar, setMaterialEditar] = useState<{
+    id: string;
+    nombre: string;
+    stockKg: number;
+  }>({
     id: "",
     nombre: "",
     stockKg: 0,
@@ -74,7 +73,11 @@ export default function InventarioPage() {
   }>({ id: "", nombre: "", unidad: "bulto" });
   const [valorConsumo, setValorConsumo] = useState("");
 
-  function abrirConsumoManual(id: string, nombre: string, unidad: "bulto" | "unidad" | "litro") {
+  function abrirConsumoManual(
+    id: string,
+    nombre: string,
+    unidad: "bulto" | "unidad" | "litro"
+  ) {
     setMaterialConsumo({ id, nombre, unidad });
     setValorConsumo("");
     setShowConsumo(true);
@@ -126,7 +129,9 @@ export default function InventarioPage() {
       bultos,
       kg,
       ref_tipo: "consumo_manual",
-      notas: `Consumo manual registrado (${cantidad} ${unidad}${cantidad !== 1 ? "s" : ""})`,
+      notas: `Consumo manual registrado (${cantidad} ${unidad}${
+        cantidad !== 1 ? "s" : ""
+      })`,
     });
 
     if (error) {
@@ -141,19 +146,18 @@ export default function InventarioPage() {
   // deshacer consumo manual
 
   async function deshacerConsumoManual() {
-
     const { id } = materialConsumo;
 
     // busca el ultimo movimiento
     const { data: mov, error: errMov } = await supabase
-    .from("movimientos_inventario")
-    .select("id, bultos, kg, fecha")
-    .eq("zona_id", zonaId)
-    .eq("material_id", id)
-    .eq("ref_tipo", "consumo_manual")
-    .order("fecha", { ascending: false })
-    .limit(1)
-    .single();
+      .from("movimientos_inventario")
+      .select("id, bultos, kg, fecha")
+      .eq("zona_id", zonaId)
+      .eq("material_id", id)
+      .eq("ref_tipo", "consumo_manual")
+      .order("fecha", { ascending: false })
+      .limit(1)
+      .single();
 
     if (errMov || !mov) {
       alert("No hay consumos manuales para deshacer");
@@ -162,24 +166,25 @@ export default function InventarioPage() {
 
     // movimiento inverso
 
-    const { error: errUndo } = await supabase.from("movimientos_inventario").insert({
-      zona_id: zonaId,
-      material_id: id,
-      fecha: new Date().toISOString().slice(0, 10),
-      tipo: "entrada",
-      bultos: mov.bultos,
-      kg: mov.kg,
-      ref_tipo: "deshacer consumo",
-      notas: "deshacer consumo manual anterior"
-    });
+    const { error: errUndo } = await supabase
+      .from("movimientos_inventario")
+      .insert({
+        zona_id: zonaId,
+        material_id: id,
+        fecha: new Date().toISOString().slice(0, 10),
+        tipo: "entrada",
+        bultos: mov.bultos,
+        kg: mov.kg,
+        ref_tipo: "deshacer consumo",
+        notas: "deshacer consumo manual anterior",
+      });
 
     if (errUndo) {
       alert("error al dehacer consumo" + errUndo.message);
-    }else{
+    } else {
       alert("consumo manual deshecho correctamente");
       await cargar();
     }
-
   }
 
   // 🟦 Editar inventario (igual que tenías)
@@ -188,96 +193,95 @@ export default function InventarioPage() {
     setShowEditar(true);
   }
 
-async function guardarEdicion() {
-  const { id, stockKg } = materialEditar;
+  async function guardarEdicion() {
+    const { id, stockKg } = materialEditar;
 
-  // 🔹 Obtener información del material (para saber la unidad de medida)
-  const { data: materialData } = await supabase
-    .from("materiales")
-    .select("unidad_medida, presentacion_kg_por_bulto")
-    .eq("id", id)
-    .single();
+    // 🔹 Obtener información del material (para saber la unidad de medida)
+    const { data: materialData } = await supabase
+      .from("materiales")
+      .select("unidad_medida, presentacion_kg_por_bulto")
+      .eq("id", id)
+      .single();
 
-  const unidad = materialData?.unidad_medida || "bulto";
-  const presentacion = materialData?.presentacion_kg_por_bulto || 1;
+    const unidad = materialData?.unidad_medida || "bulto";
+    const presentacion = materialData?.presentacion_kg_por_bulto || 1;
 
-  // 🔹 Obtener movimientos actuales del material
-  const { data: movs, error: errMovs } = await supabase
-    .from("movimientos_inventario")
-    .select("kg, bultos, tipo")
-    .eq("zona_id", zonaId)
-    .eq("material_id", id);
+    // 🔹 Obtener movimientos actuales del material
+    const { data: movs, error: errMovs } = await supabase
+      .from("movimientos_inventario")
+      .select("kg, bultos, tipo")
+      .eq("zona_id", zonaId)
+      .eq("material_id", id);
 
-  if (errMovs) {
-    alert("❌ Error cargando inventario actual: " + errMovs.message);
-    return;
-  }
-
-  // 🔹 Calcular stock actual dependiendo de la unidad
-  let stockActual = 0;
-  (movs ?? []).forEach((m) => {
-    const mult = m.tipo === "entrada" || m.tipo === "ajuste" ? 1 : -1;
-
-    if (unidad === "unidad") {
-      stockActual += Number(m.bultos || 0) * mult;
-    } else if (unidad === "bulto") {
-      stockActual += Number(m.kg || 0) * mult; // se guarda en kg
-    } else if (unidad === "litro") {
-      stockActual += Number(m.kg || 0) * mult; // litros usan kg
+    if (errMovs) {
+      alert("❌ Error cargando inventario actual: " + errMovs.message);
+      return;
     }
-  });
 
-  // 🔹 Calcular diferencia
-  const diferencia = stockKg - stockActual;
+    // 🔹 Calcular stock actual dependiendo de la unidad
+    let stockActual = 0;
+    (movs ?? []).forEach((m) => {
+      const mult = m.tipo === "entrada" || m.tipo === "ajuste" ? 1 : -1;
 
-  if (diferencia === 0) {
-    alert("ℹ️ El stock ya es correcto, no se registró ningún cambio.");
-    setShowEditar(false);
-    return;
-  }
-
-  // 🔹 Insertar movimiento de ajuste
-const movimiento =
-  unidad === "unidad"
-    ? {
-        zona_id: zonaId,
-        material_id: id,
-        fecha: new Date().toISOString().slice(0, 10),
-        tipo: "ajuste",
-        bultos: diferencia, // unidades se guardan aquí
-        kg: 0, // 👈 en lugar de null, ponemos 0
-        ref_tipo: "ajuste_manual",
-        ref_id: null,
-        notas: `Ajuste manual: stock corregido a ${stockKg} ${unidad}${stockKg !== 1 ? "s" : ""}`,
+      if (unidad === "unidad") {
+        stockActual += Number(m.bultos || 0) * mult;
+      } else if (unidad === "bulto") {
+        stockActual += Number(m.kg || 0) * mult; // se guarda en kg
+      } else if (unidad === "litro") {
+        stockActual += Number(m.kg || 0) * mult; // litros usan kg
       }
-    : {
-        zona_id: zonaId,
-        material_id: id,
-        fecha: new Date().toISOString().slice(0, 10),
-        tipo: "ajuste",
-        bultos: null,
-        kg:
-          unidad === "bulto"
-            ? diferencia
-            : diferencia * presentacion, // litros y bultos en kg
-        ref_tipo: "ajuste_manual",
-        ref_id: null,
-        notas: `Ajuste manual: stock corregido a ${stockKg} ${unidad}${stockKg !== 1 ? "s" : ""}`,
-      };
+    });
 
+    // 🔹 Calcular diferencia
+    const diferencia = stockKg - stockActual;
 
-  const { error } = await supabase
-    .from("movimientos_inventario")
-    .insert(movimiento);
+    if (diferencia === 0) {
+      alert("ℹ️ El stock ya es correcto, no se registró ningún cambio.");
+      setShowEditar(false);
+      return;
+    }
 
-  if (error) {
-    alert("❌ Error guardando ajuste: " + error.message);
-  } else {
-    setShowEditar(false);
-    await cargar(); // refrescar inventario
+    // 🔹 Insertar movimiento de ajuste
+    const movimiento =
+      unidad === "unidad"
+        ? {
+            zona_id: zonaId,
+            material_id: id,
+            fecha: new Date().toISOString().slice(0, 10),
+            tipo: "ajuste",
+            bultos: diferencia, // unidades se guardan aquí
+            kg: 0, // 👈 en lugar de null, ponemos 0
+            ref_tipo: "ajuste_manual",
+            ref_id: null,
+            notas: `Ajuste manual: stock corregido a ${stockKg} ${unidad}${
+              stockKg !== 1 ? "s" : ""
+            }`,
+          }
+        : {
+            zona_id: zonaId,
+            material_id: id,
+            fecha: new Date().toISOString().slice(0, 10),
+            tipo: "ajuste",
+            bultos: null,
+            kg: unidad === "bulto" ? diferencia : diferencia * presentacion, // litros y bultos en kg
+            ref_tipo: "ajuste_manual",
+            ref_id: null,
+            notas: `Ajuste manual: stock corregido a ${stockKg} ${unidad}${
+              stockKg !== 1 ? "s" : ""
+            }`,
+          };
+
+    const { error } = await supabase
+      .from("movimientos_inventario")
+      .insert(movimiento);
+
+    if (error) {
+      alert("❌ Error guardando ajuste: " + error.message);
+    } else {
+      setShowEditar(false);
+      await cargar(); // refrescar inventario
+    }
   }
-}
-
 
   // 📜 Historial (sin cambios)
   async function verHistorial(materialId: string, nombre: string) {
@@ -299,87 +303,67 @@ const movimiento =
   }
 
   // 🔄 Cargar inventario
-  async function cargar() {
+  const cargar = useCallback(async () => {
     if (!zonaId) return;
     setLoading(true);
 
-    const { data: mats } = await supabase
-      .from("materiales")
-      .select("id,nombre,presentacion_kg_por_bulto,tasa_consumo_diaria_kg,unidad_medida")
-      .eq("zona_id", zonaId)
-      .eq("activo", true)
-      .order("nombre");
+    try {
+      const response = await fetch(`/api/inventario?zonaId=${zonaId}`);
 
-    const { data: movs } = await supabase
-      .from("movimientos_inventario")
-      .select("material_id,bultos,kg,tipo")
-      .eq("zona_id", zonaId);
+    if (!response.ok) {
+        throw new Error("No se pudo obtener el inventario");
+      }
 
-    const stockKg: Record<string, number> = {};
-    const stockUnidades: Record<string, number> = {};
+    const payload = (await response.json()) as InventarioActualRow[];
 
-    (movs ?? []).forEach((mv) => {
-      const mult = mv.tipo === "entrada" ? 1 : mv.tipo === "salida" ? -1 : 1;
-      stockKg[mv.material_id] =
-        (stockKg[mv.material_id] ?? 0) + Number(mv.kg) * mult;
-      stockUnidades[mv.material_id] =
-        (stockUnidades[mv.material_id] ?? 0) + Number(mv.bultos) * mult;
-    });
-
-    const data =
-      mats?.map((m) => {
-        let stKg = 0;
-        let stock = 0;
-
-        if (m.unidad_medida === "unidad") {
-          stock = stockUnidades[m.id] ?? 0;
-          stKg = 0;
-        } else {
-          stKg = stockKg[m.id] ?? 0;
-          stock =
-            m.unidad_medida === "bulto" && m.presentacion_kg_por_bulto
-              ? stKg / m.presentacion_kg_por_bulto
-              : stKg;
-        }
-
+      const data = payload.map((item) => {
+          const unidad = item.unidad_medida;
+          const presentacion = item.presentacion_kg_por_bulto;    
+  
         let consumo: number | null = null;
-        if (m.unidad_medida === "unidad") {
-          consumo = m.tasa_consumo_diaria_kg ?? 1;
-        } else if (m.unidad_medida === "bulto" && m.presentacion_kg_por_bulto) {
-          consumo = m.tasa_consumo_diaria_kg
-            ? m.tasa_consumo_diaria_kg * m.presentacion_kg_por_bulto
+        if (unidad === "unidad") {
+          consumo = item.tasa_consumo_diaria_kg ?? 1;
+        } else if (unidad === "bulto" && presentacion) {
+          consumo = item.tasa_consumo_diaria_kg
+            ? item.tasa_consumo_diaria_kg * presentacion
             : null;
         } else {
-          consumo = m.tasa_consumo_diaria_kg ?? null;
+          consumo = item.tasa_consumo_diaria_kg ?? null;
         }
 
         let cobertura: number | null = null;
         let hasta: string | null = null;
 
         if (consumo && consumo > 0) {
-          if (m.unidad_medida === "unidad") {
-            cobertura = Math.floor(stock / consumo);
-            hasta = calcularFechaHasta(fecha, stock, consumo);
+          if (unidad === "unidad") {
+            cobertura = Math.floor(item.stock / consumo);
+            hasta = calcularFechaHasta(fecha, item.stock, consumo);
           } else {
-            cobertura = Math.floor(stKg / consumo);
-            hasta = calcularFechaHasta(fecha, stKg, consumo);
+            cobertura = Math.floor(item.stock_kg / consumo);
+            hasta = calcularFechaHasta(fecha, item.stock_kg, consumo);
           }
         }
 
         return {
-          material_id: m.id,
-          nombre: m.nombre,
-          stock,
-          stockKg: stKg,
-          unidad: m.unidad_medida,
+          material_id: item.material_id,
+          nombre: item.nombre,
+          stock: unidad === "unidad" ? item.stock_bultos : item.stock,
+          stockKg: unidad === "unidad" ? 0 : item.stock_kg,
+          unidad,
           hasta,
           cobertura,
-        };
-      }) ?? [];
+        } satisfies StockRow;
+      });
 
-    setRows(data);
+      setRows(data);
+    } catch (err) {
+      console.error(err);
+      alert("❌ Error obteniendo el inventario actual");
+      setRows([]);
+    }
     setLoading(false);
   }
+  }, [fecha, zonaId]);
 
   // useEffect zonas
   useEffect(() => {
@@ -399,7 +383,7 @@ const movimiento =
 
   useEffect(() => {
     if (zonaId) void cargar();
-  }, [zonaId, fecha]);
+  }, [cargar, zonaId]);
 
   // ✅ RENDER original completo
   return (
@@ -468,12 +452,10 @@ const movimiento =
                   </td>
                   <td className="p-2 flex gap-2 justify-center">
                     <button
-                      onClick={() =>
-                        verHistorial(r.material_id, r.nombre)
-                      }
+                      onClick={() => verHistorial(r.material_id, r.nombre)}
                       className="flex items-center gap-1 rounded-full bg-blue-50 text-gray-700 px-3 py-1 text-sm font-medium hover:bg-gray-200"
                     >
-                       Historial
+                      Historial
                     </button>
                     <button
                       onClick={() =>
@@ -481,30 +463,30 @@ const movimiento =
                       }
                       className="flex items-center gap-1 rounded-full bg-gray-100 text-gray-700 px-3 py-1 text-sm font-medium hover:bg-gray-200"
                     >
-                       Editar
+                      Editar
                     </button>
                     <button
                       onClick={() =>
-                        abrirConsumoManual(
-                          r.material_id,
-                          r.nombre,
-                          r.unidad
-                        )
+                        abrirConsumoManual(r.material_id, r.nombre, r.unidad)
                       }
                       className="flex items-center gap-1 rounded-full bg-green-50 text-green-700 px-3 py-1 text-sm font-medium hover:bg-gray-200"
                     >
-                       Consumo manual
+                      Consumo manual
                     </button>
                     <button
-                    onClick={() => {
-                      if (confirm("¿Seguro que deseas deshacer el último consumo manual?")) {
-                        deshacerConsumoManual();
-                      }
-                    }}
-                    className="flex items-center gap-1 rounded-full bg-gray-100 text-red-700 px-3 py-1 text-sm font-medium hover:bg-gray-200"
-                  >
-                    Deshacer Consumo
-                  </button>
+                      onClick={() => {
+                        if (
+                          confirm(
+                            "¿Seguro que deseas deshacer el último consumo manual?"
+                          )
+                        ) {
+                          deshacerConsumoManual();
+                        }
+                      }}
+                      className="flex items-center gap-1 rounded-full bg-gray-100 text-red-700 px-3 py-1 text-sm font-medium hover:bg-gray-200"
+                    >
+                      Deshacer Consumo
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -554,10 +536,7 @@ const movimiento =
                   ))
                 ) : (
                   <tr>
-                    <td
-                      colSpan={5}
-                      className="p-4 text-gray-500 text-center"
-                    >
+                    <td colSpan={5} className="p-4 text-gray-500 text-center">
                       No hay movimientos registrados.
                     </td>
                   </tr>
@@ -647,7 +626,6 @@ const movimiento =
               >
                 Guardar
               </button>
-
             </div>
           </div>
         </div>
