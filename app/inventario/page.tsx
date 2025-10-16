@@ -1,61 +1,45 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+
 import { supabase } from "@/lib/supabase";
-import { fmtNum } from "@/lib/format";
 import { InventarioActualRow } from "@/app/(dashboard)/_components/_types";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
-type Zona = {
-  id: string;
-  nombre: string;
-};
+import { InventarioHeader } from "./_components/InventarioHeader";
+import { InventarioTable } from "./_components/InventarioTable";
+import { HistorialDialog } from "./_components/HistorialDialog";
+import { EditarInventarioDialog } from "./_components/EditarInventarioDialog";
+import { ConsumoManualDialog } from "./_components/ConsumoManualDialog";
+import { calcularFechaHasta } from "./utils";
+import type {
+  MaterialConsumo,
+  MaterialEditar,
+  MovimientoInventario,
+  StockRow,
+  Unidad,
+  Zona,
+} from "./types";
 
-type StockRow = {
-  material_id: string;
-  nombre: string;
-  stock: number;
-  stockKg: number;
-  unidad: "bulto" | "unidad" | "litro";
-  hasta: string | null;
-  cobertura: number | null;
-};
-
-// 👉 Singular/plural
-function formatUnidad(valor: number, unidad: "bulto" | "unidad" | "litro") {
-  const plural =
-    unidad === "bulto" ? "bultos" : unidad === "unidad" ? "unidades" : "litros";
-  const singular = unidad;
-  return `${fmtNum(valor)} ${valor === 1 ? singular : plural}`;
-}
-
-// 👉 Fecha de agotamiento saltando domingos
-function calcularFechaHasta(
-  fechaBase: string,
-  stockDisponible: number,
-  consumoDiario: number | null
-) {
-  if (!consumoDiario || consumoDiario <= 0) return null;
-  let dias = Math.floor(stockDisponible / consumoDiario);
-  const fecha = new Date(fechaBase);
-  while (dias > 0) {
-    fecha.setDate(fecha.getDate() + 1);
-    if (fecha.getDay() !== 0) dias--;
-  }
-  return fecha.toISOString().slice(0, 10);
-}
-
-type MovimientoInventario = {
-  fecha: string | null;
-  tipo: string;
-  bultos: number | null;
-  kg: number | null;
-  notas: string | null;
-  created_at: string;
-};
+const EMPTY_EDITAR: MaterialEditar = { id: "", nombre: "", stockKg: 0 };
+const EMPTY_CONSUMO: MaterialConsumo = { id: "", nombre: "", unidad: "bulto" };
 
 export default function InventarioPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [zonas, setZonas] = useState<Zona[]>([]);
-  const [zonaId, setZonaId] = useState("");
+  const [zonaId, setZonaId] = useState<string | null>(null);
+  const zonaFromQuery = searchParams.get("zonaId");
   const fecha = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const [rows, setRows] = useState<StockRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -63,46 +47,33 @@ export default function InventarioPage() {
   const [showHistorial, setShowHistorial] = useState(false);
   const [materialHistorial, setMaterialHistorial] = useState("");
   const [showEditar, setShowEditar] = useState(false);
-  const [materialEditar, setMaterialEditar] = useState<{
-    id: string;
-    nombre: string;
-    stockKg: number;
-  }>({
-    id: "",
-    nombre: "",
-    stockKg: 0,
-  });
-
-  // 🟢 Consumo manual
+  const [materialEditar, setMaterialEditar] =
+    useState<MaterialEditar>(EMPTY_EDITAR);
   const [showConsumo, setShowConsumo] = useState(false);
-  const [materialConsumo, setMaterialConsumo] = useState<{
-    id: string;
-    nombre: string;
-    unidad: "bulto" | "unidad" | "litro";
-  }>({ id: "", nombre: "", unidad: "bulto" });
+  const [materialConsumo, setMaterialConsumo] =
+    useState<MaterialConsumo>(EMPTY_CONSUMO);
   const [valorConsumo, setValorConsumo] = useState("");
 
-  function abrirConsumoManual(
-    id: string,
-    nombre: string,
-    unidad: "bulto" | "unidad" | "litro"
-  ) {
+  const abrirConsumoManual = (id: string, nombre: string, unidad: Unidad) => {
     setMaterialConsumo({ id, nombre, unidad });
     setValorConsumo("");
     setShowConsumo(true);
-  }
+  };
 
-  // ✅ corregido
-  async function guardarConsumoManual() {
+  const guardarConsumoManual = async () => {
     const cantidad = parseFloat(valorConsumo);
-    if (isNaN(cantidad) || cantidad <= 0) {
+    if (Number.isNaN(cantidad) || cantidad <= 0) {
       alert("Por favor ingrese una cantidad válida.");
+      return;
+    }
+
+    if (!zonaId) {
+      alert("Selecciona una zona antes de registrar consumo.");
       return;
     }
 
     const { id, unidad } = materialConsumo;
 
-    // obtener presentación del material (kg por bulto)
     const { data: matData, error: matError } = await supabase
       .from("materiales")
       .select("presentacion_kg_por_bulto")
@@ -121,12 +92,12 @@ export default function InventarioPage() {
 
     if (unidad === "bulto") {
       bultos = cantidad;
-      kg = cantidad * presentacion; // ✅ conversión correcta
+      kg = cantidad * presentacion;
     } else if (unidad === "litro") {
       bultos = null;
       kg = cantidad;
     } else if (unidad === "unidad") {
-      bultos = cantidad; // ✅ guarda unidades en la columna bultos
+      bultos = cantidad;
       kg = 0;
     }
 
@@ -150,19 +121,19 @@ export default function InventarioPage() {
       setShowConsumo(false);
       await cargar();
     }
-  }
+  };
 
-  // deshacer consumo manual
+  const deshacerConsumoManual = async (materialId: string) => {
+    if (!zonaId) {
+      alert("Selecciona una zona antes de deshacer un consumo.");
+      return;
+    }
 
-  async function deshacerConsumoManual() {
-    const { id } = materialConsumo;
-
-    // busca el ultimo movimiento
     const { data: mov, error: errMov } = await supabase
       .from("movimientos_inventario")
       .select("id, bultos, kg, fecha")
       .eq("zona_id", zonaId)
-      .eq("material_id", id)
+      .eq("material_id", materialId)
       .eq("ref_tipo", "consumo_manual")
       .order("fecha", { ascending: false })
       .limit(1)
@@ -173,13 +144,11 @@ export default function InventarioPage() {
       return;
     }
 
-    // movimiento inverso
-
     const { error: errUndo } = await supabase
       .from("movimientos_inventario")
       .insert({
         zona_id: zonaId,
-        material_id: id,
+        material_id: materialId,
         fecha: new Date().toISOString().slice(0, 10),
         tipo: "entrada",
         bultos: mov.bultos,
@@ -194,28 +163,30 @@ export default function InventarioPage() {
       alert("consumo manual deshecho correctamente");
       await cargar();
     }
-  }
+  };
 
-  // 🟦 Editar inventario (igual que tenías)
-  function abrirEditar(id: string, nombre: string, stockKg: number) {
+  const abrirEditar = (id: string, nombre: string, stockKg: number) => {
     setMaterialEditar({ id, nombre, stockKg });
     setShowEditar(true);
-  }
+  };
 
-  async function guardarEdicion() {
+  const guardarEdicion = async () => {
+    if (!zonaId) {
+      alert("Selecciona una zona antes de ajustar inventario.");
+      return;
+    }
+
     const { id, stockKg } = materialEditar;
 
-    // 🔹 Obtener información del material (para saber la unidad de medida)
     const { data: materialData } = await supabase
       .from("materiales")
       .select("unidad_medida, presentacion_kg_por_bulto")
       .eq("id", id)
       .single();
 
-    const unidad = materialData?.unidad_medida || "bulto";
+    const unidad = (materialData?.unidad_medida as Unidad) || "bulto";
     const presentacion = materialData?.presentacion_kg_por_bulto || 1;
 
-    // 🔹 Obtener movimientos actuales del material
     const { data: movs, error: errMovs } = await supabase
       .from("movimientos_inventario")
       .select("kg, bultos, tipo")
@@ -227,21 +198,17 @@ export default function InventarioPage() {
       return;
     }
 
-    // 🔹 Calcular stock actual dependiendo de la unidad
     let stockActual = 0;
     (movs ?? []).forEach((m) => {
       const mult = m.tipo === "entrada" || m.tipo === "ajuste" ? 1 : -1;
 
       if (unidad === "unidad") {
         stockActual += Number(m.bultos || 0) * mult;
-      } else if (unidad === "bulto") {
-        stockActual += Number(m.kg || 0) * mult; // se guarda en kg
-      } else if (unidad === "litro") {
-        stockActual += Number(m.kg || 0) * mult; // litros usan kg
+      } else {
+        stockActual += Number(m.kg || 0) * mult;
       }
     });
 
-    // 🔹 Calcular diferencia
     const diferencia = stockKg - stockActual;
 
     if (diferencia === 0) {
@@ -250,7 +217,6 @@ export default function InventarioPage() {
       return;
     }
 
-    // 🔹 Insertar movimiento de ajuste
     const movimiento =
       unidad === "unidad"
         ? {
@@ -258,8 +224,8 @@ export default function InventarioPage() {
             material_id: id,
             fecha: new Date().toISOString().slice(0, 10),
             tipo: "ajuste",
-            bultos: diferencia, // unidades se guardan aquí
-            kg: 0, // 👈 en lugar de null, ponemos 0
+            bultos: diferencia,
+            kg: 0,
             ref_tipo: "ajuste_manual",
             ref_id: null,
             notas: `Ajuste manual: stock corregido a ${stockKg} ${unidad}${
@@ -272,7 +238,7 @@ export default function InventarioPage() {
             fecha: new Date().toISOString().slice(0, 10),
             tipo: "ajuste",
             bultos: null,
-            kg: unidad === "bulto" ? diferencia : diferencia * presentacion, // litros y bultos en kg
+            kg: unidad === "bulto" ? diferencia : diferencia * presentacion,
             ref_tipo: "ajuste_manual",
             ref_id: null,
             notas: `Ajuste manual: stock corregido a ${stockKg} ${unidad}${
@@ -288,13 +254,16 @@ export default function InventarioPage() {
       alert("❌ Error guardando ajuste: " + error.message);
     } else {
       setShowEditar(false);
-      await cargar(); // refrescar inventario
+      await cargar();
     }
-  }
+  };
 
-  // 📜 Historial (sin cambios)
-  async function verHistorial(materialId: string, nombre: string) {
+  const verHistorial = async (materialId: string, nombre: string) => {
     setMaterialHistorial(nombre);
+    if (!zonaId) {
+      alert("Selecciona una zona para ver el historial.");
+      return;
+    }
     const { data: movs, error } = await supabase
       .from("movimientos_inventario")
       .select("fecha, tipo, bultos, kg, notas, created_at")
@@ -309,9 +278,8 @@ export default function InventarioPage() {
       setMovimientos((movs ?? []) as MovimientoInventario[]);
     }
     setShowHistorial(true);
-  }
+  };
 
-  // 🔄 Cargar inventario
   const cargar = useCallback(async () => {
     if (!zonaId) return;
     setLoading(true);
@@ -326,7 +294,7 @@ export default function InventarioPage() {
       const payload = (await response.json()) as InventarioActualRow[];
 
       const data = payload.map((item) => {
-        const unidad = item.unidad_medida;
+        const unidad = item.unidad_medida as Unidad;
         const presentacion = item.presentacion_kg_por_bulto;
 
         let consumo: number | null = null;
@@ -374,7 +342,6 @@ export default function InventarioPage() {
     }
   }, [fecha, zonaId]);
 
-  // useEffect zonas
   useEffect(() => {
     async function cargarZonas() {
       const { data } = await supabase
@@ -382,263 +349,193 @@ export default function InventarioPage() {
         .select("id,nombre")
         .eq("activo", true)
         .order("nombre");
+
       if (data?.length) {
-        setZonas(data);
-        setZonaId((prev) => prev || data[0].id);
+        const ordenPreferido = ["Desposte", "Desprese", "Panificadora"];
+        const zonasOrdenadas = data
+          .filter((zona) => zona.nombre !== "Inventario General")
+          .sort((a, b) => {
+            const indexA = ordenPreferido.indexOf(a.nombre);
+            const indexB = ordenPreferido.indexOf(b.nombre);
+
+            if (indexA === -1 && indexB === -1) {
+              return a.nombre.localeCompare(b.nombre);
+            }
+            if (indexA === -1) return 1;
+            if (indexB === -1) return -1;
+            return indexA - indexB;
+          });
+
+        setZonas(zonasOrdenadas);
       }
     }
     void cargarZonas();
   }, []);
 
   useEffect(() => {
+    if (!zonas.length) return;
+
+    const zonaValida =
+      zonas.find((zona) => zona.id === zonaFromQuery)?.id ??
+      zonas[0]?.id ??
+      null;
+
+    if (zonaValida && zonaValida !== zonaId) {
+      setZonaId(zonaValida);
+    }
+  }, [zonas, zonaFromQuery, zonaId]);
+
+  useEffect(() => {
+    if (!zonaId || zonaFromQuery === zonaId) return;
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("zonaId", zonaId);
+    router.replace(`/inventario?${params.toString()}`);
+  }, [zonaId, zonaFromQuery, router, searchParams]);
+
+  useEffect(() => {
     if (zonaId) void cargar();
   }, [cargar, zonaId]);
 
-  // ✅ RENDER original completo
+  const zonaActual = zonas.find((zona) => zona.id === zonaId) ?? null;
+  const totalMateriales = rows.length;
+  const materialesCriticos = rows.filter(
+    (row) => row.cobertura != null && row.cobertura <= 3
+  ).length;
+  const materialesEstables = rows.filter(
+    (row) => row.cobertura != null && row.cobertura >= 10
+  ).length;
+  const mostrarColumnaKg = rows.some((row) => row.unidad !== "unidad");
+
   return (
-    <main className="mx-auto max-w-7xl p-6 space-y-6">
-      <header>
-        <h1 className="text-2xl font-semibold mb-4">Inventario</h1>
-        <div className="flex gap-2 bg-gray-100 rounded-full p-1 w-fit mb-4">
-          {zonas.map((z) => (
-            <button
-              key={z.id}
-              onClick={() => setZonaId(z.id)}
-              className={`px-4 py-1 rounded-full text-sm font-medium transition-colors ${
-                zonaId === z.id
-                  ? "bg-blue-600 text-white"
-                  : "text-gray-700 hover:bg-gray-200"
-              }`}
-            >
-              {z.nombre}
-            </button>
-          ))}
-        </div>
-      </header>
+    <main className="mx-auto max-w-6xl space-y-8 p-6">
+      <InventarioHeader
+        zonaActual={zonaActual}
+        totalMateriales={totalMateriales}
+        materialesCriticos={materialesCriticos}
+        materialesEstables={materialesEstables}
+        zonaSeleccionada={zonaId}
+        loading={loading}
+        onRefresh={() => {
+          if (!zonaId) return;
+          void cargar();
+        }}
+      />
 
-      {loading ? (
-        <div className="text-sm text-gray-500">Cargando…</div>
-      ) : (
-        <div className="overflow-x-auto rounded-xl border bg-white shadow-sm">
-          <table className="min-w-full text-sm text-center">
-            <thead className="bg-gray-50 border-b">
-              <tr>
-                <th className="p-2">Material</th>
-                <th className="p-2">Stock (unidad)</th>
-                {rows.some((r) => r.unidad !== "unidad") && (
-                  <th className="p-2">Stock (kg)</th>
-                )}
-                <th className="p-2">Hasta</th>
-                <th className="p-2">Estado</th>
-                <th className="p-2">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr key={r.material_id} className="border-b">
-                  <td className="p-2">{r.nombre}</td>
-                  <td className="p-2">{formatUnidad(r.stock, r.unidad)}</td>
-                  <td className="p-2">
-                    {r.unidad === "unidad" ? "—" : `${fmtNum(r.stockKg)} kg`}
-                  </td>
-                  <td className="p-2">
-                    {r.hasta
-                      ? new Date(r.hasta).toLocaleDateString("es-ES")
-                      : "—"}
-                  </td>
-                  <td className="p-2">
-                    {r.cobertura != null ? (
-                      r.cobertura >= 10 ? (
-                        <span className="text-green-600 text-lg">🟢</span>
-                      ) : r.cobertura <= 3 ? (
-                        <span className="text-red-600 text-lg">🔴</span>
-                      ) : (
-                        <span className="text-yellow-600 text-lg">🟡</span>
-                      )
-                    ) : (
-                      "—"
-                    )}
-                  </td>
-                  <td className="p-2 flex gap-2 justify-center">
-                    <button
-                      onClick={() => verHistorial(r.material_id, r.nombre)}
-                      className="flex items-center gap-1 rounded-full bg-blue-50 text-gray-700 px-3 py-1 text-sm font-medium hover:bg-gray-200"
-                    >
-                      Historial
-                    </button>
-                    <button
-                      onClick={() =>
-                        abrirEditar(r.material_id, r.nombre, r.stockKg)
-                      }
-                      className="flex items-center gap-1 rounded-full bg-gray-100 text-gray-700 px-3 py-1 text-sm font-medium hover:bg-gray-200"
-                    >
-                      Editar
-                    </button>
-                    <button
-                      onClick={() =>
-                        abrirConsumoManual(r.material_id, r.nombre, r.unidad)
-                      }
-                      className="flex items-center gap-1 rounded-full bg-green-50 text-green-700 px-3 py-1 text-sm font-medium hover:bg-gray-200"
-                    >
-                      Consumo manual
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (
-                          confirm(
-                            "¿Seguro que deseas deshacer el último consumo manual?"
-                          )
-                        ) {
-                          deshacerConsumoManual();
-                        }
-                      }}
-                      className="flex items-center gap-1 rounded-full bg-gray-100 text-red-700 px-3 py-1 text-sm font-medium hover:bg-gray-200"
-                    >
-                      Deshacer Consumo
-                    </button>
-                  </td>
-                </tr>
+      <section className="space-y-6">
+        {zonas.length ? (
+          <Tabs
+            value={zonaId ?? undefined}
+            onValueChange={(value) => {
+              setZonaId(value);
+            }}
+            className="space-y-6"
+          >
+            <TabsList className="flex w-full flex-wrap justify-start gap-1.5 rounded-xl bg-muted/95 p-1">
+              {zonas.map((zona) => (
+                <TabsTrigger
+                  key={zona.id}
+                  value={zona.id}
+                  className="rounded-lg border border-transparent px-6 py-3 text-sm font-semibold transition-all data-[state=active]:border-b-[#3e74cc] data-[state=active]:bg-white data-[state=active]:text-[#1F4F9C]"
+                >
+                  {zona.nombre}
+                </TabsTrigger>
               ))}
-              {!rows.length && (
-                <tr>
-                  <td colSpan={6} className="p-4 text-gray-500 text-center">
-                    No hay datos para esta zona.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
+            </TabsList>
 
-      {/* 📜 Modal Historial */}
-      {showHistorial && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center">
-          <div className="bg-white p-6 rounded-lg shadow-lg w-[600px] max-h-[80vh] overflow-y-auto">
-            <h2 className="text-lg font-bold mb-3">
-              📜 Historial – {materialHistorial}
-            </h2>
-            <table className="w-full text-sm border">
-              <thead className="bg-gray-100">
-                <tr>
-                  <th className="p-2">Fecha</th>
-                  <th className="p-2">Tipo</th>
-                  <th className="p-2">Bultos</th>
-                  <th className="p-2">Kg</th>
-                  <th className="p-2">Notas</th>
-                </tr>
-              </thead>
-              <tbody>
-                {movimientos.length > 0 ? (
-                  movimientos.map((m, i) => (
-                    <tr key={i} className="border-b">
-                      <td className="p-2 min-w-[180px]" align="center">
-                        {new Date(m.created_at).toLocaleString("es-ES")}
-                      </td>
-                      <td className="p-2 text-center">{m.tipo}</td>
-                      <td className="p-2 text-center">{m.bultos}</td>
-                      <td className="p-2 text-center">{m.kg}</td>
-                      <td className="p-2 min-w-[180px] text-center">
-                        {m.notas}
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={5} className="p-4 text-gray-500 text-center">
-                      No hay movimientos registrados.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+            {zonas.map((zona) => (
+              <TabsContent key={zona.id} value={zona.id} className="space-y-6">
+                <Card className="border-none shadow-lg">
+                  <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <CardTitle className="text-xl font-semibold">
+                        Inventario de {zona.nombre}
+                      </CardTitle>
+                      <CardDescription>
+                        Última actualización{" "}
+                        {new Date().toLocaleDateString("es-AR")}
+                      </CardDescription>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          if (!zonaId) return;
+                          void cargar();
+                        }}
+                        disabled={loading}
+                      >
+                        {loading ? "Actualizando…" : "Actualizar"}
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="overflow-hidden rounded-xl border">
+                      <InventarioTable
+                        rows={rows}
+                        loading={loading}
+                        mostrarColumnaKg={mostrarColumnaKg}
+                        onVerHistorial={verHistorial}
+                        onEditar={abrirEditar}
+                        onConsumo={abrirConsumoManual}
+                        onDeshacerConsumo={deshacerConsumoManual}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            ))}
+          </Tabs>
+        ) : (
+          <Card className="border-none py-12 text-center shadow-lg">
+            <CardHeader>
+              <CardTitle className="text-xl font-semibold">
+                No hay zonas activas
+              </CardTitle>
+              <CardDescription>
+                Configura zonas activas en el panel de administración para
+                visualizar el inventario.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        )}
+      </section>
 
-            <div className="mt-4 flex justify-end">
-              <button
-                onClick={() => setShowHistorial(false)}
-                className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300"
-              >
-                Cerrar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <HistorialDialog
+        open={showHistorial}
+        materialNombre={materialHistorial}
+        movimientos={movimientos}
+        onClose={() => setShowHistorial(false)}
+      />
 
-      {/* ✏️ Modal Editar */}
-      {showEditar && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center">
-          <div className="bg-white p-6 rounded-lg shadow-lg w-[400px]">
-            <h2 className="text-lg font-bold mb-4">
-              Editar inventario – {materialEditar.nombre}
-            </h2>
-            <label className="text-sm font-medium">Nuevo stock (kg)</label>
-            <input
-              type="number"
-              value={materialEditar.stockKg}
-              onChange={(e) =>
-                setMaterialEditar((prev) => ({
-                  ...prev,
-                  stockKg: parseFloat(e.target.value) || 0,
-                }))
-              }
-              className="w-full rounded-lg border px-3 py-2 text-sm mt-1 mb-4"
-            />
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setShowEditar(false)}
-                className="px-4 py-2 rounded border hover:bg-gray-100"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={guardarEdicion}
-                className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700"
-              >
-                Guardar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <EditarInventarioDialog
+        open={showEditar}
+        material={materialEditar}
+        onClose={() => {
+          setShowEditar(false);
+          setMaterialEditar(EMPTY_EDITAR);
+        }}
+        onChange={(value) =>
+          setMaterialEditar((prev) => ({
+            ...prev,
+            stockKg: value,
+          }))
+        }
+        onSubmit={() => void guardarEdicion()}
+      />
 
-      {/* 🟢 Modal Consumo Manual */}
-      {showConsumo && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center">
-          <div className="bg-white p-6 rounded-lg shadow-lg w-[400px]">
-            <h2 className="text-lg font-bold mb-4">
-              Registrar consumo manual – {materialConsumo.nombre}
-            </h2>
-            <label className="text-sm font-medium mb-2 block">
-              ¿Cuánto fue el consumo de hoy? ({materialConsumo.unidad}
-              {materialConsumo.unidad !== "unidad" ? "s" : ""})
-            </label>
-            <input
-              type="number"
-              value={valorConsumo}
-              onChange={(e) => setValorConsumo(e.target.value)}
-              className="w-full rounded-lg border px-3 py-2 text-sm mt-1 mb-4"
-              placeholder={`Ingrese cantidad en ${materialConsumo.unidad}${
-                materialConsumo.unidad !== "unidad" ? "s" : ""
-              }`}
-            />
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setShowConsumo(false)}
-                className="px-4 py-2 rounded border hover:bg-gray-100"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={guardarConsumoManual}
-                className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700"
-              >
-                Guardar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConsumoManualDialog
+        open={showConsumo}
+        material={materialConsumo}
+        value={valorConsumo}
+        onClose={() => {
+          setShowConsumo(false);
+          setMaterialConsumo(EMPTY_CONSUMO);
+        }}
+        onChange={setValorConsumo}
+        onSubmit={() => void guardarConsumoManual()}
+      />
     </main>
   );
 }
