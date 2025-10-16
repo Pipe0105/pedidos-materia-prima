@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Loader2, RefreshCcw, Play, Info, Clock } from "lucide-react";
+import { Loader2, RefreshCcw, Play, Clock } from "lucide-react";
 
 import { PageContainer } from "@/components/PageContainer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -17,6 +17,14 @@ import { Input } from "@/components/ui/input";
 import { fmtNum } from "@/lib/format";
 import { supabase } from "@/lib/supabase";
 import type { InventarioActualRow } from "@/app/(dashboard)/_components/_types";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 type Unidad = "bulto" | "unidad" | "litro";
 
@@ -54,6 +62,8 @@ type Row = {
   stock_teorico: number;
   consumo_auto: number;
   diferencia: number;
+  consumo_config_kg: number | null;
+  presentacion_kg_por_bulto: number | null;
 };
 
 type FeedbackState = { type: "success" | "error"; message: string } | null;
@@ -112,6 +122,11 @@ export default function ControlPage() {
   const [endpointBase, setEndpointBase] = useState("https://tu-dominio.com");
   const isMounted = useRef(true);
   const [aplicando, setAplicando] = useState(false);
+  const [materialEnEdicion, setMaterialEnEdicion] = useState<Row | null>(null);
+  const [consumoKgInput, setConsumoKgInput] = useState("");
+  const [consumoBultosInput, setConsumoBultosInput] = useState("");
+  const [actualizandoConsumo, setActualizandoConsumo] = useState(false);
+  const [consumoError, setConsumoError] = useState<string | null>(null);
 
   useEffect(() => {
     isMounted.current = true;
@@ -202,6 +217,14 @@ export default function ControlPage() {
           typeof item.fecha === "string" ? item.fecha.slice(0, 10) : "";
         const fechaDisplay = safeFormatDate(item.fecha);
         const timestamp = new Date(item.fecha).getTime();
+        const consumoConfigKg =
+          typeof stock?.tasa_consumo_diaria_kg === "number"
+            ? stock.tasa_consumo_diaria_kg
+            : null;
+        const presentacionKgPorBulto =
+          item.materiales?.presentacion_kg_por_bulto ??
+          stock?.presentacion_kg_por_bulto ??
+          null;
 
         return {
           id: `${item.zona_id}-${item.material_id}-${fechaISO}`,
@@ -217,6 +240,8 @@ export default function ControlPage() {
           stock_teorico: stockTeorico,
           consumo_auto: consumoAuto,
           diferencia,
+          consumo_config_kg: consumoConfigKg,
+          presentacion_kg_por_bulto: presentacionKgPorBulto,
         };
       });
 
@@ -333,6 +358,131 @@ export default function ControlPage() {
   }, [zonaActiva, fechaObjetivo, cargarDatos]);
 
   const zonaActivaValue = zonaActiva ?? zonas[0]?.id ?? "";
+
+  const cerrarDialogoConsumo = useCallback(() => {
+    setMaterialEnEdicion(null);
+    setConsumoKgInput("");
+    setConsumoBultosInput("");
+    setConsumoError(null);
+  }, []);
+
+  const abrirDialogoConsumo = useCallback((row: Row) => {
+    const kg = row.consumo_config_kg;
+    if (kg !== null && Number.isFinite(kg)) {
+      const normalizado = Math.round(kg * 1e4) / 1e4;
+      setConsumoKgInput(normalizado.toString());
+    } else {
+      setConsumoKgInput("");
+    }
+
+    const presentacion = row.presentacion_kg_por_bulto;
+    if (
+      presentacion !== null &&
+      presentacion > 0 &&
+      kg !== null &&
+      Number.isFinite(kg)
+    ) {
+      const bultos = kg / presentacion;
+      setConsumoBultosInput((Math.round(bultos * 1e4) / 1e4).toString());
+    } else {
+      setConsumoBultosInput("");
+    }
+
+    setConsumoError(null);
+    setMaterialEnEdicion(row);
+  }, []);
+
+  const manejarCambioKg = useCallback(
+    (value: string) => {
+      setConsumoKgInput(value);
+      if (!materialEnEdicion) return;
+      const presentacion = materialEnEdicion.presentacion_kg_por_bulto;
+      if (!presentacion || presentacion <= 0) return;
+      const parsed = Number.parseFloat(value.replace(",", "."));
+      if (Number.isNaN(parsed)) {
+        if (value.trim() === "") {
+          setConsumoBultosInput("");
+        }
+        return;
+      }
+      const bultos = parsed / presentacion;
+      setConsumoBultosInput((Math.round(bultos * 1e4) / 1e4).toString());
+    },
+    [materialEnEdicion]
+  );
+
+  const manejarCambioBultos = useCallback(
+    (value: string) => {
+      setConsumoBultosInput(value);
+      if (!materialEnEdicion) return;
+      const presentacion = materialEnEdicion.presentacion_kg_por_bulto;
+      if (!presentacion || presentacion <= 0) return;
+      const parsed = Number.parseFloat(value.replace(",", "."));
+      if (Number.isNaN(parsed)) {
+        if (value.trim() === "") {
+          setConsumoKgInput("");
+        }
+        return;
+      }
+      const kg = parsed * presentacion;
+      setConsumoKgInput((Math.round(kg * 1e4) / 1e4).toString());
+    },
+    [materialEnEdicion]
+  );
+
+  const guardarConsumoAutomatico = useCallback(async () => {
+    if (!materialEnEdicion) return;
+
+    const rawKg = consumoKgInput.trim();
+    const parsedKg =
+      rawKg === "" ? null : Number.parseFloat(rawKg.replace(",", "."));
+
+    if (parsedKg !== null) {
+      if (Number.isNaN(parsedKg) || parsedKg < 0) {
+        setConsumoError("Ingresa un valor válido en kg (mayor o igual a 0).");
+        return;
+      }
+    }
+
+    const valorKg = parsedKg === null ? null : Math.round(parsedKg * 1e4) / 1e4;
+
+    setActualizandoConsumo(true);
+    setConsumoError(null);
+
+    try {
+      const { error: supabaseError } = await supabase
+        .from("materiales")
+        .update({ tasa_consumo_diaria_kg: valorKg })
+        .eq("id", materialEnEdicion.material_id);
+
+      if (supabaseError) {
+        throw new Error(supabaseError.message);
+      }
+
+      setFeedback({
+        type: "success",
+        message: `Consumo automático actualizado para ${materialEnEdicion.material_nombre}.`,
+      });
+
+      cerrarDialogoConsumo();
+      await cargarDatos();
+    } catch (err) {
+      console.error("Error actualizando consumo automático", err);
+      const message =
+        err instanceof Error
+          ? err.message
+          : "No se pudo actualizar el consumo automático.";
+      setConsumoError(message);
+    } finally {
+      setActualizandoConsumo(false);
+    }
+  }, [
+    materialEnEdicion,
+    consumoKgInput,
+    cerrarDialogoConsumo,
+    cargarDatos,
+    setFeedback,
+  ]);
 
   return (
     <PageContainer className="space-y-6">
@@ -518,12 +668,15 @@ export default function ControlPage() {
                         <th className="px-4 py-3 font-semibold text-center">
                           Estado
                         </th>
+                        <th className="px-4 py-3 font-semibold text-right">
+                          Configurar
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
                       {loading ? (
                         <tr>
-                          <td colSpan={7} className="py-10 text-center">
+                          <td colSpan={8} className="py-10 text-center">
                             <Loader2 className="mx-auto h-6 w-6 animate-spin" />
                           </td>
                         </tr>
@@ -568,12 +721,21 @@ export default function ControlPage() {
                                 ? "🟡"
                                 : "🔴"}
                             </td>
+                            <td className="px-4 py-3 text-right">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => abrirDialogoConsumo(fila)}
+                              >
+                                Cambiar
+                              </Button>
+                            </td>
                           </tr>
                         ))
                       ) : (
                         <tr>
                           <td
-                            colSpan={7}
+                            colSpan={8}
                             className="py-10 text-center text-sm text-muted-foreground"
                           >
                             No hay registros automáticos para esta zona.
@@ -611,11 +773,12 @@ export default function ControlPage() {
                               {formatDiff(totales.diferencia, unidadTotales)}
                             </td>
                             <td className="px-4 py-3" />
+                            <td className="px-4 py-3" />
                           </tr>
                         ) : (
                           <tr>
                             <td
-                              colSpan={7}
+                              colSpan={8}
                               className="px-4 py-3 text-center text-muted-foreground"
                             >
                               No se muestran totales porque la zona mezcla
@@ -637,6 +800,101 @@ export default function ControlPage() {
           controlar el consumo.
         </div>
       ) : null}
+      <Dialog
+        open={Boolean(materialEnEdicion)}
+        onOpenChange={(open) => {
+          if (!open) {
+            if (actualizandoConsumo) return;
+            cerrarDialogoConsumo();
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cambiar consumo automático</DialogTitle>
+            <DialogDescription>
+              Ajusta el consumo diario programado para{" "}
+              <span className="font-medium">
+                {materialEnEdicion?.material_nombre ?? ""}
+              </span>
+              {materialEnEdicion?.zona_nombre
+                ? ` en ${materialEnEdicion.zona_nombre}`
+                : ""}
+              .
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-5">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-muted-foreground">
+                Consumo diario en kg
+              </label>
+              <Input
+                inputMode="decimal"
+                value={consumoKgInput}
+                onChange={(event) => manejarCambioKg(event.target.value)}
+                placeholder="Ej: 130"
+                disabled={actualizandoConsumo}
+              />
+              <p className="text-xs text-muted-foreground">
+                Este valor se guarda en la configuración del material y se
+                utilizará en los consumos automáticos.
+              </p>
+            </div>
+
+            {materialEnEdicion &&
+            materialEnEdicion.presentacion_kg_por_bulto &&
+            materialEnEdicion.presentacion_kg_por_bulto > 0 ? (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-muted-foreground">
+                  Consumo diario en bultos
+                </label>
+                <Input
+                  inputMode="decimal"
+                  value={consumoBultosInput}
+                  onChange={(event) => manejarCambioBultos(event.target.value)}
+                  placeholder="Ej: 6.5"
+                  disabled={actualizandoConsumo}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Se convierte automáticamente usando{" "}
+                  {fmtNum(materialEnEdicion.presentacion_kg_por_bulto)} kg por
+                  bulto.
+                </p>
+              </div>
+            ) : null}
+
+            {consumoError ? (
+              <p className="text-sm text-red-600">{consumoError}</p>
+            ) : null}
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={cerrarDialogoConsumo}
+              disabled={actualizandoConsumo}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              onClick={() => void guardarConsumoAutomatico()}
+              disabled={actualizandoConsumo}
+            >
+              {actualizandoConsumo ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Guardando…
+                </>
+              ) : (
+                "Guardar cambios"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </PageContainer>
   );
 }

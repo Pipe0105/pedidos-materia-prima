@@ -69,14 +69,18 @@ export function InventarioTable({
     <Table>
       <TableHeader>
         <TableRow className="bg-slate-50">
-          <TableHead className="font-semibold">Material</TableHead>
-          <TableHead className="font-semibold">Stock</TableHead>
+          <TableHead className="font-semibold text-center">Material</TableHead>
+          <TableHead className="font-semibold text-center">Stock</TableHead>
           {mostrarColumnaKg && (
-            <TableHead className="font-semibold">Stock (kg)</TableHead>
+            <TableHead className="font-semibold text-center">
+              Stock (kg)
+            </TableHead>
           )}
-          <TableHead className="font-semibold">Cobertura estimada</TableHead>
-          <TableHead className="font-semibold">Estado</TableHead>
-          <TableHead className="text-right font-semibold">Acciones</TableHead>
+          <TableHead className="font-semibold text-center">
+            Cobertura estimada
+          </TableHead>
+          <TableHead className="font-semibold text-center">Estado</TableHead>
+          <TableHead className="text-center font-semibold">Acciones</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -86,7 +90,7 @@ export function InventarioTable({
           rows.map((row) => {
             const { estilo, texto } = obtenerEtiquetaCobertura(row.cobertura);
             return (
-              <TableRow key={row.material_id}>
+              <TableRow className="text-center" key={row.material_id}>
                 <TableCell className="font-medium">{row.nombre}</TableCell>
                 <TableCell>{formatUnidad(row.stock, row.unidad)}</TableCell>
                 {mostrarColumnaKg && (
