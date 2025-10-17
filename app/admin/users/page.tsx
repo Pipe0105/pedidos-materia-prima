@@ -62,7 +62,9 @@ export default function AdminUsersPage() {
 
       {/* Crear usuario */}
       <div className="bg-white shadow rounded-lg p-6 space-y-4">
-        <h2 className="text-xl font-semibold text-gray-700">Crear nuevo usuario</h2>
+        <h2 className="text-xl font-semibold text-gray-700">
+          Crear nuevo usuario
+        </h2>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <input
             className="border p-2 rounded w-full"
@@ -97,7 +99,9 @@ export default function AdminUsersPage() {
 
       {/* Lista de usuarios */}
       <div className="bg-white shadow rounded-lg p-6">
-        <h2 className="text-xl font-semibold text-gray-700 mb-4">Lista de usuarios</h2>
+        <h2 className="text-xl font-semibold text-gray-700 mb-4">
+          Lista de usuarios
+        </h2>
         {loading ? (
           <p>Cargando...</p>
         ) : (
@@ -106,16 +110,22 @@ export default function AdminUsersPage() {
               <thead>
                 <tr className="bg-gray-100 text-left">
                   <th className="p-3 text-sm font-medium text-gray-600">ID</th>
-                  <th className="p-3 text-sm font-medium text-gray-600">Email</th>
+                  <th className="p-3 text-sm font-medium text-gray-600">
+                    Email
+                  </th>
                   <th className="p-3 text-sm font-medium text-gray-600">Rol</th>
-                  <th className="p-3 text-sm font-medium text-gray-600">Acciones</th>
+                  <th className="p-3 text-sm font-medium text-gray-600">
+                    Acciones
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {users.map((u, idx) => (
                   <tr
                     key={u.id}
-                    className={`border-t ${idx % 2 === 0 ? "bg-gray-50" : "bg-white"}`}
+                    className={`border-t ${
+                      idx % 2 === 0 ? "bg-gray-50" : "bg-white"
+                    }`}
                   >
                     <td className="p-3 text-xs text-gray-500">{u.id}</td>
                     <td className="p-3 text-gray-700">{u.email}</td>
