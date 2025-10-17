@@ -87,17 +87,37 @@ export async function POST(req: Request) {
           { status: 500 }
         );
       }
-      authUser =
+      const authUserLookup =
         authList?.users.find(
           (candidate) => candidate.email?.toLowerCase() === normalizedEmail
         ) ?? null;
 
-      if (!authUser) {
+      if (!authUserLookup) {
         return NextResponse.json(
           { error: "Usuario no encontrado" },
           { status: 404 }
         );
       }
+
+      const { data: authByIdData, error: authByIdError } =
+        await supabaseAdmin.auth.admin.getUserById(authUserLookup.id);
+
+      if (authByIdError) {
+        if (authByIdError.status === 404) {
+          return NextResponse.json(
+            { error: "Usuario no encontrado" },
+            { status: 404 }
+          );
+        }
+
+        return NextResponse.json(
+          { error: "No se pudo obtener la cuenta de Supabase" },
+          { status: 500 }
+        );
+      }
+
+      const authUserById = authByIdData?.user ?? null;
+      authUser = authUserById ?? authUserLookup;
 
       const { data: userByIdData, error: userByIdError } = await supabaseAdmin
         .from("usuarios")
