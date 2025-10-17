@@ -24,7 +24,14 @@ export async function POST(req: Request) {
     );
   }
 
-  const { username } = parsed.data;
+  const username = parsed.data.username.trim();
+
+  if (!username) {
+    return NextResponse.json(
+      { error: "El nombre de usuario es obligatorio" },
+      { status: 400 }
+    );
+  }
 
   let supabaseAdmin;
   try {
@@ -41,7 +48,7 @@ export async function POST(req: Request) {
   const { data: userRow, error: userError } = await supabaseAdmin
     .from("usuarios")
     .select("id, username, rol")
-    .eq("username", username)
+    .ilike("username", username)
     .maybeSingle();
 
   if (userError) {
