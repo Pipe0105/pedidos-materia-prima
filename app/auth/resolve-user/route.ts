@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import type { User } from "@supabase/supabase-js";
 import { getSupabaseAdmin } from "@/lib/supabasedamin";
 
 const resolveUserSchema = z.object({
@@ -45,8 +46,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 
+  type UserRow = { id: string; username: string | null; rol: string | null };
+
   const { data: userRow, error: userError } = await supabaseAdmin
-    .from("usuarios")
+    .from<UserRow>("usuarios")
     .select("id, username, rol")
     .ilike("username", username)
     .maybeSingle();
@@ -58,24 +61,91 @@ export async function POST(req: Request) {
     );
   }
 
-  if (!userRow) {
+  let resolvedUserRow = userRow;
+  let authUser: User | null = null;
+
+  if (!resolvedUserRow) {
+    if (username.includes("@")) {
+      const { data: listData, error: listError } =
+        await supabaseAdmin.auth.admin.listUsers({ email: username });
+
+      if (listError) {
+        return NextResponse.json(
+          { error: "No se pudo consultar la cuenta de Supabase" },
+          { status: 500 }
+        );
+      }
+
+      if (!listData?.users?.length) {
+        return NextResponse.json(
+          { error: "Usuario no encontrado" },
+          { status: 404 }
+        );
+      }
+
+      authUser =
+        listData.users.find(
+          (user) => user.email?.toLowerCase() === username.toLowerCase()
+        ) ?? null;
+
+      if (!authUser) {
+        return NextResponse.json(
+          { error: "Usuario no encontrado" },
+          { status: 404 }
+        );
+      }
+
+      const { data: userById, error: userByIdError } = await supabaseAdmin
+        .from<UserRow>("usuarios")
+        .select("id, username, rol")
+        .eq("id", authUser.id)
+        .maybeSingle();
+
+      if (userByIdError) {
+        return NextResponse.json(
+          { error: "No se pudo consultar la tabla de usuarios" },
+          { status: 500 }
+        );
+      }
+
+      resolvedUserRow = userById ?? {
+        id: authUser.id,
+        username:
+          (authUser.user_metadata?.username as string | undefined) ??
+          authUser.email ??
+          username,
+        rol: (authUser.user_metadata?.role as string | undefined) ?? null,
+      };
+    } else {
+      return NextResponse.json(
+        { error: "Usuario no encontrado" },
+        { status: 404 }
+      );
+    }
+  }
+
+  if (!resolvedUserRow) {
     return NextResponse.json(
       { error: "Usuario no encontrado" },
       { status: 404 }
     );
   }
 
-  const { data: authData, error: authError } =
-    await supabaseAdmin.auth.admin.getUserById(userRow.id);
+  if (!authUser) {
+    const { data: authData, error: authError } =
+      await supabaseAdmin.auth.admin.getUserById(resolvedUserRow.id);
 
-  if (authError) {
-    return NextResponse.json(
-      { error: "No se pudo obtener la cuenta de Supabase" },
-      { status: 500 }
-    );
+    if (authError) {
+      return NextResponse.json(
+        { error: "No se pudo obtener la cuenta de Supabase" },
+        { status: 500 }
+      );
+    }
+
+    authUser = authData.user;
   }
 
-  const user = authData.user;
+  const user = authUser;
 
   if (!user?.email) {
     return NextResponse.json(
@@ -85,11 +155,18 @@ export async function POST(req: Request) {
   }
 
   const role =
-    (user.user_metadata?.role as string | undefined) ?? userRow.rol ?? "user";
+    (user.user_metadata?.role as string | undefined) ??
+    resolvedUserRow?.rol ??
+    "user";
+
+  const resolvedUsername =
+    resolvedUserRow?.username ??
+    (user.user_metadata?.username as string | undefined) ??
+    user.email;
 
   return NextResponse.json({
     email: user.email,
     role,
-    username: userRow.username,
+    username: resolvedUsername,
   });
 }
