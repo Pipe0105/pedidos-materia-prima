@@ -20,11 +20,13 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState("");
+  const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setMsg("");
+    setStatus("idle");
 
     try {
       // 1️⃣ Enviar solicitud al backend
@@ -62,11 +64,14 @@ export default function LoginPage() {
         throw new Error("No se pudo iniciar sesión, inténtalo nuevamente");
 
       setMsg("✅ Login exitoso");
+      setStatus("success");
       router.push("/");
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Ocurrió un error inesperado";
       setMsg(message);
+      setStatus("error");
+      console.error("[Login] Error al iniciar sesión", error);
     } finally {
       setLoading(false);
     }
@@ -104,6 +109,15 @@ export default function LoginPage() {
         </form>
 
         {msg && <p className="mt-4 text-center text-sm text-gray-700">{msg}</p>}
+        {msg && (
+          <p
+            className={`mt-4 text-center text-sm ${
+              status === "error" ? "text-red-600" : "text-green-600"
+            }`}
+          >
+            {msg}
+          </p>
+        )}
       </div>
     </main>
   );
