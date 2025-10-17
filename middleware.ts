@@ -25,12 +25,12 @@ export async function middleware(req: NextRequest) {
   const {
     data: { session },
   } = await supabase.auth.getSession();
-
-  const isAuthPage = req.nextUrl.pathname.startsWith("/auth/login");
-  const isAdminPage = req.nextUrl.pathname.startsWith("/admin");
-
-  // 🔹 Si no hay sesión y no es la página de login → redirigir al login
-  if (!session && !isAuthPage) {
+  const pathname = req.nextUrl.pathname;
+  const isAuthRoute = pathname.startsWith("/auth");
+  const isAuthPage = pathname === "/auth/login";
+  const isAdminPage = pathname.startsWith("/admin");
+  // 🔹 Si no hay sesión permitir cualquier ruta bajo /auth (login + APIs)
+  if (!session && !isAuthRoute) {
     const redirectUrl = req.nextUrl.clone();
     redirectUrl.pathname = "/auth/login";
     return NextResponse.redirect(redirectUrl);
