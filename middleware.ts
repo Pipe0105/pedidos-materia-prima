@@ -4,7 +4,23 @@ import { createMiddlewareClient } from "@supabase/auth-helpers-nextjs";
 
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
-  const supabase = createMiddlewareClient({ req, res });
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    console.warn(
+      "supabase environment varibles are missing. skipping auth middleware."
+    );
+    return res;
+  }
+
+  const supabase = createMiddlewareClient(
+    { req, res },
+    {
+      supabaseUrl,
+      supabaseKey: supabaseAnonKey,
+    }
+  );
 
   const {
     data: { session },
@@ -29,7 +45,7 @@ export async function middleware(req: NextRequest) {
 
   // 🔹 Si está en /admin pero no es admin → redirigir al home
   if (session && isAdminPage) {
-    const role = 
+    const role =
       (session.user.user_metadata?.role as string | undefined) ??
       (session.user.app_metadata?.role as string | undefined) ??
       "user";
