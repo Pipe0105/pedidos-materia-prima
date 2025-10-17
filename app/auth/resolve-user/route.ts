@@ -48,11 +48,13 @@ export async function POST(req: Request) {
 
   type UserRow = { id: string; username: string | null; rol: string | null };
 
-  const { data: userRow, error: userError } = await supabaseAdmin
-    .from<UserRow>("usuarios")
+  const { data: userRowData, error: userError } = await supabaseAdmin
+    .from("usuarios")
     .select("id, username, rol")
     .ilike("username", username)
     .maybeSingle();
+
+  const userRow = (userRowData ?? null) as UserRow | null;
 
   if (userError) {
     return NextResponse.json(
@@ -67,8 +69,11 @@ export async function POST(req: Request) {
   if (!resolvedUserRow) {
     if (username.includes("@")) {
       const normalizedEmail = username.toLowerCase();
-      const { data: authData, error: authLookupError } =
-        await supabaseAdmin.auth.admin.getUserByEmail(normalizedEmail);
+      const { data: authList, error: authLookupError } =
+        await supabaseAdmin.auth.admin.listUsers({
+          email: normalizedEmail,
+          perPage: 1,
+        });
 
       if (authLookupError) {
         if (authLookupError.status === 404) {
@@ -82,7 +87,10 @@ export async function POST(req: Request) {
           { status: 500 }
         );
       }
-      authUser = authData.user ?? null;
+      authUser =
+        authList?.users.find(
+          (candidate) => candidate.email?.toLowerCase() === normalizedEmail
+        ) ?? null;
 
       if (!authUser) {
         return NextResponse.json(
@@ -91,8 +99,8 @@ export async function POST(req: Request) {
         );
       }
 
-      const { data: userById, error: userByIdError } = await supabaseAdmin
-        .from<UserRow>("usuarios")
+      const { data: userByIdData, error: userByIdError } = await supabaseAdmin
+        .from("usuarios")
         .select("id, username, rol")
         .eq("id", authUser.id)
         .maybeSingle();
@@ -104,6 +112,7 @@ export async function POST(req: Request) {
         );
       }
 
+      const userById = (userByIdData ?? null) as UserRow | null;
       resolvedUserRow = userById ?? {
         id: authUser.id,
         username:
