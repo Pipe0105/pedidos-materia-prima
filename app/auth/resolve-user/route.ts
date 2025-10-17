@@ -4,7 +4,7 @@ import { supabaseAdmin } from "@/lib/supabasedamin";
 
 const resolveUserSchema = z.object({
   username: z
-    .string({ required_error: "El nombre de usuario es obligatorio" })
+    .string({ message: "El nombre de usuario es obligatorio" })
     .min(1, "El nombre de usuario es obligatorio"),
 });
 
