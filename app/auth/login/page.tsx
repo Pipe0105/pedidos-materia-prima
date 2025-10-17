@@ -4,6 +4,16 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
+type ResolveUserSuccess = {
+  email: string;
+  role: string;
+  username: string;
+};
+
+type ResolveUserError = {
+  error?: string;
+};
+
 export default function LoginPage() {
   const router = useRouter();
   const [username, setUsername] = useState("");
@@ -17,40 +27,44 @@ export default function LoginPage() {
     setMsg("");
 
     try {
-      // 1. Buscar el usuario en tu tabla `usuarios`
-      const { data: userRow, error: e1 } = await supabase
-        .from("usuarios")
-        .select("id, username, rol")
-        .eq("username", username)
-        .single();
+      // 1️⃣ Enviar solicitud al backend
+      const response = await fetch("/api/auth/resolve-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username }),
+      });
 
-      if (e1 || !userRow) throw new Error("Usuario no encontrado");
+      // 2️⃣ Tipar explícitamente la respuesta del JSON
+      const result = (await response.json()) as
+        | ResolveUserSuccess
+        | ResolveUserError;
 
-      // 2. Buscar el email real en auth.users
-      const { data: authUser, error: e2 } = await supabase
-        .from("auth.users")
-        .select("email")
-        .eq("id", userRow.id)
-        .single();
+      // 3️⃣ Validar que venga un email válido
+      if (!response.ok || "error" in result || !("email" in result)) {
+        throw new Error(
+          (result as ResolveUserError)?.error ?? "No se pudo validar al usuario"
+        );
+      }
 
-      if (e2 || !authUser) throw new Error("No se encontró correo vinculado");
+      // ✅ TypeScript ahora sabe que result.email es string
+      const { email } = result;
 
-      // 3. Hacer login con email y contraseña
+      // 4️⃣ Iniciar sesión con Supabase
       const { data, error } = await supabase.auth.signInWithPassword({
-        email: authUser.email,
+        email,
         password,
       });
 
       if (error) throw error;
-
-      // 4. Guardar info local
-      localStorage.setItem("rol", userRow.rol);
-      localStorage.setItem("username", userRow.username);
+      if (!data.session)
+        throw new Error("No se pudo iniciar sesión, inténtalo nuevamente");
 
       setMsg("✅ Login exitoso");
       router.push("/");
-    } catch (err: any) {
-      setMsg(err.message);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Ocurrió un error inesperado";
+      setMsg(message);
     } finally {
       setLoading(false);
     }
@@ -60,6 +74,7 @@ export default function LoginPage() {
     <main className="flex min-h-screen items-center justify-center bg-gray-50 p-6">
       <div className="w-full max-w-sm rounded-xl bg-white p-8 shadow-md border">
         <h1 className="text-xl font-bold text-center mb-6">Iniciar sesión</h1>
+
         <form onSubmit={handleLogin} className="space-y-4">
           <input
             type="text"
@@ -85,6 +100,7 @@ export default function LoginPage() {
             {loading ? "Ingresando…" : "Ingresar"}
           </button>
         </form>
+
         {msg && <p className="mt-4 text-center text-sm text-gray-700">{msg}</p>}
       </div>
     </main>
