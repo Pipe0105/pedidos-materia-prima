@@ -66,27 +66,23 @@ export async function POST(req: Request) {
 
   if (!resolvedUserRow) {
     if (username.includes("@")) {
-      const { data: listData, error: listError } =
-        await supabaseAdmin.auth.admin.listUsers({ email: username });
+      const normalizedEmail = username.toLowerCase();
+      const { data: authData, error: authLookupError } =
+        await supabaseAdmin.auth.admin.getUserByEmail(normalizedEmail);
 
-      if (listError) {
+      if (authLookupError) {
+        if (authLookupError.status === 404) {
+          return NextResponse.json(
+            { error: "Usuario no encontrado" },
+            { status: 404 }
+          );
+        }
         return NextResponse.json(
           { error: "No se pudo consultar la cuenta de Supabase" },
           { status: 500 }
         );
       }
-
-      if (!listData?.users?.length) {
-        return NextResponse.json(
-          { error: "Usuario no encontrado" },
-          { status: 404 }
-        );
-      }
-
-      authUser =
-        listData.users.find(
-          (user) => user.email?.toLowerCase() === username.toLowerCase()
-        ) ?? null;
+      authUser = authData.user ?? null;
 
       if (!authUser) {
         return NextResponse.json(
@@ -136,6 +132,13 @@ export async function POST(req: Request) {
       await supabaseAdmin.auth.admin.getUserById(resolvedUserRow.id);
 
     if (authError) {
+      if (authError.status === 404) {
+        return NextResponse.json(
+          { error: "Usuario no encontrado" },
+          { status: 404 }
+        );
+      }
+
       return NextResponse.json(
         { error: "No se pudo obtener la cuenta de Supabase" },
         { status: 500 }
