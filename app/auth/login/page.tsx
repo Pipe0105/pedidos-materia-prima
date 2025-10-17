@@ -28,7 +28,7 @@ export default function LoginPage() {
 
     try {
       // 1️⃣ Enviar solicitud al backend
-      const response = await fetch("/api/auth/resolve-user", {
+      const response = await fetch("/auth/resolve-user", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username }),
