@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { supabaseAdmin } from "@/lib/supabasedamin";
+import { getSupabaseAdmin } from "@/lib/supabasedamin";
 
 const resolveUserSchema = z.object({
   username: z
@@ -25,6 +25,18 @@ export async function POST(req: Request) {
   }
 
   const { username } = parsed.data;
+
+  let supabaseAdmin;
+  try {
+    supabaseAdmin = getSupabaseAdmin();
+  } catch (error) {
+    console.error("resolve-user supabase init error", error);
+    const message =
+      error instanceof Error
+        ? error.message
+        : "No se pudo inicializar el cliente de Supabase";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 
   const { data: userRow, error: userError } = await supabaseAdmin
     .from("usuarios")
