@@ -102,7 +102,7 @@ export function InventarioTable({
                 )}
                 <TableCell className="text-sm text-muted-foreground">
                   {row.hasta
-                    ? `Hasta ${new Date(row.hasta).toLocaleDateString("es-AR")}`
+                    ? `Hasta ${new Date(row.hasta).toLocaleDateString("es-CO")}`
                     : "Sin estimación"}
                 </TableCell>
                 <TableCell>

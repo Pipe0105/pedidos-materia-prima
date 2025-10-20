@@ -16,10 +16,10 @@ export function calcularFechaHasta(
 ) {
   if (!consumoDiario || consumoDiario <= 0) return null;
   let dias = Math.floor(stockDisponible / consumoDiario);
-  const fecha = new Date(fechaBase);
+  const fecha = new Date(`${fechaBase}T00:00:00Z`);
   while (dias > 0) {
-    fecha.setDate(fecha.getDate() + 1);
-    if (fecha.getDay() !== 0) dias--;
+    fecha.setUTCDate(fecha.getUTCDate() + 1);
+    if (fecha.getUTCDay() !== 0) dias--;
   }
   return fecha.toISOString().slice(0, 10);
 }
