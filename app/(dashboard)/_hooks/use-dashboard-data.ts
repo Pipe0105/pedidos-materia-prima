@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 
 import { supabase } from "@/lib/supabase";
+import { calcularConsumoDiarioKg } from "@/lib/consumo";
 
 import { ToastType } from "@/components/toastprovider";
 import {
@@ -87,24 +88,12 @@ export function useDashboardData({
             cobertura = item.stock_bultos / consumoUnidades;
           }
         } else {
-          let consumoKg: number | null = null;
-
-          if (unidad === "bulto") {
-            if (
-              item.tasa_consumo_diaria_kg &&
-              item.tasa_consumo_diaria_kg > 0 &&
-              item.presentacion_kg_por_bulto &&
-              item.presentacion_kg_por_bulto > 0
-            ) {
-              consumoKg =
-                item.tasa_consumo_diaria_kg * item.presentacion_kg_por_bulto;
-            }
-          } else {
-            consumoKg =
-              item.tasa_consumo_diaria_kg && item.tasa_consumo_diaria_kg > 0
-                ? item.tasa_consumo_diaria_kg
-                : null;
-          }
+          const consumoKg = calcularConsumoDiarioKg({
+            nombre: item.nombre,
+            unidad_medida: item.unidad_medida,
+            presentacion_kg_por_bulto: item.presentacion_kg_por_bulto,
+            tasa_consumo_diaria_kg: item.tasa_consumo_diaria_kg,
+          });
           if (consumoKg) {
             cobertura = item.stock_kg / consumoKg;
           }

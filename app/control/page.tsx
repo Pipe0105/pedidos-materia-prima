@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, RefreshCcw, Play, Clock } from "lucide-react";
-
+import { calcularConsumoDiarioKg } from "@/lib/consumo";
 import { PageContainer } from "@/components/PageContainer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -207,7 +207,9 @@ export default function ControlPage() {
       });
 
       const registros = (autoRes.data ?? []).map<Row>((item) => {
-        const unidad = (item.materiales?.unidad_medida ?? "bulto") as Unidad;
+        const unidad = (item.materiales?.unidad_medida ??
+          stock?.unidad_medida ??
+          "bulto") as Unidad;
         const stock = stockIndex.get(`${item.zona_id}-${item.material_id}`);
         const stockReal = obtenerStockReal(stock, unidad);
         const consumoAuto = Number(item.bultos ?? 0);
@@ -217,10 +219,18 @@ export default function ControlPage() {
           typeof item.fecha === "string" ? item.fecha.slice(0, 10) : "";
         const fechaDisplay = safeFormatDate(item.fecha);
         const timestamp = new Date(item.fecha).getTime();
-        const consumoConfigKg =
-          typeof stock?.tasa_consumo_diaria_kg === "number"
-            ? stock.tasa_consumo_diaria_kg
-            : null;
+        const consumoConfigKg = calcularConsumoDiarioKg({
+          nombre: stock?.nombre ?? item.materiales?.nombre ?? null,
+          unidad_medida:
+            (stock?.unidad_medida as Unidad | undefined) ??
+            (item.materiales?.unidad_medida as Unidad | undefined) ??
+            null,
+          presentacion_kg_por_bulto:
+            stock?.presentacion_kg_por_bulto ??
+            item.materiales?.presentacion_kg_por_bulto ??
+            null,
+          tasa_consumo_diaria_kg: stock?.tasa_consumo_diaria_kg ?? null,
+        });
         const presentacionKgPorBulto =
           item.materiales?.presentacion_kg_por_bulto ??
           stock?.presentacion_kg_por_bulto ??

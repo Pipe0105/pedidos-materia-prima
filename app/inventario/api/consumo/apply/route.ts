@@ -1,9 +1,8 @@
 // app/api/consumo/apply/route.ts
 import { NextResponse } from "next/server";
-import { date, z } from "zod";
 import { supabase } from "@/lib/supabase";
-import { error } from "console";
-
+import { z } from "zod";
+import { calcularConsumoDiarioKg } from "@/lib/consumo";
 const querySchema = z.object({
   zonaId: z
     .string()
@@ -29,7 +28,7 @@ export const dynamic = "force-dynamic";
 export async function POST(req: Request) {
   const { searchParams } = new URL(req.url);
   const parseResult = querySchema.safeParse({
-    zonaId: searchParams.get("ZonaId"),
+    zonaId: searchParams.get("zonaId"),
     date: searchParams.get("date") ?? undefined,
   });
 
@@ -46,16 +45,18 @@ export async function POST(req: Request) {
   // 1) Traer materiales con consumo > 0 en la zona
   const { data: mats, error: errMats } = await supabase
     .from("materiales")
-    .select("id,presentacion_kg_por_bulto,tasa_consumo_diaria_kg,activo")
+    .select(
+      "id,nombre,unidad_medida,presentacion_kg_por_bulto,tasa_consumo_diaria_kg"
+    )
     .eq("zona_id", zonaId)
     .eq("activo", true)
-    .gt("tasa_consumo_diaria_kg", 0)
     .returns<
       {
         id: string;
-        presentacion_kg_por_bulto: number;
-        tasa_consumo_diaria_kg: number;
-        activo: boolean;
+        nombre: string | null;
+        unidad_medida: "bulto" | "unidad" | "litro" | null;
+        presentacion_kg_por_bulto: number | null;
+        tasa_consumo_diaria_kg: number | null;
       }[]
     >();
 
@@ -76,20 +77,46 @@ export async function POST(req: Request) {
   const payload = (mats ?? [])
     .filter((m) => !yaPosteados.has(m.id))
     .map((m) => {
-      const kg = Number(m.tasa_consumo_diaria_kg);
-      const bultos = kg / Number(m.presentacion_kg_por_bulto || 1);
+      const consumoKg = calcularConsumoDiarioKg({
+        nombre: m.nombre,
+        unidad_medida: m.unidad_medida,
+        presentacion_kg_por_bulto: m.presentacion_kg_por_bulto,
+        tasa_consumo_diaria_kg: m.tasa_consumo_diaria_kg,
+      });
+
+      if (!consumoKg) return null;
+
+      const presentacion = Number(m.presentacion_kg_por_bulto || 1);
+      const divisor =
+        Number.isFinite(presentacion) && presentacion > 0 ? presentacion : 1;
+      const bultos = consumoKg / divisor;
       return {
         zona_id: zonaId,
         material_id: m.id,
         fecha: date,
         tipo: "salida" as const,
-        kg: Math.round(kg * 1e4) / 1e4,
+        kg: Math.round(consumoKg * 1e4) / 1e4,
         bultos: Math.round(bultos * 1e4) / 1e4,
         ref_tipo: "consumo_diario",
         ref_id: date, // clave de referencia por fecha
         notas: null as string | null,
       };
-    });
+    })
+    .filter(
+      (
+        item
+      ): item is {
+        zona_id: string;
+        material_id: string;
+        fecha: string;
+        tipo: "salida";
+        kg: number;
+        bultos: number;
+        ref_tipo: "consumo_diario";
+        ref_id: string;
+        notas: string | null;
+      } => item !== null
+    );
 
   if (!payload.length) {
     return NextResponse.json({
