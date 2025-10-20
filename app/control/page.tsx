@@ -207,10 +207,10 @@ export default function ControlPage() {
       });
 
       const registros = (autoRes.data ?? []).map<Row>((item) => {
+        const stock = stockIndex.get(`${item.zona_id}-${item.material_id}`);
         const unidad = (item.materiales?.unidad_medida ??
           stock?.unidad_medida ??
           "bulto") as Unidad;
-        const stock = stockIndex.get(`${item.zona_id}-${item.material_id}`);
         const stockReal = obtenerStockReal(stock, unidad);
         const consumoAuto = Number(item.bultos ?? 0);
         const stockTeorico = stockReal - consumoAuto;
