@@ -116,8 +116,8 @@ export async function POST(req: Request) {
         );
       }
 
-      const authUserById = authByIdData?.user ?? null;
-      authUser = authUserById ?? authUserLookup;
+      const authUserById = authByIdData ?? null;
+      authUser = authUserById.user ?? authUserLookup;
 
       const { data: userByIdData, error: userByIdError } = await supabaseAdmin
         .from("usuarios")
