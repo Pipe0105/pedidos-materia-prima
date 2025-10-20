@@ -15,7 +15,7 @@ export function calcularFechaHasta(
   consumoDiario: number | null
 ) {
   if (!consumoDiario || consumoDiario <= 0) return null;
-  let dias = Math.floor(stockDisponible / consumoDiario);
+  let dias = Math.ceil(stockDisponible / consumoDiario);
   const fecha = new Date(`${fechaBase}T00:00:00Z`);
   while (dias > 0) {
     fecha.setUTCDate(fecha.getUTCDate() + 1);

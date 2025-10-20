@@ -27,6 +27,17 @@ type InventarioTableProps = {
   onDeshacerConsumo: (materialId: string) => void;
 };
 
+const FECHA_FORMATTER = new Intl.DateTimeFormat("es-CO", {
+  timeZone: "UTC",
+});
+
+function formatFechaHasta(fecha: string) {
+  const [year, month, day] = fecha.split("-").map(Number);
+  if (!year || !month || !day) return fecha;
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return FECHA_FORMATTER.format(date);
+}
+
 export function InventarioTable({
   rows,
   loading,
@@ -102,7 +113,7 @@ export function InventarioTable({
                 )}
                 <TableCell className="text-sm text-muted-foreground">
                   {row.hasta
-                    ? `Hasta ${new Date(row.hasta).toLocaleDateString("es-CO")}`
+                    ? `Hasta ${formatFechaHasta(row.hasta)}`
                     : "Sin estimación"}
                 </TableCell>
                 <TableCell>
