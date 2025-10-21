@@ -1,7 +1,14 @@
 "use client";
 export const dynamic = "force-dynamic";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { InventarioActualRow } from "@/app/(dashboard)/_components/_types";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -32,7 +39,7 @@ import type {
 const EMPTY_EDITAR: MaterialEditar = { id: "", nombre: "", stockKg: 0 };
 const EMPTY_CONSUMO: MaterialConsumo = { id: "", nombre: "", unidad: "bulto" };
 
-export default function InventarioPage() {
+function InventarioPageContent() {
   const searchParams = useSearchParams();
 
   const [zonas, setZonas] = useState<Zona[]>([]);
@@ -535,5 +542,19 @@ export default function InventarioPage() {
         onSubmit={() => void guardarConsumoManual()}
       />
     </PageContainer>
+  );
+}
+
+export default function InventarioPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex justify-center py-10 text-sm text-muted-foreground">
+          Cargando inventario...
+        </div>
+      }
+    >
+      <InventarioPageContent />
+    </Suspense>
   );
 }
