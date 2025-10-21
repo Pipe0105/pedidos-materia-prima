@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-
+import { toNum } from "@/lib/format";
 import { supabase } from "@/lib/supabase";
 import { calcularConsumoDiarioKg } from "@/lib/consumo";
 
@@ -76,9 +76,14 @@ export function useDashboardData({
       const payload = (await response.json()) as InventarioActualRow[];
 
       const normalizarNumero = (valor: unknown) => {
-        if (typeof valor === "number" && Number.isFinite(valor)) {
-          return valor;
+        if (typeof valor === "number") {
+          return Number.isFinite(valor) ? valor : 0;
         }
+
+        if (typeof valor === "string") {
+          return toNum(valor);
+        }
+
         const numero = Number(valor);
         return Number.isFinite(numero) ? numero : 0;
       };

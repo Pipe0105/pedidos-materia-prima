@@ -91,10 +91,14 @@ export function NotificationBell({
                       {items.length ? (
                         <ul className="space-y-2">
                           {items.map((m) => {
-                            const diasCobertura =
+                            const coberturaDias =
                               m.cobertura != null
-                                ? Math.max(0, Math.floor(m.cobertura))
+                                ? Math.max(0, m.cobertura)
                                 : 0;
+                            const coberturaLabel =
+                              coberturaDias > 0 && coberturaDias < 1
+                                ? "<1 día de cobertura"
+                                : `${fmtNum(coberturaDias)} días de cobertura`;
                             return (
                               <li
                                 key={m.id}
@@ -104,7 +108,7 @@ export function NotificationBell({
                                   {m.nombre}
                                 </p>
                                 <p className="text-xs text-slate-500">
-                                  {fmtNum(diasCobertura)} dias de cobertura
+                                  {coberturaLabel}
                                 </p>
                               </li>
                             );
