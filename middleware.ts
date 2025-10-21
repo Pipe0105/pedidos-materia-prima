@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { createMiddlewareClient } from "@supabase/auth-helpers-nextjs";
 
 export function middleware(_req: NextRequest) {
   // Mientras la autenticación no sea necesaria, dejamos pasar todas las

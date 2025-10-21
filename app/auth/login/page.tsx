@@ -1,11 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+
 import { supabase } from "@/lib/supabase";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -36,7 +39,16 @@ export default function LoginPage() {
 
       setMsg("✅ Login exitoso");
       setStatus("success");
-      router.push("/");
+
+      const redirectTo = searchParams.get("redirectTo");
+      const isValidRedirect =
+        redirectTo &&
+        redirectTo.startsWith("/") &&
+        !redirectTo.startsWith("//");
+      const destination =
+        isValidRedirect && redirectTo !== "/auth/login" ? redirectTo : "/";
+
+      router.push(destination);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Ocurrió un error inesperado";
