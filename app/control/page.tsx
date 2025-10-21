@@ -928,12 +928,12 @@ function obtenerStockReal(
   if (!stock) return 0;
 
   switch (unidad) {
-    case "litro":
-      return Number(stock.stock_kg ?? 0);
     case "unidad":
-      return Number(stock.stock ?? stock.stock_bultos ?? 0);
+      return Number(stock.stock_bultos ?? 0);
+    case "litro":
+      return Number(stock.stock ?? 0);
     case "bulto":
     default:
-      return Number(stock.stock_bultos ?? 0);
+      return Number(stock.stock ?? 0);
   }
 }
