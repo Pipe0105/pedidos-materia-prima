@@ -4,19 +4,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
-type ResolveUserSuccess = {
-  email: string;
-  role: string;
-  username: string;
-};
-
-type ResolveUserError = {
-  error?: string;
-};
-
 export default function LoginPage() {
   const router = useRouter();
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState("");
@@ -29,33 +19,14 @@ export default function LoginPage() {
     setStatus("idle");
 
     try {
-      // 1️⃣ Enviar solicitud al backend
-      const response = await fetch("/auth/resolve-user", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ username }),
-      });
-
-      // 2️⃣ Tipar explícitamente la respuesta del JSON
-      const result = (await response.json()) as
-        | ResolveUserSuccess
-        | ResolveUserError;
-
-      // 3️⃣ Validar que venga un email válido
-      if (!response.ok || "error" in result || !("email" in result)) {
-        throw new Error(
-          (result as ResolveUserError)?.error ?? "No se pudo validar al usuario"
-        );
+      const normalizedEmail = email.trim().toLowerCase();
+      if (!normalizedEmail) {
+        throw new Error("Ingresa un correo electrónico válido");
       }
-
-      // ✅ TypeScript ahora sabe que result.email es string
-      const { email } = result;
 
       // 4️⃣ Iniciar sesión con Supabase
       const { data, error } = await supabase.auth.signInWithPassword({
-        email,
+        email: normalizedEmail,
         password,
       });
 
@@ -84,10 +55,10 @@ export default function LoginPage() {
 
         <form onSubmit={handleLogin} className="space-y-4">
           <input
-            type="text"
-            placeholder="Nombre de usuario"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
+            type="email"
+            placeholder="Correo electrónico"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
             className="w-full border rounded px-3 py-2 text-sm"
             required
           />

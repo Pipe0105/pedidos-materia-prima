@@ -2,23 +2,24 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createMiddlewareClient } from "@supabase/auth-helpers-nextjs";
 
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  throw new Error(
+    "Las variables NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_ANON_KEY deben estar definidas para ejecutar el middleware de autenticación."
+  );
+}
+
+
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!supabaseUrl || !supabaseAnonKey) {
-    console.warn(
-      "supabase environment varibles are missing. skipping auth middleware."
-    );
-    return res;
-  }
 
   const supabase = createMiddlewareClient(
     { req, res },
     {
-      supabaseUrl,
-      supabaseKey: supabaseAnonKey,
+      supabaseUrl: SUPABASE_URL,
+      supabaseKey: SUPABASE_ANON_KEY,
     }
   );
 
