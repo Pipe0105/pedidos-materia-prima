@@ -75,32 +75,98 @@ export function useDashboardData({
 
       const payload = (await response.json()) as InventarioActualRow[];
 
-      const materiales = payload.reduce<MaterialRow[]>((acc, item) => {
-        const unidad = item.unidad_medida;
+      const normalizarNumero = (valor: unknown) => {
+        if (typeof valor === "number" && Number.isFinite(valor)) {
+          return valor;
+        }
+        const numero = Number(valor);
+        return Number.isFinite(numero) ? numero : 0;
+      };
+
+      type MaterialAgrupado = {
+        id: string;
+        nombre: string;
+        unidad: InventarioActualRow["unidad_medida"];
+        presentacionKgPorBulto: InventarioActualRow["presentacion_kg_por_bulto"];
+        tasaConsumoDiariaKg: InventarioActualRow["tasa_consumo_diaria_kg"];
+        stockKg: number;
+        stockBultos: number;
+      };
+
+      const materialesAgrupados = payload.reduce<Map<string, MaterialAgrupado>>(
+        (acc, item) => {
+          const unidad = item.unidad_medida;
+          const stockBase = normalizarNumero(item.stock);
+          const stockKg = normalizarNumero(item.stock_kg);
+          const stockBultos = normalizarNumero(item.stock_bultos);
+
+          const stockPorUnidad = (() => {
+            if (unidad === "unidad") {
+              return {
+                stockKg: 0,
+                stockBultos: stockBultos || stockBase,
+              };
+            }
+
+            const baseKg = stockKg || stockBase;
+            const baseBultos =
+              unidad === "bulto" ? stockBultos || stockBase : stockBultos;
+
+            return {
+              stockKg: baseKg,
+              stockBultos: baseBultos,
+            };
+          })();
+
+          const existente = acc.get(item.material_id);
+
+          if (existente) {
+            existente.stockKg += stockPorUnidad.stockKg;
+            existente.stockBultos += stockPorUnidad.stockBultos;
+          } else {
+            acc.set(item.material_id, {
+              id: item.material_id,
+              nombre: item.nombre,
+              unidad,
+              presentacionKgPorBulto: item.presentacion_kg_por_bulto,
+              tasaConsumoDiariaKg: item.tasa_consumo_diaria_kg,
+              stockKg: stockPorUnidad.stockKg,
+              stockBultos: stockPorUnidad.stockBultos,
+            });
+          }
+
+          return acc;
+        },
+        new Map<string, MaterialAgrupado>()
+      );
+
+      const materiales = Array.from(materialesAgrupados.values()).reduce<
+        MaterialRow[]
+      >((acc, item) => {
         let cobertura: number | null = null;
 
-        if (unidad === "unidad") {
+        if (item.unidad === "unidad") {
           const consumoUnidades =
-            item.tasa_consumo_diaria_kg && item.tasa_consumo_diaria_kg > 0
-              ? item.tasa_consumo_diaria_kg
+            item.tasaConsumoDiariaKg && item.tasaConsumoDiariaKg > 0
+              ? item.tasaConsumoDiariaKg
               : null;
           if (consumoUnidades) {
-            cobertura = item.stock_bultos / consumoUnidades;
+            cobertura = item.stockBultos / consumoUnidades;
           }
         } else {
           const consumoKg = calcularConsumoDiarioKg({
             nombre: item.nombre,
-            unidad_medida: item.unidad_medida,
-            presentacion_kg_por_bulto: item.presentacion_kg_por_bulto,
-            tasa_consumo_diaria_kg: item.tasa_consumo_diaria_kg,
+            unidad_medida: item.unidad,
+            presentacion_kg_por_bulto: item.presentacionKgPorBulto,
+            tasa_consumo_diaria_kg: item.tasaConsumoDiariaKg,
           });
           if (consumoKg) {
-            cobertura = item.stock_kg / consumoKg;
+            cobertura = item.stockKg / consumoKg;
           }
         }
 
         if (cobertura !== null) {
-          acc.push({ id: item.material_id, nombre: item.nombre, cobertura });
+          acc.push({ id: item.id, nombre: item.nombre, cobertura });
         }
 
         return acc;
