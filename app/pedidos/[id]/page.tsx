@@ -1,5 +1,5 @@
 "use client";
-
+export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -102,7 +102,7 @@ export default function PedidoEditor() {
       router.push(
         pedido.zona_id
           ? `/pedidos?tab=${encodeURIComponent(pedido.zona_id)}`
-          :"/pedidos"
+          : "/pedidos"
       );
     }
   }
@@ -120,7 +120,8 @@ export default function PedidoEditor() {
       pedido_id: pedidoId,
       material_id: id,
       bultos: 1,
-      kg: meta.unidad_medida === "bulto" ? meta.presentacion_kg_por_bulto : null,
+      kg:
+        meta.unidad_medida === "bulto" ? meta.presentacion_kg_por_bulto : null,
     };
 
     const { data } = await supabase
@@ -188,7 +189,9 @@ export default function PedidoEditor() {
               {items.map((it) => (
                 <tr key={it.id} className="border-b">
                   <td className="p-2">{it.materiales?.nombre || "—"}</td>
-                  <td className="p-2" align="center">{it.materiales?.unidad_medida}</td>
+                  <td className="p-2" align="center">
+                    {it.materiales?.unidad_medida}
+                  </td>
                   <td className="p-2" align="center">
                     <input
                       type="number"
@@ -208,7 +211,9 @@ export default function PedidoEditor() {
                       className="w-20 border rounded px-2 py-1 text-sm text-center"
                     />
                   </td>
-                  <td className="p-2" align="center">{it.kg ?? "—"}</td>
+                  <td className="p-2" align="center">
+                    {it.kg ?? "—"}
+                  </td>
                   <td className="p-2" align="center">
                     <button
                       onClick={() => eliminarItem(it.id)}

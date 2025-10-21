@@ -1,6 +1,5 @@
-export const dynamic = "force-dynamic";
 ("use client");
-
+export const dynamic = "force-dynamic";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useToast } from "@/components/toastprovider";
 import { agruparCobertura, type CoberturaResumen } from "@/lib/cobertura";
