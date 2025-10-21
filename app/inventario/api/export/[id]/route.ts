@@ -2,33 +2,40 @@
 import PDFDocument from "pdfkit";
 import { z } from "zod";
 import { supabase } from "@/lib/supabase";
+import { NextRequest } from "next/server";
 
 const paramsSchema = z.object({
   id: z
-  .string().nonempty("el Id es obligatorio")
-  .min(1, "El Id es obligatorio")
-  .max(128, "El id es demasiado largo")
-  .refine((value) => /^[a-zA-Z0-9_-]+$/.test(value), {
-    message: "El id contiene caracteres no permitidos",
-  }),
+    .string()
+    .nonempty("el Id es obligatorio")
+    .min(1, "El Id es obligatorio")
+    .max(128, "El id es demasiado largo")
+    .refine((value) => /^[a-zA-Z0-9_-]+$/.test(value), {
+      message: "El id contiene caracteres no permitidos",
+    }),
 });
 
 // Fuerza runtime Node (pdfkit necesita Node, no Edge)
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET(_: Request, { params }: { params: { id: string } }) {
-  const parsedParams = paramsSchema.safeParse(params);
+export async function GET(
+  _: NextRequest,
+  context: { params?: Promise<{ id: string }> }
+) {
+  const rawParams = context.params ? await context.params : {};
+  const parsedParams = paramsSchema.safeParse(rawParams);
   if (!parsedParams.success) {
     return new Response(
-      JSON.stringify({error: "parametros invalidos", issues: parsedParams.error.flatten()}),
-      {status: 400,
-        headers: {"content-type": "application/json"},
-      },
+      JSON.stringify({
+        error: "parametros invalidos",
+        issues: parsedParams.error.flatten(),
+      }),
+      { status: 400, headers: { "content-type": "application/json" } }
     );
   }
 
-  const pedidoId = parsedParams.data.id
+  const pedidoId = parsedParams.data.id;
 
   // 1) Pedido
   const { data: pedido, error: errPedido } = await supabase
@@ -52,14 +59,19 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
 
   // 3) Materiales (nombre/proveedor) para esos IDs
   const matIds = Array.from(new Set((items ?? []).map((r) => r.material_id)));
-  const matsMap = new Map<string, { nombre: string; proveedor: string | null }>();
+  const matsMap = new Map<
+    string,
+    { nombre: string; proveedor: string | null }
+  >();
   if (matIds.length) {
     const { data: mats } = await supabase
       .from("materiales")
       .select("id,nombre,proveedor")
       .in("id", matIds)
       .returns<{ id: string; nombre: string; proveedor: string | null }[]>();
-    (mats ?? []).forEach((m) => matsMap.set(m.id, { nombre: m.nombre, proveedor: m.proveedor }));
+    (mats ?? []).forEach((m) =>
+      matsMap.set(m.id, { nombre: m.nombre, proveedor: m.proveedor })
+    );
   }
 
   // 4) PDF en memoria
@@ -69,7 +81,10 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
   doc.on("end", () => {});
 
   // Título
-  doc.font("Helvetica-Bold").fontSize(16).text("PEDIDO SALMUERA CARNES", { align: "center" });
+  doc
+    .font("Helvetica-Bold")
+    .fontSize(16)
+    .text("PEDIDO SALMUERA CARNES", { align: "center" });
   doc.moveDown(2);
 
   // Tabla con bordes como el ejemplo
@@ -79,10 +94,20 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
   const col2 = 300;
   const rowH = 25;
 
-  const cell = (text: string, x: number, y: number, w: number, h: number, bold = false) => {
+  const cell = (
+    text: string,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    bold = false
+  ) => {
     doc.rect(x, y, w, h).stroke();
     doc.font(bold ? "Helvetica-Bold" : "Helvetica").fontSize(12);
-    doc.text(String(text ?? ""), x + 6, y + 7, { width: w - 12, align: "left" });
+    doc.text(String(text ?? ""), x + 6, y + 7, {
+      width: w - 12,
+      align: "left",
+    });
   };
 
   // Cabecera columnas
