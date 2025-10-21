@@ -68,8 +68,7 @@ export async function aplicarConsumoAutomatico({
   let reservasQuery = supabaseClient
     .from("consumo_automatico_reservas")
     .select("material_id,stock_kg,stock_bultos")
-    .eq("zona_id", zonaId)
-    .returns<ReservaRow[]>();
+    .eq("zona_id", zonaId);
 
   if (materialIds.length) {
     reservasQuery = reservasQuery.in("material_id", materialIds);
@@ -82,7 +81,7 @@ export async function aplicarConsumoAutomatico({
   }
 
   const reservasPorMaterial = new Map(
-    (reservas ?? []).map((item) => [item.material_id, item])
+    ((reservas ?? []) as ReservaRow[]).map((item) => [item.material_id, item])
   );
 
   const updates: {

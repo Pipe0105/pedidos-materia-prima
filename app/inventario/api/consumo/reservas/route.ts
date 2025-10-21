@@ -21,17 +21,14 @@ export async function GET(request: NextRequest) {
 
   try {
     const supabaseAdmin = getSupabaseAdmin();
-    let query = supabaseAdmin
+    const baseQuery = supabaseAdmin
       .from("consumo_automatico_reservas")
       .select(
         "zona_id,material_id,stock_kg,stock_bultos,updated_at,material:materiales(id,nombre,unidad_medida,presentacion_kg_por_bulto,tasa_consumo_diaria_kg)"
       )
-      .order("material_id", { ascending: true })
-      .returns<ReservaResponseRow[]>();
+      .order("material_id", { ascending: true });
 
-    if (zonaId) {
-      query = query.eq("zona_id", zonaId);
-    }
+    const query = zonaId ? baseQuery.eq("zona_id", zonaId) : baseQuery;
 
     const { data, error } = await query;
 
@@ -43,7 +40,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return NextResponse.json(data ?? []);
+    const reservas = (Array.isArray(data)
+      ? data
+      : []) as unknown as ReservaResponseRow[];
+
+    return NextResponse.json(reservas);
   } catch (error) {
     console.error("consumo reservas unexpected", error);
     const message =
