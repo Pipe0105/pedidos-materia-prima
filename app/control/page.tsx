@@ -17,8 +17,6 @@ import { Input } from "@/components/ui/input";
 import { fmtNum } from "@/lib/format";
 import { supabase } from "@/lib/supabase";
 import type { InventarioActualRow } from "@/app/(dashboard)/_components/_types";
-import { calcularFechaHasta } from "@/app/inventario/utils";
-
 import {
   Dialog,
   DialogContent,
@@ -865,7 +863,7 @@ export default function ControlPage() {
                                 ? "🟢"
                                 : fila.diferencia > -5
                                 ? "🟡"
-                                : "🔴"}{" "}
+                                : "🔴"}
                             </td>
                             <td className="px-4 py-3 text-right">
                               <Button
@@ -881,7 +879,7 @@ export default function ControlPage() {
                       ) : (
                         <tr>
                           <td
-                            colSpan={10}
+                            colSpan={8}
                             className="py-10 text-center text-sm text-muted-foreground"
                           >
                             No hay registros automáticos para esta zona.
@@ -920,13 +918,11 @@ export default function ControlPage() {
                             </td>
                             <td className="px-4 py-3" />
                             <td className="px-4 py-3" />
-                            <td className="px-4 py-3" />
-                            <td className="px-4 py-3" />
                           </tr>
                         ) : (
                           <tr>
                             <td
-                              colSpan={10}
+                              colSpan={8}
                               className="px-4 py-3 text-center text-muted-foreground"
                             >
                               No se muestran totales porque la zona mezcla
