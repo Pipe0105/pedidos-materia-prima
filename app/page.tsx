@@ -1,4 +1,4 @@
-("use client");
+"use client";
 export const dynamic = "force-dynamic";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useToast } from "@/components/toastprovider";
