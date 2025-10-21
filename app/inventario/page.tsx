@@ -2,12 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { calcularConsumoDiarioKg } from "@/lib/consumo";
 
 import { supabase } from "@/lib/supabase";
 import { InventarioActualRow } from "@/app/(dashboard)/_components/_types";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ConsumoAutomaticoCard } from "./_components/ConsumoAutomaticoCard";
 import {
   Card,
   CardContent,
@@ -27,7 +25,6 @@ import type {
   MaterialConsumo,
   MaterialEditar,
   MovimientoInventario,
-  ConsumoAutomaticoRow,
   StockRow,
   Unidad,
   Zona,
@@ -45,8 +42,6 @@ export default function InventarioPage() {
   const fecha = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const [rows, setRows] = useState<StockRow[]>([]);
   const [loading, setLoading] = useState(false);
-  const [reservas, setReservas] = useState<ConsumoAutomaticoRow[]>([]);
-  const [reservasLoading, setReservasLoading] = useState(false);
   const [movimientos, setMovimientos] = useState<MovimientoInventario[]>([]);
   const [showHistorial, setShowHistorial] = useState(false);
   const [materialHistorial, setMaterialHistorial] = useState("");
@@ -289,35 +284,16 @@ export default function InventarioPage() {
   const cargar = useCallback(async () => {
     if (!zonaId) return;
     setLoading(true);
-    setReservasLoading(true);
-    setReservas([]);
-
-    type ReservaApiRow = {
-      zona_id: string;
-      material_id: string;
-      stock_kg: number | null;
-      stock_bultos: number | null;
-      updated_at: string | null;
-      material: {
-        nombre: string | null;
-        unidad_medida: Unidad | null;
-        presentacion_kg_por_bulto: number | null;
-        tasa_consumo_diaria_kg: number | null;
-      } | null;
-    };
 
     try {
-      const [inventarioResponse, reservasResponse] = await Promise.all([
-        fetch(`/api/inventario?zonaId=${zonaId}`),
-        fetch(`/api/consumo/reservas?zonaId=${zonaId}`),
-      ]);
+      const response = await fetch(`/api/inventario?zonaId=${zonaId}`);
 
-      if (!inventarioResponse.ok) {
+      if (!response.ok) {
         throw new Error("No se pudo obtener el inventario");
       }
 
-      const payload =
-        (await inventarioResponse.json()) as InventarioActualRow[];
+      const payload = (await response.json()) as InventarioActualRow[];
+
       const data = payload.map((item) => {
         const unidad = item.unidad_medida as Unidad;
         const presentacion = item.presentacion_kg_por_bulto;
@@ -358,78 +334,12 @@ export default function InventarioPage() {
       });
 
       setRows(data);
-
-      if (reservasResponse.ok) {
-        const reservasPayload =
-          (await reservasResponse.json()) as ReservaApiRow[];
-
-        const reservasData = reservasPayload.map((item) => {
-          const material = item.material;
-          const unidad = (material?.unidad_medida ?? "bulto") as Unidad;
-          const nombre = material?.nombre ?? "Material sin nombre";
-          const stockKg = Number(item.stock_kg ?? 0);
-          const stockBultos = Number(item.stock_bultos ?? 0);
-
-          let consumoDiario: number | null = null;
-          let consumoDiarioKg: number | null = null;
-          let cobertura: number | null = null;
-          let hasta: string | null = null;
-
-          if (unidad === "unidad") {
-            const consumoConfigurado = Number(
-              material?.tasa_consumo_diaria_kg ?? 0
-            );
-            consumoDiario = Number.isFinite(consumoConfigurado)
-              ? consumoConfigurado
-              : null;
-
-            if (consumoDiario && consumoDiario > 0) {
-              cobertura = Math.floor(stockBultos / consumoDiario);
-              hasta = calcularFechaHasta(fecha, stockBultos, consumoDiario);
-            }
-          } else {
-            const consumoKg = calcularConsumoDiarioKg({
-              nombre: material?.nombre,
-              unidad_medida: unidad,
-              presentacion_kg_por_bulto: material?.presentacion_kg_por_bulto,
-              tasa_consumo_diaria_kg: material?.tasa_consumo_diaria_kg,
-            });
-
-            consumoDiarioKg = consumoKg;
-
-            if (consumoKg && consumoKg > 0) {
-              cobertura = Math.floor(stockKg / consumoKg);
-              hasta = calcularFechaHasta(fecha, stockKg, consumoKg);
-            }
-          }
-
-          return {
-            material_id: item.material_id,
-            nombre,
-            unidad,
-            stock: stockBultos,
-            stockKg,
-            consumoDiario,
-            consumoDiarioKg,
-            cobertura,
-            hasta,
-            updatedAt: item.updated_at,
-          } satisfies ConsumoAutomaticoRow;
-        });
-
-        setReservas(reservasData);
-      } else {
-        console.error("Error obteniendo reservas de consumo automático");
-        setReservas([]);
-      }
     } catch (err) {
       console.error(err);
       alert("❌ Error obteniendo el inventario actual");
       setRows([]);
-      setReservas([]);
     } finally {
       setLoading(false);
-      setReservasLoading(false);
     }
   }, [fecha, zonaId]);
 
@@ -544,51 +454,37 @@ export default function InventarioPage() {
               ))}
             </TabsList>
 
-            {zonas.map((zona) => {
-              const esZonaActual = zona.id === zonaId;
-
-              return (
-                <TabsContent
-                  key={zona.id}
-                  value={zona.id}
-                  className="space-y-6"
-                >
-                  <Card className="border-none shadow-lg">
-                    <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
-                        <CardTitle className="text-xl font-semibold">
-                          Inventario de {zona.nombre}
-                        </CardTitle>
-                        <CardDescription>
-                          Última actualización{" "}
-                          {new Date().toLocaleDateString("es-AR")}
-                        </CardDescription>
-                      </div>
-                      <div className="flex flex-wrap gap-2"></div>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="overflow-hidden rounded-xl border">
-                        <InventarioTable
-                          rows={esZonaActual ? rows : []}
-                          loading={esZonaActual ? loading : false}
-                          mostrarColumnaKg={mostrarColumnaKg}
-                          onVerHistorial={verHistorial}
-                          onEditar={abrirEditar}
-                          onConsumo={abrirConsumoManual}
-                          onDeshacerConsumo={deshacerConsumoManual}
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <ConsumoAutomaticoCard
-                    zonaNombre={zona.nombre}
-                    rows={esZonaActual ? reservas : []}
-                    loading={esZonaActual ? reservasLoading : false}
-                  />
-                </TabsContent>
-              );
-            })}
+            {zonas.map((zona) => (
+              <TabsContent key={zona.id} value={zona.id} className="space-y-6">
+                <Card className="border-none shadow-lg">
+                  <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <CardTitle className="text-xl font-semibold">
+                        Inventario de {zona.nombre}
+                      </CardTitle>
+                      <CardDescription>
+                        Última actualización{" "}
+                        {new Date().toLocaleDateString("es-AR")}
+                      </CardDescription>
+                    </div>
+                    <div className="flex flex-wrap gap-2"></div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="overflow-hidden rounded-xl border">
+                      <InventarioTable
+                        rows={rows}
+                        loading={loading}
+                        mostrarColumnaKg={mostrarColumnaKg}
+                        onVerHistorial={verHistorial}
+                        onEditar={abrirEditar}
+                        onConsumo={abrirConsumoManual}
+                        onDeshacerConsumo={deshacerConsumoManual}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            ))}
           </Tabs>
         ) : (
           <Card className="border-none py-12 text-center shadow-lg">
