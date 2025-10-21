@@ -1,8 +1,9 @@
-"use client";
+export const dynamic = "force-dynamic";
+
+("use client");
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-export const dynamic = "force-dynamic";
 import { supabase } from "@/lib/supabase";
 import { InventarioActualRow } from "@/app/(dashboard)/_components/_types";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
