@@ -317,6 +317,11 @@ export default function InventarioPage() {
         throw new Error("No se pudo obtener el inventario");
       }
 
+      if (!reservasResponse.ok) {
+        setReservas([]);
+        throw new Error("Error obteniendo reservas de consumo automático");
+      }
+
       const payload =
         (await inventarioResponse.json()) as InventarioActualRow[];
       const data = payload.map((item) => {
@@ -360,69 +365,64 @@ export default function InventarioPage() {
 
       setRows(data);
 
-      if (reservasResponse.ok) {
-        const reservasPayload =
-          (await reservasResponse.json()) as ReservaApiRow[];
+      const reservasPayload =
+        (await reservasResponse.json()) as ReservaApiRow[];
 
-        const reservasData = reservasPayload.map((item) => {
-          const material = item.material;
-          const unidad = (material?.unidad_medida ?? "bulto") as Unidad;
-          const nombre = material?.nombre ?? "Material sin nombre";
-          const stockKg = Number(item.stock_kg ?? 0);
-          const stockBultos = Number(item.stock_bultos ?? 0);
+      const reservasData = reservasPayload.map((item) => {
+        const material = item.material;
+        const unidad = (material?.unidad_medida ?? "bulto") as Unidad;
+        const nombre = material?.nombre ?? "Material sin nombre";
+        const stockKg = Number(item.stock_kg ?? 0);
+        const stockBultos = Number(item.stock_bultos ?? 0);
 
-          let consumoDiario: number | null = null;
-          let consumoDiarioKg: number | null = null;
-          let cobertura: number | null = null;
-          let hasta: string | null = null;
+        let consumoDiario: number | null = null;
+        let consumoDiarioKg: number | null = null;
+        let cobertura: number | null = null;
+        let hasta: string | null = null;
 
-          if (unidad === "unidad") {
-            const consumoConfigurado = Number(
-              material?.tasa_consumo_diaria_kg ?? 0
-            );
-            consumoDiario = Number.isFinite(consumoConfigurado)
-              ? consumoConfigurado
-              : null;
+        if (unidad === "unidad") {
+          const consumoConfigurado = Number(
+            material?.tasa_consumo_diaria_kg ?? 0
+          );
+          consumoDiario = Number.isFinite(consumoConfigurado)
+            ? consumoConfigurado
+            : null;
 
-            if (consumoDiario && consumoDiario > 0) {
-              cobertura = Math.floor(stockBultos / consumoDiario);
-              hasta = calcularFechaHasta(fecha, stockBultos, consumoDiario);
-            }
-          } else {
-            const consumoKg = calcularConsumoDiarioKg({
-              nombre: material?.nombre,
-              unidad_medida: unidad,
-              presentacion_kg_por_bulto: material?.presentacion_kg_por_bulto,
-              tasa_consumo_diaria_kg: material?.tasa_consumo_diaria_kg,
-            });
-
-            consumoDiarioKg = consumoKg;
-
-            if (consumoKg && consumoKg > 0) {
-              cobertura = Math.floor(stockKg / consumoKg);
-              hasta = calcularFechaHasta(fecha, stockKg, consumoKg);
-            }
+          if (consumoDiario && consumoDiario > 0) {
+            cobertura = Math.floor(stockBultos / consumoDiario);
+            hasta = calcularFechaHasta(fecha, stockBultos, consumoDiario);
           }
+        } else {
+          const consumoKg = calcularConsumoDiarioKg({
+            nombre: material?.nombre,
+            unidad_medida: unidad,
+            presentacion_kg_por_bulto: material?.presentacion_kg_por_bulto,
+            tasa_consumo_diaria_kg: material?.tasa_consumo_diaria_kg,
+          });
 
-          return {
-            material_id: item.material_id,
-            nombre,
-            unidad,
-            stock: stockBultos,
-            stockKg,
-            consumoDiario,
-            consumoDiarioKg,
-            cobertura,
-            hasta,
-            updatedAt: item.updated_at,
-          } satisfies ConsumoAutomaticoRow;
-        });
+          consumoDiarioKg = consumoKg;
 
-        setReservas(reservasData);
-      } else {
-        console.error("Error obteniendo reservas de consumo automático");
-        setReservas([]);
-      }
+          if (consumoKg && consumoKg > 0) {
+            cobertura = Math.floor(stockKg / consumoKg);
+            hasta = calcularFechaHasta(fecha, stockKg, consumoKg);
+          }
+        }
+
+        return {
+          material_id: item.material_id,
+          nombre,
+          unidad,
+          stock: stockBultos,
+          stockKg,
+          consumoDiario,
+          consumoDiarioKg,
+          cobertura,
+          hasta,
+          updatedAt: item.updated_at,
+        } satisfies ConsumoAutomaticoRow;
+      });
+
+      setReservas(reservasData);
     } catch (err) {
       console.error(err);
       alert("❌ Error obteniendo el inventario actual");
