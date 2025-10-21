@@ -17,6 +17,8 @@ import { Input } from "@/components/ui/input";
 import { fmtNum } from "@/lib/format";
 import { supabase } from "@/lib/supabase";
 import type { InventarioActualRow } from "@/app/(dashboard)/_components/_types";
+import { calcularFechaHasta } from "@/app/inventario/utils";
+
 import {
   Dialog,
   DialogContent,
@@ -64,6 +66,11 @@ type Row = {
   diferencia: number;
   consumo_config_kg: number | null;
   presentacion_kg_por_bulto: number | null;
+  consumo_diario_unidad: number | null;
+  cobertura_real_fecha: string | null;
+  cobertura_real_dias: number | null;
+  cobertura_teorica_fecha: string | null;
+  cobertura_teorica_dias: number | null;
 };
 
 type FeedbackState = { type: "success" | "error"; message: string } | null;
@@ -105,6 +112,77 @@ function safeFormatDate(fecha: string) {
   const parsed = new Date(fecha);
   if (Number.isNaN(parsed.getTime())) return fecha;
   return DATE_FORMATTER.format(parsed);
+}
+
+function calcularConsumoDiarioPorUnidad(
+  consumoKg: number | null,
+  unidad: Unidad,
+  presentacionKgPorBulto: number | null
+) {
+  if (!consumoKg || consumoKg <= 0) return null;
+
+  if (unidad === "bulto") {
+    if (!presentacionKgPorBulto || presentacionKgPorBulto <= 0) {
+      return null;
+    }
+    return consumoKg / presentacionKgPorBulto;
+  }
+
+  return consumoKg;
+}
+
+function calcularCoberturaDesdeStock(
+  fechaBase: string | null,
+  stockDisponible: number,
+  consumoDiario: number | null
+) {
+  if (!consumoDiario || consumoDiario <= 0) {
+    return { fecha: null as string | null, dias: null as number | null };
+  }
+
+  const stockNormalizado = Number.isFinite(stockDisponible)
+    ? Math.max(0, stockDisponible)
+    : 0;
+  const diasEstimados = stockNormalizado / consumoDiario;
+  const diasEnteros = Number.isFinite(diasEstimados)
+    ? Math.floor(diasEstimados)
+    : null;
+
+  if (!fechaBase) {
+    return { fecha: null, dias: diasEnteros };
+  }
+
+  const fechaCobertura = calcularFechaHasta(
+    fechaBase,
+    stockNormalizado,
+    consumoDiario
+  );
+
+  return { fecha: fechaCobertura, dias: diasEnteros };
+}
+
+function formatCobertura(fechaISO: string | null, dias: number | null) {
+  if (!fechaISO && dias == null) {
+    return "Sin consumo configurado";
+  }
+
+  const partes: string[] = [];
+
+  if (fechaISO) {
+    partes.push(safeFormatDate(fechaISO));
+  }
+
+  if (dias != null) {
+    partes.push(
+      `(${fmtNum(dias)} ${dias === 1 ? "día" : "días"} de cobertura)`
+    );
+  }
+
+  if (!partes.length) {
+    return "Sin fecha base";
+  }
+
+  return partes.join(" ");
 }
 
 export default function ControlPage() {
@@ -236,6 +314,24 @@ export default function ControlPage() {
           stock?.presentacion_kg_por_bulto ??
           null;
 
+        const consumoDiarioUnidad = calcularConsumoDiarioPorUnidad(
+          consumoConfigKg,
+          unidad,
+          presentacionKgPorBulto
+        );
+        const { fecha: coberturaRealFecha, dias: coberturaRealDias } =
+          calcularCoberturaDesdeStock(
+            fechaISO || null,
+            stockReal,
+            consumoDiarioUnidad
+          );
+        const { fecha: coberturaTeoricaFecha, dias: coberturaTeoricaDias } =
+          calcularCoberturaDesdeStock(
+            fechaISO || null,
+            stockTeorico,
+            consumoDiarioUnidad
+          );
+
         return {
           id: `${item.zona_id}-${item.material_id}-${fechaISO}`,
           fechaISO,
@@ -252,6 +348,11 @@ export default function ControlPage() {
           diferencia,
           consumo_config_kg: consumoConfigKg,
           presentacion_kg_por_bulto: presentacionKgPorBulto,
+          consumo_diario_unidad: consumoDiarioUnidad,
+          cobertura_real_fecha: coberturaRealFecha,
+          cobertura_real_dias: coberturaRealDias,
+          cobertura_teorica_fecha: coberturaTeoricaFecha,
+          cobertura_teorica_dias: coberturaTeoricaDias,
         };
       });
 
@@ -687,6 +788,12 @@ export default function ControlPage() {
                           Stock teórico
                         </th>
                         <th className="px-4 py-3 font-semibold">Diferencia</th>
+                        <th className="px-4 py-3 font-semibold">
+                          Cobertura (stock real)
+                        </th>
+                        <th className="px-4 py-3 font-semibold">
+                          Cobertura (stock teórico)
+                        </th>
                         <th className="px-4 py-3 font-semibold text-center">
                           Estado
                         </th>
@@ -698,7 +805,7 @@ export default function ControlPage() {
                     <tbody>
                       {loading ? (
                         <tr>
-                          <td colSpan={8} className="py-10 text-center">
+                          <td colSpan={10} className="py-10 text-center">
                             <Loader2 className="mx-auto h-6 w-6 animate-spin" />
                           </td>
                         </tr>
@@ -724,17 +831,16 @@ export default function ControlPage() {
                               )}
                             </td>
                             <td className="px-4 py-3 text-muted-foreground">
-                              {formatCantidad(
-                                fila.stock_teorico,
-                                fila.unidad_medida
+                              {formatCobertura(
+                                fila.cobertura_real_fecha,
+                                fila.cobertura_real_dias
                               )}
                             </td>
-                            <td
-                              className={`px-4 py-3 font-semibold ${estadoColor(
-                                fila.diferencia
-                              )}`}
-                            >
-                              {formatDiff(fila.diferencia, fila.unidad_medida)}
+                            <td className="px-4 py-3 text-muted-foreground">
+                              {formatCobertura(
+                                fila.cobertura_teorica_fecha,
+                                fila.cobertura_teorica_dias
+                              )}
                             </td>
                             <td className="px-4 py-3 text-center">
                               {fila.diferencia >= 0
@@ -757,7 +863,7 @@ export default function ControlPage() {
                       ) : (
                         <tr>
                           <td
-                            colSpan={8}
+                            colSpan={10}
                             className="py-10 text-center text-sm text-muted-foreground"
                           >
                             No hay registros automáticos para esta zona.
@@ -796,11 +902,13 @@ export default function ControlPage() {
                             </td>
                             <td className="px-4 py-3" />
                             <td className="px-4 py-3" />
+                            <td className="px-4 py-3" />
+                            <td className="px-4 py-3" />
                           </tr>
                         ) : (
                           <tr>
                             <td
-                              colSpan={8}
+                              colSpan={10}
                               className="px-4 py-3 text-center text-muted-foreground"
                             >
                               No se muestran totales porque la zona mezcla
