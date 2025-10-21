@@ -1,6 +1,7 @@
 "use client";
 export const dynamic = "force-dynamic";
-import { useState } from "react";
+import { Suspense, useState } from "react";
+
 import { useRouter, useSearchParams } from "next/navigation";
 import { PageContainer } from "@/components/PageContainer";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,23 @@ import {
 import { useToast } from "@/components/toastprovider";
 import { supabase } from "@/lib/supabase";
 
+function LoadingNuevoPedido() {
+  return (
+    <main className="py-6">
+      <PageContainer className="space-y-8">
+        <Card>
+          <CardHeader>
+            <CardTitle>Nuevo pedido</CardTitle>
+            <CardDescription>
+              Preparando el formulario para crear un nuevo pedido...
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </PageContainer>
+    </main>
+  );
+}
+
 type PedidoItem = {
   material_id: string;
   nombre: string;
@@ -39,7 +57,7 @@ type PedidoItem = {
   } | null;
 };
 
-export default function NuevoPedidoPage() {
+function NuevoPedidoPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { notify } = useToast();
@@ -366,5 +384,13 @@ export default function NuevoPedidoPage() {
         </div>
       </PageContainer>
     </main>
+  );
+}
+
+export default function NuevoPedidoPage() {
+  return (
+    <Suspense fallback={<LoadingNuevoPedido />}>
+      <NuevoPedidoPageContent />
+    </Suspense>
   );
 }

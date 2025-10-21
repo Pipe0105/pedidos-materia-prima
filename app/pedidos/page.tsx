@@ -1,7 +1,8 @@
 "use client";
 export const dynamic = "force-dynamic";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -15,12 +16,25 @@ import PedidosZona from "./pedidoszonas";
 import { Button } from "@/components/ui/button";
 import { PageContainer } from "@/components/PageContainer";
 
+function LoadingCard({ message }: { message: string }) {
+  return (
+    <PageContainer className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Pedidos de materia prima</CardTitle>
+          <CardDescription>{message}</CardDescription>
+        </CardHeader>
+      </Card>
+    </PageContainer>
+  );
+}
+
 type Zona = {
   id: string;
   nombre: string;
 };
 
-export default function PedidosPage() {
+function PedidosPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [zonas, setZonas] = useState<Zona[]>([]);
@@ -78,12 +92,12 @@ export default function PedidosPage() {
   );
 
   if (loading || !selectedZona) {
-    return renderLoading("Cargando zonas disponibles...");
+    return <LoadingCard message="Cargando zonas disponibles..." />;
   }
 
   if (zonas.length === 0) {
-    return renderLoading(
-      "No hay plantas activas. Activa una zona para comenzar a tomar pedidos."
+    return (
+      <LoadingCard message="No hay plantas activas. Activa una zona para comenzar a tomar pedidos." />
     );
   }
 
@@ -173,5 +187,12 @@ export default function PedidosPage() {
         </Tabs>
       </section>
     </PageContainer>
+  );
+}
+export default function PedidosPage() {
+  return (
+    <Suspense fallback={<LoadingCard message="Cargando pedidos..." />}>
+      <PedidosPageContent />
+    </Suspense>
   );
 }
