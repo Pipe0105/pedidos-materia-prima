@@ -1049,13 +1049,49 @@ function obtenerStockReal(
 ) {
   if (!stock) return 0;
 
+  const parseValor = (valor: unknown) => {
+    if (valor === null || typeof valor === "undefined") return null;
+    const numero = Number(valor);
+    return Number.isFinite(numero) ? numero : null;
+  };
+
+  const seleccionarValor = (
+    campos: (keyof InventarioActualRow)[]
+  ): number | null => {
+    for (const campo of campos) {
+      const numero = parseValor(stock[campo]);
+      if (numero !== null && numero !== 0) {
+        return numero;
+      }
+    }
+
+    for (const campo of campos) {
+      const numero = parseValor(stock[campo]);
+      if (numero !== null) {
+        return numero;
+      }
+    }
+
+    return null;
+  };
+
   switch (unidad) {
     case "litro":
       return Number(stock.stock_kg ?? 0);
     case "unidad":
       return Number(stock.stock ?? stock.stock_bultos ?? 0);
+    case "litro": {
+      const valor = seleccionarValor(["stock", "stock_kg", "stock_bultos"]);
+      return valor ?? 0;
+    }
+    case "unidad": {
+      const valor = seleccionarValor(["stock", "stock_bultos", "stock_kg"]);
+      return valor ?? 0;
+    }
     case "bulto":
-    default:
-      return Number(stock.stock_bultos ?? 0);
+    default: {
+      const valor = seleccionarValor(["stock_bultos", "stock", "stock_kg"]);
+      return valor ?? 0;
+    }
   }
 }
