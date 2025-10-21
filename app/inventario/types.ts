@@ -15,6 +15,19 @@ export type StockRow = {
   cobertura: number | null;
 };
 
+export type ConsumoAutomaticoRow = {
+  material_id: string;
+  nombre: string;
+  unidad: Unidad;
+  stock: number;
+  stockKg: number;
+  consumoDiario: number | null;
+  consumoDiarioKg: number | null;
+  cobertura: number | null;
+  hasta: string | null;
+  updatedAt: string | null;
+};
+
 export type MovimientoInventario = {
   fecha: string | null;
   tipo: string;
