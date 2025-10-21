@@ -131,6 +131,15 @@ function calcularConsumoDiarioPorUnidad(
   return consumoKg;
 }
 
+function sumarDiasCalendario(fechaBase: string, dias: number) {
+  const fecha = new Date(`${fechaBase}T00:00:00Z`);
+  if (Number.isNaN(fecha.getTime())) {
+    return null;
+  }
+  fecha.setUTCDate(fecha.getUTCDate() + dias);
+  return fecha.toISOString().slice(0, 10);
+}
+
 function calcularCoberturaDesdeStock(
   fechaBase: string | null,
   stockDisponible: number,
@@ -148,15 +157,11 @@ function calcularCoberturaDesdeStock(
     ? Math.floor(diasEstimados)
     : null;
 
-  if (!fechaBase) {
+  if (!fechaBase || diasEnteros == null) {
     return { fecha: null, dias: diasEnteros };
   }
 
-  const fechaCobertura = calcularFechaHasta(
-    fechaBase,
-    stockNormalizado,
-    consumoDiario
-  );
+  const fechaCobertura = sumarDiasCalendario(fechaBase, diasEnteros);
 
   return { fecha: fechaCobertura, dias: diasEnteros };
 }
@@ -169,7 +174,7 @@ function formatCobertura(fechaISO: string | null, dias: number | null) {
   const partes: string[] = [];
 
   if (fechaISO) {
-    partes.push(safeFormatDate(fechaISO));
+    partes.push(`Hasta ${safeFormatDate(fechaISO)}`);
   }
 
   if (dias != null) {
@@ -831,6 +836,19 @@ export default function ControlPage() {
                               )}
                             </td>
                             <td className="px-4 py-3 text-muted-foreground">
+                              {formatCantidad(
+                                fila.stock_teorico,
+                                fila.unidad_medida
+                              )}
+                            </td>
+                            <td
+                              className={`px-4 py-3 font-semibold ${estadoColor(
+                                fila.diferencia
+                              )}`}
+                            >
+                              {formatDiff(fila.diferencia, fila.unidad_medida)}
+                            </td>
+                            <td className="px-4 py-3 text-muted-foreground">
                               {formatCobertura(
                                 fila.cobertura_real_fecha,
                                 fila.cobertura_real_dias
@@ -847,7 +865,7 @@ export default function ControlPage() {
                                 ? "🟢"
                                 : fila.diferencia > -5
                                 ? "🟡"
-                                : "🔴"}
+                                : "🔴"}{" "}
                             </td>
                             <td className="px-4 py-3 text-right">
                               <Button
@@ -1036,12 +1054,12 @@ function obtenerStockReal(
   if (!stock) return 0;
 
   switch (unidad) {
-    case "unidad":
-      return Number(stock.stock_bultos ?? 0);
     case "litro":
-      return Number(stock.stock ?? 0);
+      return Number(stock.stock_kg ?? 0);
+    case "unidad":
+      return Number(stock.stock ?? stock.stock_bultos ?? 0);
     case "bulto":
     default:
-      return Number(stock.stock ?? 0);
+      return Number(stock.stock_bultos ?? 0);
   }
 }
