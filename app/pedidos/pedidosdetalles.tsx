@@ -37,7 +37,10 @@ export default function PedidoResumen({
           quality: 1,
           backgroundColor: "#ffffff",
           filter: (node) =>
-            !(node instanceof HTMLElement && node.classList.contains("no-export")),
+            !(
+              node instanceof HTMLElement &&
+              node.classList.contains("no-export")
+            ),
         });
 
         const link = document.createElement("a");
@@ -104,46 +107,50 @@ export default function PedidoResumen({
 
   return (
     <>
-    <button
-      onClick={() => {
-        // calcular reparto automático
-        const bultosTotales = pedido.total_bultos ?? 0;
-        const kilosTotales = pedido.total_kg ?? 0;
+      <button
+        onClick={() => {
+          // calcular reparto automático
+          const bultosTotales = pedido.total_bultos ?? 0;
+          const kilosTotales = pedido.total_kg ?? 0;
 
-        // 60% para Mercamio, 40% para Comercializadora
-        const mercamioBultos = Math.round(bultosTotales * 0.6);
-        const comercialBultos = bultosTotales - mercamioBultos;
+          // 60% para Mercamio, 40% para Comercializadora
+          const mercamioBultos = Math.round(bultosTotales * 0.6);
+          const comercialBultos = bultosTotales - mercamioBultos;
 
-        const mercamioKg = Math.round(kilosTotales * 0.6);
-        const comercialKg = kilosTotales - mercamioKg;
+          const mercamioKg = Math.round(kilosTotales * 0.6);
+          const comercialKg = kilosTotales - mercamioKg;
 
-        setEmpresas([
-          { nombre: "MERCAMIO", bultos: mercamioBultos, kilos: mercamioKg },
-          { nombre: "COMERCIALIZADORA", bultos: comercialBultos, kilos: comercialKg },
-        ]);
+          setEmpresas([
+            { nombre: "MERCAMIO", bultos: mercamioBultos, kilos: mercamioKg },
+            {
+              nombre: "COMERCIALIZADORA",
+              bultos: comercialBultos,
+              kilos: comercialKg,
+            },
+          ]);
 
-        setOpen(true);
-      }}
-      className="rounded bg-blue-600 text-white px-3 py-1 text-sm hover:bg-blue-700"
-    >
-      Ver formato
-    </button>
-        {open && (
+          setOpen(true);
+        }}
+        className="rounded bg-blue-600 text-white px-3 py-1 text-sm hover:bg-blue-700"
+      >
+        Ver formato
+      </button>
+      {open && (
+        <div
+          className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40"
+          onClick={() => setOpen(false)} // 👈 cierra al hacer clic fuera
+        >
           <div
-            className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40"
-            onClick={() => setOpen(false)} // 👈 cierra al hacer clic fuera
+            ref={modalRef}
+            onClick={(e) => e.stopPropagation()} // 👈 evita cierre al hacer clic dentro
+            className="bg-white rounded-lg shadow-lg w-[500px] p-6 space-y-4"
           >
-            <div
-              ref={modalRef}
-              onClick={(e) => e.stopPropagation()} // 👈 evita cierre al hacer clic dentro
-              className="bg-white rounded-lg shadow-lg w-[500px] p-6 space-y-4"
-            >
             <h2 className="text-xl font-bold text-center">{titulo}</h2>
 
             <table className="w-full border border-black text-sm text-center border-collapse">
               <thead>
                 <tr className="bg-gray-100">
-                  <th className="border-black p-2" >CANTIDAD BULTOS</th>
+                  <th className="border-black p-2">CANTIDAD BULTOS</th>
                   <th className="border border-black p-2">CANTIDAD KILOS</th>
                   <th className="border border-black p-2">EMPRESA</th>
                 </tr>
@@ -158,7 +165,7 @@ export default function PedidoResumen({
 
                     {/* Columna existente: KILOS */}
                     <td className="border border-black p-2 text-base">
-                      <span >{e.kilos || "0 KG"}</span>
+                      <span>{e.kilos || "0 KG"}</span>
                     </td>
 
                     {/* EMPRESA */}
@@ -177,7 +184,7 @@ export default function PedidoResumen({
                   const fechaBase = new Date(pedido.fecha_entrega ?? "");
 
                   fechaBase.setDate(fechaBase.getDate() + 1);
-                  
+
                   const fecha = fechaBase.toLocaleDateString("es-ES", {
                     weekday: "long",
                     day: "numeric",
