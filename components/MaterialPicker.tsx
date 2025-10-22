@@ -12,9 +12,11 @@ type Material = {
 
 export default function MaterialPicker({
   zonaId,
+  value,
   onChange,
 }: {
   zonaId: string;
+  value?: string;
   onChange: (
     id: string,
     meta?: {
@@ -46,6 +48,7 @@ export default function MaterialPicker({
   return (
     <select
       className="rounded-lg border px-3 py-1 text-sm"
+      value={value ?? ""}
       onChange={(e) => {
         const mat = materiales.find((m) => m.id === e.target.value);
         onChange(

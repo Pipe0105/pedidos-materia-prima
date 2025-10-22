@@ -57,7 +57,15 @@ export default function PedidoEditorClient({ pedidoId }: { pedidoId: string }) {
       .from("pedido_items")
       .select("id,material_id,bultos,kg,notas_item")
       .eq("pedido_id", pedidoId)
-      .returns<{ id: string; material_id: string; bultos: number; kg: number; notas_item: string | null }[]>();
+      .returns<
+        {
+          id: string;
+          material_id: string;
+          bultos: number;
+          kg: number;
+          notas_item: string | null;
+        }[]
+      >();
 
     if (itErr) {
       setErr(itErr.message);
@@ -74,7 +82,9 @@ export default function PedidoEditorClient({ pedidoId }: { pedidoId: string }) {
         .select("id,presentacion_kg_por_bulto")
         .in("id", matIds)
         .returns<{ id: string; presentacion_kg_por_bulto: number }[]>();
-      (mats ?? []).forEach((m) => (present[m.id] = Number(m.presentacion_kg_por_bulto)));
+      (mats ?? []).forEach(
+        (m) => (present[m.id] = Number(m.presentacion_kg_por_bulto))
+      );
     }
 
     const rows: ItemRow[] =
@@ -96,12 +106,21 @@ export default function PedidoEditorClient({ pedidoId }: { pedidoId: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pedidoId]);
 
-  const totB = useMemo(() => items.reduce((a, i) => a + (i.bultos || 0), 0), [items]);
-  const totKg = useMemo(() => items.reduce((a, i) => a + (i.kg || 0), 0), [items]);
+  const totB = useMemo(
+    () => items.reduce((a, i) => a + (i.bultos || 0), 0),
+    [items]
+  );
+  const totKg = useMemo(
+    () => items.reduce((a, i) => a + (i.kg || 0), 0),
+    [items]
+  );
 
   async function guardarCabecera(upd: Partial<Pedido>) {
     if (!pedido) return;
-    const { error } = await supabase.from("pedidos").update(upd).eq("id", pedido.id);
+    const { error } = await supabase
+      .from("pedidos")
+      .update(upd)
+      .eq("id", pedido.id);
     if (error) setErr(error.message);
     else setPedido({ ...pedido, ...upd });
   }
@@ -110,20 +129,37 @@ export default function PedidoEditorClient({ pedidoId }: { pedidoId: string }) {
     setItems((prev) => [{ material_id: "", bultos: 0, kg: 0 }, ...prev]);
   }
 
-  async function onMaterialChange(idx: number, materialId: string) {
+  async function onMaterialChange(
+    idx: number,
+    materialId: string,
+    meta?: {
+      nombre: string;
+      presentacion_kg_por_bulto: number | null;
+      unidad_medida: "bulto" | "unidad" | "litro";
+    }
+  ) {
     if (!pedido) return;
-    const { data } = await supabase
-      .from("materiales")
-      .select("id,presentacion_kg_por_bulto")
-      .eq("id", materialId)
-      .single()
-      .returns<{ id: string; presentacion_kg_por_bulto: number }>();
-    if (!data) return;
+    let presentacion: number | undefined;
+    if (meta) {
+      presentacion =
+        meta.presentacion_kg_por_bulto == null
+          ? undefined
+          : Number(meta.presentacion_kg_por_bulto);
+    } else if (materialId) {
+      const { data } = await supabase
+        .from("materiales")
+        .select("id,presentacion_kg_por_bulto")
+        .eq("id", materialId)
+        .single()
+        .returns<{ id: string; presentacion_kg_por_bulto: number }>();
+      if (!data) return;
+      presentacion = Number(data.presentacion_kg_por_bulto);
+    }
     setItems((prev) => {
       const copy = [...prev];
       const row = copy[idx];
       row.material_id = materialId;
-      row.presentacion = Number(data.presentacion_kg_por_bulto);
+      row.presentacion = presentacion;
       row.kg = round4((row.bultos || 0) * (row.presentacion || 0));
       return copy;
     });
@@ -163,7 +199,9 @@ export default function PedidoEditorClient({ pedidoId }: { pedidoId: string }) {
       .eq("pedido_id", pedido.id)
       .returns<{ id: string }[]>();
     const existentesIds = new Set((existentes ?? []).map((x) => x.id));
-    const actualesIds = new Set(items.filter((i) => i.id).map((i) => i.id as string));
+    const actualesIds = new Set(
+      items.filter((i) => i.id).map((i) => i.id as string)
+    );
 
     for (const r of items) {
       const payload = {
@@ -176,7 +214,11 @@ export default function PedidoEditorClient({ pedidoId }: { pedidoId: string }) {
       if (r.id) {
         await supabase.from("pedido_items").update(payload).eq("id", r.id);
       } else {
-        const { data } = await supabase.from("pedido_items").insert(payload).select("id").single();
+        const { data } = await supabase
+          .from("pedido_items")
+          .insert(payload)
+          .select("id")
+          .single();
         if (data) r.id = (data as { id: string }).id;
       }
     }
@@ -201,7 +243,10 @@ export default function PedidoEditorClient({ pedidoId }: { pedidoId: string }) {
       return;
     }
 
-    const { error } = await supabase.from("pedidos").update({ estado: "enviado" }).eq("id", pedido.id);
+    const { error } = await supabase
+      .from("pedidos")
+      .update({ estado: "enviado" })
+      .eq("id", pedido.id);
     if (error) {
       setErr(error.message);
       return;
@@ -270,7 +315,9 @@ export default function PedidoEditorClient({ pedidoId }: { pedidoId: string }) {
         ref_id: pedido.id,
         notas: null as string | null,
       };
-      const { error } = await supabase.from("movimientos_inventario").insert(payload);
+      const { error } = await supabase
+        .from("movimientos_inventario")
+        .insert(payload);
       if (error) {
         setErr("Error creando inventario: " + error.message);
         return;
@@ -308,13 +355,17 @@ export default function PedidoEditorClient({ pedidoId }: { pedidoId: string }) {
         <div>
           <h1 className="text-2xl font-semibold">Pedido</h1>
           <p className="text-sm text-gray-600">
-            Estado: {pedido.estado} {pedido.inventario_posteado ? "· inventario posteado" : ""}
+            Estado: {pedido.estado}{" "}
+            {pedido.inventario_posteado ? "· inventario posteado" : ""}
           </p>
         </div>
         <div className="flex items-center gap-2">
           {isEditable && (
             <>
-              <button onClick={guardarTodo} className="rounded-lg bg-gray-900 px-4 py-2 text-sm text-white">
+              <button
+                onClick={guardarTodo}
+                className="rounded-lg bg-gray-900 px-4 py-2 text-sm text-white"
+              >
                 💾 Guardar
               </button>
               <button
@@ -343,40 +394,59 @@ export default function PedidoEditorClient({ pedidoId }: { pedidoId: string }) {
         <div className="grid gap-3 sm:grid-cols-3">
           <label className="text-sm">
             <span className="mb-1 block text-gray-700">Fecha</span>
-              <input
-                type="date"
-                className="w-full rounded-lg border px-3 py-2"
-                value={pedido.fecha_pedido}
-                onChange={(e) => setPedido({ ...pedido, fecha_pedido: e.target.value })}
-                onBlur={(e) => void guardarCabecera({ fecha_pedido: e.target.value })}
-                disabled={!isEditable}
-                onFocus={(e) => e.target.showPicker && e.target.showPicker()} // fuerza abrir el calendario
-              />
+            <input
+              type="date"
+              className="w-full rounded-lg border px-3 py-2"
+              value={pedido.fecha_pedido}
+              onChange={(e) =>
+                setPedido({ ...pedido, fecha_pedido: e.target.value })
+              }
+              onBlur={(e) =>
+                void guardarCabecera({ fecha_pedido: e.target.value })
+              }
+              disabled={!isEditable}
+              onFocus={(e) => e.target.showPicker && e.target.showPicker()} // fuerza abrir el calendario
+            />
           </label>
           <label className="text-sm sm:col-span-2">
             <span className="mb-1 block text-gray-700">Solicitante</span>
-              <input
-                className="w-full rounded-lg border px-3 py-2"
-                value={pedido.solicitante ?? ""}
-                onChange={(e) => setPedido({ ...pedido, solicitante: e.target.value })}
-                onBlur={(e) => void guardarCabecera({ solicitante: e.target.value })}
-                placeholder="Nombre"
-                disabled={!isEditable}
-              />
+            <input
+              className="w-full rounded-lg border px-3 py-2"
+              value={pedido.solicitante ?? ""}
+              onChange={(e) =>
+                setPedido({ ...pedido, solicitante: e.target.value })
+              }
+              onBlur={(e) =>
+                void guardarCabecera({ solicitante: e.target.value })
+              }
+              placeholder="Nombre"
+              disabled={!isEditable}
+            />
           </label>
         </div>
       </section>
 
       {/* Mensajes */}
-      {err && <div className="rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-sm text-rose-700">{err}</div>}
-      {msg && <div className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{msg}</div>}
+      {err && (
+        <div className="rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+          {err}
+        </div>
+      )}
+      {msg && (
+        <div className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+          {msg}
+        </div>
+      )}
 
       {/* Ítems */}
       <section className="rounded-xl border bg-white p-4 shadow-sm space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">Ítems</h2>
           {isEditable && (
-            <button onClick={addFila} className="rounded-lg border px-3 py-2 text-sm">
+            <button
+              onClick={addFila}
+              className="rounded-lg border px-3 py-2 text-sm"
+            >
               + Agregar ítem
             </button>
           )}
@@ -401,10 +471,14 @@ export default function PedidoEditorClient({ pedidoId }: { pedidoId: string }) {
                     <MaterialPicker
                       zonaId={pedido.zona_id}
                       value={r.material_id}
-                      onChange={(v) => void onMaterialChange(idx, v)}
+                      onChange={(id, meta) =>
+                        void onMaterialChange(idx, id, meta)
+                      }
                     />
                   </td>
-                  <td className="p-2">{r.presentacion ? `${show2(r.presentacion)} kg/bulto` : "—"}</td>
+                  <td className="p-2">
+                    {r.presentacion ? `${show2(r.presentacion)} kg/bulto` : "—"}
+                  </td>
                   <td className="p-2">
                     <input
                       className="w-28 rounded-lg border px-2 py-1"
@@ -426,7 +500,10 @@ export default function PedidoEditorClient({ pedidoId }: { pedidoId: string }) {
                   </td>
                   <td className="p-2">
                     {isEditable && (
-                      <button className="rounded-lg border px-2 py-1" onClick={() => eliminarFila(idx)}>
+                      <button
+                        className="rounded-lg border px-2 py-1"
+                        onClick={() => eliminarFila(idx)}
+                      >
                         ✕
                       </button>
                     )}
