@@ -65,7 +65,10 @@ type MovimientoItem = {
 };
 
 type PedidoItemFromSupabase = Omit<PedidoItem, "materiales"> & {
-  materiales: { nombre: string | null; unidad_medida: unidadMedida }[] | null;
+  materiales:
+    | { nombre: string | null; unidad_medida: unidadMedida }
+    | { nombre: string | null; unidad_medida: unidadMedida }[]
+    | null;
 };
 
 type PedidoFromSupabase = Omit<Pedido, "pedido_items"> & {
@@ -155,7 +158,10 @@ export default function PedidosZona({
           const pedidoTyped = pedido as PedidoFromSupabase;
           const items = pedidoTyped.pedido_items?.map((item) => {
             const itemTyped = item as PedidoItemFromSupabase;
-            const material = itemTyped.materiales?.[0] ?? null;
+            const materialRaw = itemTyped.materiales;
+            const material = Array.isArray(materialRaw)
+              ? materialRaw[0] ?? null
+              : materialRaw ?? null;
             return {
               ...itemTyped,
               materiales: material
