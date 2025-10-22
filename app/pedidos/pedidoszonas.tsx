@@ -36,6 +36,7 @@ type PedidoItem = {
   bultos: number;
   kg: number | null;
   materiales: {
+    nombre: string | null;
     unidad_medida: unidadMedida;
   } | null;
 };
@@ -64,7 +65,7 @@ type MovimientoItem = {
 };
 
 type PedidoItemFromSupabase = Omit<PedidoItem, "materiales"> & {
-  materiales: { unidad_medida: unidadMedida }[] | null;
+  materiales: { nombre: string | null; unidad_medida: unidadMedida }[] | null;
 };
 
 type PedidoFromSupabase = Omit<Pedido, "pedido_items"> & {
@@ -139,7 +140,8 @@ export default function PedidosZona({
           id, fecha_pedido, fecha_entrega, solicitante, estado, total_bultos, total_kg, notas,
         pedido_items (
           bultos, kg,
-          materiales (unidad_medida)
+          materiales (nombre, unidad_medida)
+
         )
       `
         )
@@ -153,9 +155,15 @@ export default function PedidosZona({
           const pedidoTyped = pedido as PedidoFromSupabase;
           const items = pedidoTyped.pedido_items?.map((item) => {
             const itemTyped = item as PedidoItemFromSupabase;
+            const material = itemTyped.materiales?.[0] ?? null;
             return {
               ...itemTyped,
-              materiales: itemTyped.materiales?.[0] ?? null,
+              materiales: material
+                ? {
+                    nombre: material.nombre ?? null,
+                    unidad_medida: material.unidad_medida ?? null,
+                  }
+                : null,
             } satisfies PedidoItem;
           });
 
@@ -323,26 +331,36 @@ export default function PedidosZona({
       <div className="flex flex-wrap gap-2">
         {pedido.pedido_items.map((item: PedidoItem, index) => {
           const unidad = item.materiales?.unidad_medida ?? "bulto";
-          let texto = "";
+          const nombreMaterial =
+            item.materiales?.nombre ?? "Material sin nombre";
+          const cantidad = (() => {
+            if (unidad === "unidad") {
+              return `${fmtNum(item.bultos ?? 0)} unidades`;
+            }
 
-          if (unidad === "unidad") {
-            texto = `${fmtNum(item.bultos)} unidades`;
-          } else if (unidad === "litro") {
-            texto = `${fmtNum(item.bultos)} litros · ${fmtNum(
-              item.kg ?? 0
-            )} kg`;
-          } else {
-            texto = `${fmtNum(item.bultos)} bultos · ${fmtNum(
-              item.kg ?? 0
-            )} kg`;
+            if (unidad === "litro") {
+              return `${fmtNum(item.bultos ?? 0)} litros`;
+            }
+
+            return `${fmtNum(item.bultos ?? 0)} bultos`;
+          })();
+
+          const extras: string[] = [];
+          if (
+            (unidad === "bulto" || unidad === "litro") &&
+            (item.kg ?? 0) > 0
+          ) {
+            extras.push(`${fmtNum(item.kg ?? 0)} kg`);
           }
+
+          const texto = [cantidad, ...extras].join(" · ");
 
           return (
             <span
               key={`${pedido.id}-${index}`}
               className="rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground"
             >
-              {texto}
+              {`${nombreMaterial} · ${texto}`}
             </span>
           );
         })}
