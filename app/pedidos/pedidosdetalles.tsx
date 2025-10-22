@@ -4,13 +4,37 @@ import { toPng } from "html-to-image";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
+type UnidadMedida = "bulto" | "unidad" | "litro" | null;
+
+type jsPDFWithAutoTable = InstanceType<typeof jsPDF> & {
+  lastAutoTable?: { finalY?: number };
+};
+
+type PedidoItem = {
+  bultos: number | null;
+  kg: number | null;
+  materiales: {
+    nombre: string | null;
+    unidad_medida: UnidadMedida;
+  } | null;
+};
+
+type PedidoResumenData = {
+  total_bultos?: number | null;
+  total_kg?: number | null;
+  fecha_entrega?: string | null;
+  pedido_items?: PedidoItem[] | null;
+};
+
+type PedidoResumenProps = {
+  pedido: PedidoResumenData;
+  zonaNombre: string;
+};
+
 export default function PedidoResumen({
   pedido,
   zonaNombre,
-}: {
-  pedido: any;
-  zonaNombre: string;
-}) {
+}: PedidoResumenProps) {
   const [open, setOpen] = useState(false);
   const [empresas, setEmpresas] = useState([
     { nombre: "MERCAMIO", bultos: 0, kilos: 0 },
@@ -19,12 +43,49 @@ export default function PedidoResumen({
 
   const modalRef = useRef<HTMLDivElement>(null);
 
-  const titulo =
-    zonaNombre === "Desposte"
-      ? "PEDIDO SALMUERA CARNES"
-      : zonaNombre === "Desprese"
-      ? "PEDIDO SALMUERA POLLO"
-      : "PEDIDO PANIFICADORA";
+  const esPedidoMateriales = Array.isArray(pedido?.pedido_items)
+    ? pedido.pedido_items.some((item) => item?.materiales)
+    : false;
+
+  const formatNumber = (value: number | null | undefined) =>
+    new Intl.NumberFormat("es-ES", {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    }).format(value ?? 0);
+
+  const unidadLabels: Record<string, string> = {
+    bulto: "BULTOS",
+    unidad: "UNIDADES",
+    litro: "LITROS",
+  };
+
+  const primerMaterial = esPedidoMateriales
+    ? (pedido.pedido_items ?? []).find((item) => item?.materiales?.nombre)
+    : null;
+
+  const unidadPrincipal = primerMaterial?.materiales?.unidad_medida ?? null;
+
+  const titulo = esPedidoMateriales
+    ? `PEDIDO ${
+        primerMaterial?.materiales?.nombre
+          ? primerMaterial.materiales.nombre.toUpperCase()
+          : "MATERIALES"
+      }`
+    : zonaNombre === "Desposte"
+    ? "PEDIDO SALMUERA CARNES"
+    : zonaNombre === "Desprese"
+    ? "PEDIDO SALMUERA POLLO"
+    : "PEDIDO PANIFICADORA";
+
+  const encabezadoCantidad = esPedidoMateriales
+    ? `CANTIDAD ${
+        unidadPrincipal ? unidadLabels[unidadPrincipal] ?? "BULTOS" : "BULTOS"
+      }`
+    : "CANTIDAD BULTOS";
+
+  const etiquetaCantidad = esPedidoMateriales
+    ? unidadLabels[unidadPrincipal ?? ""] ?? undefined
+    : undefined;
 
   // Descargar como PNG con html-to-image
   const descargarPNG = async () => {
@@ -70,8 +131,14 @@ export default function PedidoResumen({
     // Tabla con estilo
     autoTable(doc, {
       startY: 35,
-      head: [["CANTIDAD KILOS", "EMPRESA"]],
-      body: empresas.map((e) => [e.kilos || "0 KG", e.nombre]),
+      head: [[encabezadoCantidad, "CANTIDAD KILOS", "EMPRESA"]],
+      body: empresas.map((e) => [
+        `${formatNumber(e.bultos ?? 0)}${
+          etiquetaCantidad ? ` ${etiquetaCantidad}` : ""
+        }`,
+        e.kilos ? `${formatNumber(e.kilos)} KG` : "0 KG",
+        e.nombre,
+      ]),
       theme: "grid",
       headStyles: {
         fillColor: [240, 240, 240],
@@ -91,8 +158,9 @@ export default function PedidoResumen({
       },
     });
 
-    // Fecha debajo de la tabla
-    const finalY = (doc as any).lastAutoTable.finalY || 50;
+    // Información adicional debajo de la tabla
+    const docWithAutoTable = doc as jsPDFWithAutoTable;
+    const finalY = docWithAutoTable.lastAutoTable?.finalY ?? 50;
     const fechaTexto = new Date(pedido.fecha_entrega ?? "").toLocaleDateString(
       "es-ES",
       { weekday: "long", day: "numeric", month: "long" }
@@ -128,7 +196,6 @@ export default function PedidoResumen({
               kilos: comercialKg,
             },
           ]);
-
           setOpen(true);
         }}
         className="rounded bg-blue-600 text-white px-3 py-1 text-sm hover:bg-blue-700"
@@ -150,7 +217,7 @@ export default function PedidoResumen({
             <table className="w-full border border-black text-sm text-center border-collapse">
               <thead>
                 <tr className="bg-gray-100">
-                  <th className="border-black p-2">CANTIDAD BULTOS</th>
+                  <th className="border-black p-2">{encabezadoCantidad}</th>
                   <th className="border border-black p-2">CANTIDAD KILOS</th>
                   <th className="border border-black p-2">EMPRESA</th>
                 </tr>
@@ -160,12 +227,17 @@ export default function PedidoResumen({
                   <tr key={idx}>
                     {/* Nueva columna: BULTOS */}
                     <td className="border border-black p-2 font text-base">
-                      <span>{e.bultos || "0 BULTOS"}</span>
+                      <span>
+                        {formatNumber(e.bultos ?? 0)}
+                        {etiquetaCantidad ? ` ${etiquetaCantidad}` : ""}
+                      </span>
                     </td>
 
                     {/* Columna existente: KILOS */}
                     <td className="border border-black p-2 text-base">
-                      <span>{e.kilos || "0 KG"}</span>
+                      <span>
+                        {e.kilos ? `${formatNumber(e.kilos)} KG` : "0 KG"}
+                      </span>
                     </td>
 
                     {/* EMPRESA */}
