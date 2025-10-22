@@ -44,12 +44,6 @@ export default function RootLayout({
                   <Link href="/historial" className="hover:underline">
                     Historial
                   </Link>
-                  <button
-                    onClick={handleLogout}
-                    className="rounded bg-rose-600 text-white px-3 py-1 text-sm"
-                  >
-                    Cerrar sesión
-                  </button>
                 </div>
               </nav>
             </header>
