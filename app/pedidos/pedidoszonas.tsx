@@ -334,7 +334,7 @@ export default function PedidosZona({
     }
 
     return (
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap justify-center gap-2">
         {pedido.pedido_items.map((item: PedidoItem, index) => {
           const unidad = item.materiales?.unidad_medida ?? "bulto";
           const nombreMaterial =
@@ -497,32 +497,36 @@ export default function PedidosZona({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Fecha pedido</TableHead>
-                  <TableHead>Fecha entrega</TableHead>
-                  <TableHead>Solicitante</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead>Totales</TableHead>
-                  <TableHead className="text-right">Acciones</TableHead>
+                  <TableHead className="text-center">Fecha pedido</TableHead>
+                  <TableHead className="text-center">Fecha entrega</TableHead>
+                  <TableHead className="text-center">Solicitante</TableHead>
+                  <TableHead className="text-center">Estado</TableHead>
+                  <TableHead className="text-center">Totales</TableHead>
+                  <TableHead className="text-center">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtrados.map((pedido) => (
                   <TableRow key={pedido.id}>
-                    <TableCell>
+                    <TableCell className="text-center">
                       {pedido.fecha_pedido?.slice(0, 10) ?? "—"}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="text-center">
                       {pedido.fecha_entrega
                         ? pedido.fecha_entrega.slice(0, 10)
                         : "Pendiente"}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="text-center">
                       {pedido.solicitante ?? "Sin solicitante"}
                     </TableCell>
-                    <TableCell>{badgeEstado(pedido.estado)}</TableCell>
-                    <TableCell>{renderTotales(pedido)}</TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap items-center justify-end gap-2">
+                    <TableCell className="text-center">
+                      {badgeEstado(pedido.estado)}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {renderTotales(pedido)}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <div className="flex flex-wrap items-center justify-center gap-2">
                         <PedidoDetalle pedido={pedido} zonaNombre={nombre} />
                         {pedido.estado !== "completado" && (
                           <Button
