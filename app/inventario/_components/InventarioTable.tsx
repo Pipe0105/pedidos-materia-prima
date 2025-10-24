@@ -113,9 +113,16 @@ export function InventarioTable({
                 )}
                 <TableCell className="text-sm text-muted-foreground">
                   {row.hasta
-                    ? `Hasta ${formatFechaHasta(row.hasta)}`
+                    ? `Hasta ${formatFechaHasta(
+                        (() => {
+                          const f = new Date(row.hasta.split("T")[0]);
+                          f.setDate(f.getDate() - 1);
+                          return f.toISOString().split("T")[0];
+                        })()
+                      )}`
                     : "Sin estimación"}
                 </TableCell>
+
                 <TableCell>
                   <span
                     className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${estilo}`}

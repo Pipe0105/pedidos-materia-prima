@@ -226,7 +226,15 @@ export default function PedidoEditor() {
                   Fecha estimada
                 </dt>
                 <dd className="text-base font-semibold">
-                  {formatDate(pedido.fecha_entrega)}
+                  {pedido.fecha_entrega
+                    ? formatDate(
+                        new Date(
+                          new Date(pedido.fecha_entrega).setDate(
+                            new Date(pedido.fecha_entrega).getDate() + 1
+                          )
+                        ).toISOString()
+                      )
+                    : "Sin fecha"}
                 </dd>
               </div>
               <div>

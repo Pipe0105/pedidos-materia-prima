@@ -1,6 +1,7 @@
 "use client";
 
-import { AlertTriangle, Bell, CheckCircle2, Key } from "lucide-react";
+import { useEffect, useRef } from "react";
+import { AlertTriangle, Bell, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { fmtNum } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -24,6 +25,26 @@ export function NotificationBell({
   alerta,
   seguros,
 }: notificationBellProps) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node | null;
+      if (target && containerRef.current?.contains(target)) {
+        return;
+      }
+
+      onOpenChange(false);
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+    };
+  }, [isOpen, onOpenChange]);
   const niveles: Array<{
     key: keyof typeof COBERTURA_TONO;
     items: MaterialRow[];
@@ -34,7 +55,7 @@ export function NotificationBell({
   ];
 
   return (
-    <div className="relative">
+    <div ref={containerRef} className="relative">
       <Button
         variant="secondary"
         size="icon"
