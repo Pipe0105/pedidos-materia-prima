@@ -14,6 +14,7 @@ export type MaterialRow = {
   id: string;
   nombre: string;
   cobertura: number | null;
+  zonas?: string[];
 };
 
 export type MaterialConConsumo = {
@@ -26,6 +27,8 @@ export type MaterialConConsumo = {
 
 export type InventarioActualRow = {
   zona_id: string;
+  zona_nombre?: string | null;
+
   material_id: string;
   nombre: string;
   unidad_medida: "bulto" | "unidad" | "litro";

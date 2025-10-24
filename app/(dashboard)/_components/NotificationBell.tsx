@@ -120,6 +120,9 @@ export function NotificationBell({
                               coberturaDias > 0 && coberturaDias < 1
                                 ? "<1 día de cobertura"
                                 : `${fmtNum(coberturaDias)} días de cobertura`;
+                            const zonas = m.zonas?.length
+                              ? m.zonas.join(", ")
+                              : null;
                             return (
                               <li
                                 key={m.id}
@@ -131,6 +134,11 @@ export function NotificationBell({
                                 <p className="text-xs text-slate-500">
                                   {coberturaLabel}
                                 </p>
+                                {zonas && (
+                                  <p className="text-xs text-slate-500">
+                                    Área: {zonas}
+                                  </p>
+                                )}
                               </li>
                             );
                           })}

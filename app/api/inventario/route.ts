@@ -9,6 +9,18 @@ export async function GET(request: NextRequest) {
   try {
     const supabaseAdmin = getSupabaseAdmin();
     if (zonaId) {
+      const { data: zonaInfo, error: zonaInfoError } = await supabaseAdmin
+        .from("zonas")
+        .select("id, nombre")
+        .eq("id", zonaId)
+        .maybeSingle();
+
+      if (zonaInfoError) {
+        console.error("inventario_actual zona nombre error", zonaInfoError);
+      }
+
+      const zonaNombre = zonaInfo?.nombre ?? null;
+
       const { data, error } = await supabaseAdmin.rpc("inventario_actual", {
         p_zona: zonaId,
       });
@@ -20,13 +32,19 @@ export async function GET(request: NextRequest) {
           { status: 500 }
         );
       }
+      const materiales = ((data as InventarioActualRow[]) ?? []).map(
+        (item) => ({
+          ...item,
+          zona_nombre: item.zona_nombre ?? zonaNombre,
+        })
+      );
 
-      return NextResponse.json((data as InventarioActualRow[]) ?? []);
+      return NextResponse.json(materiales);
     }
 
     const { data: zonas, error: zonasError } = await supabaseAdmin
       .from("zonas")
-      .select("id")
+      .select("id, nombre")
       .eq("activo", true);
 
     if (zonasError) {
@@ -37,9 +55,16 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const zonaNombrePorId = new Map<string, string | null>();
     const zonaIds = (zonas ?? [])
-      .map((zona) => zona.id)
-      .filter((id): id is string => typeof id === "string" && id.length > 0);
+      .map((zona) => {
+        if (typeof zona.id === "string" && zona.id.length > 0) {
+          zonaNombrePorId.set(zona.id, zona.nombre ?? null);
+          return zona.id;
+        }
+        return null;
+      })
+      .filter((id): id is string => id !== null);
 
     const resultados: InventarioActualRow[] = [];
 
@@ -57,7 +82,12 @@ export async function GET(request: NextRequest) {
       }
 
       if (Array.isArray(data)) {
-        resultados.push(...(data as InventarioActualRow[]));
+        const zonaNombre = zonaNombrePorId.get(id) ?? null;
+        const enriquecidos = (data as InventarioActualRow[]).map((item) => ({
+          ...item,
+          zona_nombre: item.zona_nombre ?? zonaNombre,
+        }));
+        resultados.push(...enriquecidos);
       }
     }
 

@@ -96,6 +96,7 @@ export function useDashboardData({
         tasaConsumoDiariaKg: InventarioActualRow["tasa_consumo_diaria_kg"];
         stockKg: number;
         stockBultos: number;
+        zonas: Set<string>;
       };
 
       const materialesAgrupados = payload.reduce<Map<string, MaterialAgrupado>>(
@@ -124,10 +125,17 @@ export function useDashboardData({
           })();
 
           const existente = acc.get(item.material_id);
+          const zonaNombre =
+            typeof item.zona_nombre === "string" && item.zona_nombre.trim()
+              ? item.zona_nombre.trim()
+              : null;
 
           if (existente) {
             existente.stockKg += stockPorUnidad.stockKg;
             existente.stockBultos += stockPorUnidad.stockBultos;
+            if (zonaNombre) {
+              existente.zonas.add(zonaNombre);
+            }
           } else {
             acc.set(item.material_id, {
               id: item.material_id,
@@ -137,6 +145,7 @@ export function useDashboardData({
               tasaConsumoDiariaKg: item.tasa_consumo_diaria_kg,
               stockKg: stockPorUnidad.stockKg,
               stockBultos: stockPorUnidad.stockBultos,
+              zonas: new Set(zonaNombre ? [zonaNombre] : []),
             });
           }
 
@@ -171,7 +180,11 @@ export function useDashboardData({
         }
 
         if (cobertura !== null) {
-          acc.push({ id: item.id, nombre: item.nombre, cobertura });
+          const zonas = Array.from(item.zonas).filter(
+            (zona) => zona.length > 0
+          );
+
+          acc.push({ id: item.id, nombre: item.nombre, cobertura, zonas });
         }
 
         return acc;
