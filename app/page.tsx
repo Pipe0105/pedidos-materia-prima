@@ -79,19 +79,22 @@ export default function HomePage() {
         key: "critico" as const,
         value: criticos.length,
         gradient: "from-[#FF6B5A]/90 via-[#FF6B5A]/70 to-[#FF6B5A]/30",
+        materials: criticos,
       },
       {
         key: "alerta" as const,
         value: alerta.length,
         gradient: "from-[#F5A623]/90 via-[#F5A623]/70 to-[#F5A623]/30",
+        materials: alerta,
       },
       {
         key: "seguro" as const,
         value: seguros.length,
         gradient: "from-[#29B8A6]/90 via-[#29B8A6]/70 to-[#1F4F9C]/35",
+        materials: seguros,
       },
     ],
-    [alerta.length, criticos.length, seguros.length]
+    [alerta, criticos, seguros]
   );
 
   const handleCompletar = (id: string) => {

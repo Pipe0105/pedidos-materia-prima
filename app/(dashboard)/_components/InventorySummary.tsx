@@ -93,7 +93,7 @@ export function InventorySummary({
                 <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
                   Detalle de materiales
                 </p>
-                {materials.length ? (
+                {materials?.length ? (
                   <ul className="space-y-2 max-h-48 overflow-y-auto">
                     {materials.map((material) => (
                       <li
