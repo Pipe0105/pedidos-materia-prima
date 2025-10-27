@@ -144,12 +144,12 @@ export function InventarioTable({
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end">
-                    <div className="flex w-full max-w-2xl items-center justify-end gap-3 overflow-x-auto pb-1">
-                      <div className="flex flex-nowrap items-center justify-end gap-2 rounded-xl border border-slate-200/80 bg-white/90 px-2 py-1 shadow-sm backdrop-blur-sm">
+                    <div className="flex w-full max-w-2xl items-center justify-end gap-2 overflow-x-auto pb-1">
+                      <div className="flex flex-nowrap items-center justify-end gap-1.5 rounded-xl border border-slate-200/80 bg-white/90 px-1.5 py-1 shadow-sm backdrop-blur-sm">
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-8 rounded-lg px-3 text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
+                          className="h-8 rounded-lg px-2.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
                           onClick={() =>
                             onVerHistorial(row.material_id, row.nombre)
                           }
@@ -160,7 +160,7 @@ export function InventarioTable({
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-8 rounded-lg px-3 text-[#1F4F9C] transition-colors hover:bg-[#1F4F9C]/10 hover:text-[#163a73]"
+                          className="h-8 rounded-lg px-2.5 text-xs font-medium text-[#1F4F9C] transition-colors hover:bg-[#1F4F9C]/10 hover:text-[#163a73]"
                           onClick={() =>
                             onEditar(row.material_id, row.nombre, row.stockKg)
                           }
@@ -171,7 +171,7 @@ export function InventarioTable({
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-8 rounded-lg bg-gradient-to-r from-[#1F4F9C] via-[#256fa8] to-[#29B8A6] px-3 text-white shadow-sm transition-[background,box-shadow] hover:from-[#19427b] hover:via-[#1f5d8d] hover:to-[#229684] hover:shadow-md"
+                          className="h-8 rounded-lg bg-gradient-to-r from-[#1F4F9C] via-[#256fa8] to-[#29B8A6] px-2.5 text-xs font-semibold text-white shadow-sm transition-[background,box-shadow] hover:from-[#19427b] hover:via-[#1f5d8d] hover:to-[#229684] hover:shadow-md"
                           onClick={() =>
                             onConsumo(row.material_id, row.nombre, row.unidad)
                           }
@@ -181,11 +181,11 @@ export function InventarioTable({
                         </Button>
                       </div>
 
-                      <div className="flex flex-nowrap items-center justify-end gap-2 rounded-xl border border-red-200/80 bg-red-50/90 px-2 py-1 shadow-sm backdrop-blur-sm">
+                      <div className="flex flex-nowrap items-center justify-end gap-1.5 rounded-xl border border-red-200/80 bg-red-50/90 px-1.5 py-1 shadow-sm backdrop-blur-sm">
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="h-8 rounded-lg px-3 text-red-600 transition-colors hover:bg-red-100 hover:text-red-700"
+                          className="h-8 rounded-lg px-2.5 text-xs font-medium text-red-600 transition-colors hover:bg-red-100 hover:text-red-700"
                           onClick={() => onDeshacerConsumo(row.material_id)}
                         >
                           <RotateCcw className="size-4" />
@@ -194,7 +194,7 @@ export function InventarioTable({
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="h-8 rounded-lg px-3 text-red-600 transition-colors hover:bg-red-100 hover:text-red-700 disabled:text-red-400"
+                          className="h-8 rounded-lg px-2.5 text-xs font-medium text-red-600 transition-colors hover:bg-red-100 hover:text-red-700 disabled:text-red-400"
                           disabled={
                             deshaciendoPedidoMaterialId === row.material_id
                           }
