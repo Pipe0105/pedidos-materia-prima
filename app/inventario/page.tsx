@@ -20,7 +20,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { PageContainer } from "@/components/PageContainer";
-import { Button } from "@/components/ui/button";
 import { InventarioHeader } from "./_components/InventarioHeader";
 import { InventarioTable } from "./_components/InventarioTable";
 import { HistorialDialog } from "./_components/HistorialDialog";
@@ -60,9 +59,8 @@ function InventarioPageContent() {
   const [materialConsumo, setMaterialConsumo] =
     useState<MaterialConsumo>(EMPTY_CONSUMO);
   const [valorConsumo, setValorConsumo] = useState("");
-  const [deshaciendoPedidoZona, setDeshaciendoPedidoZonas] = useState<
-    string | null
-  >(null);
+  const [deshaciendoPedidoMaterialId, setDeshaciendoPedidoMaterialId] =
+    useState<string | null>(null);
 
   const abrirConsumoManual = (id: string, nombre: string, unidad: Unidad) => {
     setMaterialConsumo({ id, nombre, unidad });
@@ -353,25 +351,26 @@ function InventarioPageContent() {
   }, [fecha, zonaId]);
 
   const deshacerUltimoPedido = useCallback(
-    async (zonaParaDeshacer: string) => {
-      if (!zonaParaDeshacer) {
+    async (materialId: string, materialNombre: string) => {
+      if (!zonaId) {
         alert("Selecciona una zona válida antes de deshacer un pedido.");
         return;
       }
 
       const confirmar = window.confirm(
-        "¿Deseas deshacer el último pedido completado de esta zona?"
+        `¿Deseas deshacer el último pedido completado de ${materialNombre} en esta zona?`
       );
 
       if (!confirmar) return;
 
-      setDeshaciendoPedidoZonas(zonaParaDeshacer);
+      setDeshaciendoPedidoMaterialId(materialId);
 
       try {
         const { data: ultimoMovimiento, error: ultimoError } = await supabase
           .from("movimientos_inventario")
           .select("ref_id")
-          .eq("zona_id", zonaParaDeshacer)
+          .eq("zona_id", zonaId)
+          .eq("material_id", materialId)
           .eq("ref_tipo", "pedido")
           .order("created_at", { ascending: false })
           .limit(1)
@@ -413,7 +412,7 @@ function InventarioPageContent() {
           await supabase
             .from("movimientos_inventario")
             .select("id, material_id, bultos, kg")
-            .eq("zona_id", zonaParaDeshacer)
+            .eq("zona_id", zonaId)
             .eq("ref_tipo", "pedido")
             .eq("ref_id", pedidoId)
             .returns<
@@ -441,7 +440,7 @@ function InventarioPageContent() {
         const fechaActual = new Date().toISOString().slice(0, 10);
 
         const movimientosReverso = movimientosPedido.map((mov) => ({
-          zona_id: zonaParaDeshacer,
+          zona_id: zonaId,
           material_id: mov.material_id,
           fecha: fechaActual,
           tipo: "salida" as const,
@@ -489,14 +488,12 @@ function InventarioPageContent() {
 
         alert("✅ Pedido deshecho y restaurado en la lista de pedidos.");
 
-        if (zonaParaDeshacer === zonaId) {
-          await cargar();
-        }
+        await cargar();
 
         if (typeof window !== "undefined") {
           window.dispatchEvent(
             new CustomEvent("pedidos:invalidate", {
-              detail: { zonaId: zonaParaDeshacer },
+              detail: { zonaId },
             })
           );
         }
@@ -504,7 +501,7 @@ function InventarioPageContent() {
         console.error(error);
         alert("❌ Ocurrió un error inesperado al deshacer el pedido.");
       } finally {
-        setDeshaciendoPedidoZonas(null);
+        setDeshaciendoPedidoMaterialId(null);
       }
     },
     [cargar, zonaId]
@@ -634,17 +631,6 @@ function InventarioPageContent() {
                         {new Date().toLocaleDateString("es-AR")}
                       </CardDescription>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        variant="destructive"
-                        onClick={() => void deshacerUltimoPedido(zona.id)}
-                        disabled={deshaciendoPedidoZona === zona.id}
-                      >
-                        {deshaciendoPedidoZona === zona.id
-                          ? "Deshaciendo..."
-                          : "Deshacer pedido"}
-                      </Button>
-                    </div>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="overflow-hidden rounded-xl border">
@@ -656,6 +642,10 @@ function InventarioPageContent() {
                         onEditar={abrirEditar}
                         onConsumo={abrirConsumoManual}
                         onDeshacerConsumo={deshacerConsumoManual}
+                        onDeshacerPedido={deshacerUltimoPedido}
+                        deshaciendoPedidoMaterialId={
+                          deshaciendoPedidoMaterialId
+                        }
                       />
                     </div>
                   </CardContent>

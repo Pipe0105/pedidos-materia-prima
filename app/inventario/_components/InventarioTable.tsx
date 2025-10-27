@@ -25,6 +25,8 @@ type InventarioTableProps = {
     unidad: StockRow["unidad"]
   ) => void;
   onDeshacerConsumo: (materialId: string) => void;
+  onDeshacerPedido: (materialId: string, nombre: string) => void;
+  deshaciendoPedidoMaterialId: string | null;
 };
 
 const FECHA_FORMATTER = new Intl.DateTimeFormat("es-CO", {
@@ -46,6 +48,8 @@ export function InventarioTable({
   onEditar,
   onConsumo,
   onDeshacerConsumo,
+  onDeshacerPedido,
+  deshaciendoPedidoMaterialId,
 }: InventarioTableProps) {
   const renderSkeletonRows = () =>
     Array.from({ length: 5 }).map((_, index) => (
@@ -69,6 +73,7 @@ export function InventarioTable({
         </TableCell>
         <TableCell className="text-right">
           <div className="flex justify-end gap-2">
+            <Skeleton className="h-8 w-20 bg-slate-200" />
             <Skeleton className="h-8 w-20 bg-slate-200" />
             <Skeleton className="h-8 w-20 bg-slate-200" />
           </div>
@@ -166,6 +171,19 @@ export function InventarioTable({
                       onClick={() => onDeshacerConsumo(row.material_id)}
                     >
                       Deshacer consumo
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-red-600 hover:text-red-600"
+                      disabled={deshaciendoPedidoMaterialId === row.material_id}
+                      onClick={() =>
+                        onDeshacerPedido(row.material_id, row.nombre)
+                      }
+                    >
+                      {deshaciendoPedidoMaterialId === row.material_id
+                        ? "Deshaciendo..."
+                        : "Deshacer pedido"}
                     </Button>
                   </div>
                 </TableCell>
