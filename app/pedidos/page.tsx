@@ -167,12 +167,12 @@ function PedidosPageContent() {
           }}
           className="space-y-6"
         >
-          <TabsList className="flex w-full gap-2 overflow-x-auto rounded-xl bg-muted/95 p-2 [scrollbar-width:thin] sm:justify-start">
+          <TabsList className="flex w-full flex-initial justify-start gap-1.5 rounded-xl bg-muted/95 p-7 px-1">
             {zonas.map((zona) => (
               <TabsTrigger
                 key={zona.id}
                 value={zona.id}
-                className="whitespace-nowrap rounded-lg border border-transparent px-4 py-3 text-sm font-semibold text-slate-600 transition data-[state=active]:border-[#3e74cc] data-[state=active]:bg-white data-[state=active]:text-[#1F4F9C]"
+                className="whitespace-nowrap rounded-lg border border-b-transparent px-10 py-6 text-md font-semibold text-slate-600 data-[state=active]:border-b-[#3e74cc] data-[state=active]:bg-white data-[state=active]:text-[#1F4F9C]"
               >
                 {zona.nombre}
               </TabsTrigger>

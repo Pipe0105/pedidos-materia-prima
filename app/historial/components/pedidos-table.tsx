@@ -38,9 +38,10 @@ export function PedidosTable({ pedidos }: PedidosTableProps) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
       <div className="max-h-[520px] overflow-x-auto overflow-y-auto">
-        <table className="min-w-[720px] divide-y divide-slate-200 text-left text-sm">
+        <table className="min-w-[720px] w-full divide-y divide-slate-200 text-left text-sm">
+          {""}
           <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
-            <tr>
+            <tr className="text-center">
               <th scope="col" className="px-4 py-3">
                 Fecha pedido
               </th>
@@ -59,14 +60,17 @@ export function PedidosTable({ pedidos }: PedidosTableProps) {
               <th scope="col" className="px-4 py-3">
                 Totales
               </th>
-              <th scope="col" className="px-4 py-3 text-right">
+              <th scope="col" className="px-4 py-3 ">
                 Acciones
               </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {rows.map((pedido) => (
-              <tr key={pedido.id} className="odd:bg-white even:bg-slate-50/60">
+              <tr
+                key={pedido.id}
+                className="odd:bg-white even:bg-slate-50/60 text-center"
+              >
                 <td className="px-4 py-3 text-slate-700">
                   {pedido.fecha_pedido?.slice(0, 10) ?? "—"}
                 </td>
