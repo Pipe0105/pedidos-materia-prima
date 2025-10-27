@@ -2,6 +2,7 @@
 export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { Pencil, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -289,7 +290,7 @@ export default function MaterialesPage() {
             {/* FORMULARIO */}
             <Card>
               <CardHeader>
-                <CardTitle>Paso 1. Registra el material</CardTitle>
+                <CardTitle> Registra el material</CardTitle>
                 <CardDescription>
                   Completa los campos: nombre, unidad y cantidades. Guarda o
                   cancela los cambios antes de continuar.
@@ -416,7 +417,7 @@ export default function MaterialesPage() {
             <Card>
               <CardHeader className="  flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
                 <div>
-                  <CardTitle>Paso 2. Revisa el listado</CardTitle>
+                  <CardTitle> Revisa el listado</CardTitle>
                   <CardDescription>
                     Usa los botones para editar o dar de baja materiales sin
                     borrarlos del historial.
@@ -462,22 +463,25 @@ export default function MaterialesPage() {
                             : "—"}
                         </TableCell>
                         <TableCell className="text-center">
-                          <div className="flex h-full w-full justify-center items-center">
+                          <div className="flex h-full w-full items-center justify-center gap-3">
                             <Button
                               variant="outline"
                               size="sm"
                               onClick={() => editarMaterial(m)}
-                              className="ml-19"
+                              className="flex items-center gap-2 border-slate-300 bg-white text-slate-700 shadow-sm transition hover:border-slate-400 hover:bg-slate-50"
                             >
+                              <Pencil className="h-4 w-4" aria-hidden="true" />
                               Editar
                             </Button>
                             <Button
-                              variant="destructive"
+                              variant="secondary"
                               size="sm"
                               onClick={() =>
                                 void eliminarMaterial(m.id, m.nombre)
                               }
+                              className="flex items-center gap-2 bg-rose-500 text-white shadow-sm transition hover:bg-rose-600"
                             >
+                              <Trash2 className="h-4 w-4" aria-hidden="true" />
                               Eliminar
                             </Button>
                           </div>
