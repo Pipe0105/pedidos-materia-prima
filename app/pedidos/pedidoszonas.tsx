@@ -845,7 +845,7 @@ export default function PedidosZona({
                       </TableCell>
                       <TableCell className="text-center">
                         {pedido.fecha_cobertura_hasta
-                          ? pedido.fecha_cobertura_hasta.slice(0, 10)
+                          ? formatearFecha(pedido.fecha_cobertura_hasta)
                           : "Pendiente"}
                       </TableCell>
                       <TableCell className="text-center">
