@@ -20,7 +20,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { PageContainer } from "@/components/PageContainer";
-
+import { Button } from "@/components/ui/button";
 import { InventarioHeader } from "./_components/InventarioHeader";
 import { InventarioTable } from "./_components/InventarioTable";
 import { HistorialDialog } from "./_components/HistorialDialog";
@@ -60,6 +60,9 @@ function InventarioPageContent() {
   const [materialConsumo, setMaterialConsumo] =
     useState<MaterialConsumo>(EMPTY_CONSUMO);
   const [valorConsumo, setValorConsumo] = useState("");
+  const [deshaciendoPedidoZona, setDeshaciendoPedidoZonas] = useState<
+    string | null
+  >(null);
 
   const abrirConsumoManual = (id: string, nombre: string, unidad: Unidad) => {
     setMaterialConsumo({ id, nombre, unidad });
@@ -349,6 +352,164 @@ function InventarioPageContent() {
     }
   }, [fecha, zonaId]);
 
+  const deshacerUltimoPedido = useCallback(
+    async (zonaParaDeshacer: string) => {
+      if (!zonaParaDeshacer) {
+        alert("Selecciona una zona válida antes de deshacer un pedido.");
+        return;
+      }
+
+      const confirmar = window.confirm(
+        "¿Deseas deshacer el último pedido completado de esta zona?"
+      );
+
+      if (!confirmar) return;
+
+      setDeshaciendoPedidoZonas(zonaParaDeshacer);
+
+      try {
+        const { data: ultimoMovimiento, error: ultimoError } = await supabase
+          .from("movimientos_inventario")
+          .select("ref_id")
+          .eq("zona_id", zonaParaDeshacer)
+          .eq("ref_tipo", "pedido")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (ultimoError) {
+          console.error(ultimoError);
+          alert("❌ Error buscando pedidos completados recientes.");
+          return;
+        }
+
+        const pedidoId = ultimoMovimiento?.ref_id;
+
+        if (!pedidoId) {
+          alert("No se encontraron pedidos completados para deshacer.");
+          return;
+        }
+
+        const { data: pedidoActual, error: pedidoError } = await supabase
+          .from("pedidos")
+          .select("id, estado")
+          .eq("id", pedidoId)
+          .maybeSingle();
+
+        if (pedidoError) {
+          console.error(pedidoError);
+          alert("❌ Error verificando el estado del pedido seleccionado.");
+          return;
+        }
+
+        if (!pedidoActual || pedidoActual.estado !== "completado") {
+          alert(
+            "El último pedido encontrado ya no está marcado como completado."
+          );
+          return;
+        }
+
+        const { data: movimientosPedido, error: movimientosError } =
+          await supabase
+            .from("movimientos_inventario")
+            .select("id, material_id, bultos, kg")
+            .eq("zona_id", zonaParaDeshacer)
+            .eq("ref_tipo", "pedido")
+            .eq("ref_id", pedidoId)
+            .returns<
+              {
+                id: string;
+                material_id: string;
+                bultos: number | null;
+                kg: number | null;
+              }[]
+            >();
+
+        if (movimientosError) {
+          console.error(movimientosError);
+          alert("❌ Error obteniendo los movimientos del pedido.");
+          return;
+        }
+
+        if (!movimientosPedido?.length) {
+          alert(
+            "No se encontraron movimientos de inventario para el pedido seleccionado."
+          );
+          return;
+        }
+
+        const fechaActual = new Date().toISOString().slice(0, 10);
+
+        const movimientosReverso = movimientosPedido.map((mov) => ({
+          zona_id: zonaParaDeshacer,
+          material_id: mov.material_id,
+          fecha: fechaActual,
+          tipo: "salida" as const,
+          bultos: mov.bultos === null ? null : Number(mov.bultos),
+          kg: mov.kg === null ? null : Number(mov.kg),
+          ref_tipo: "pedido_deshacer",
+          ref_id: pedidoId,
+          notas: "Salida automática por deshacer pedido completado",
+        }));
+
+        const { data: movimientosInsertados, error: insertError } =
+          await supabase
+            .from("movimientos_inventario")
+            .insert(movimientosReverso)
+            .select("id")
+            .returns<{ id: string }[]>();
+
+        if (insertError) {
+          console.error(insertError);
+          alert("❌ Error registrando la reversión del pedido.");
+          return;
+        }
+
+        const { error: actualizarPedidoError } = await supabase
+          .from("pedidos")
+          .update({ estado: "recibido", inventario_posteado: false })
+          .eq("id", pedidoId);
+
+        if (actualizarPedidoError) {
+          console.error(actualizarPedidoError);
+          if (movimientosInsertados?.length) {
+            await supabase
+              .from("movimientos_inventario")
+              .delete()
+              .in(
+                "id",
+                movimientosInsertados.map((mov) => mov.id)
+              );
+          }
+          alert(
+            "❌ No se pudo actualizar el pedido. Intenta nuevamente en unos minutos."
+          );
+          return;
+        }
+
+        alert("✅ Pedido deshecho y restaurado en la lista de pedidos.");
+
+        if (zonaParaDeshacer === zonaId) {
+          await cargar();
+        }
+
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(
+            new CustomEvent("pedidos:invalidate", {
+              detail: { zonaId: zonaParaDeshacer },
+            })
+          );
+        }
+      } catch (error) {
+        console.error(error);
+        alert("❌ Ocurrió un error inesperado al deshacer el pedido.");
+      } finally {
+        setDeshaciendoPedidoZonas(null);
+      }
+    },
+    [cargar, zonaId]
+  );
+
   useEffect(() => {
     async function cargarZonas() {
       const { data } = await supabase
@@ -473,7 +634,17 @@ function InventarioPageContent() {
                         {new Date().toLocaleDateString("es-AR")}
                       </CardDescription>
                     </div>
-                    <div className="flex flex-wrap gap-2"></div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        variant="destructive"
+                        onClick={() => void deshacerUltimoPedido(zona.id)}
+                        disabled={deshaciendoPedidoZona === zona.id}
+                      >
+                        {deshaciendoPedidoZona === zona.id
+                          ? "Deshaciendo..."
+                          : "Deshacer pedido"}
+                      </Button>
+                    </div>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="overflow-hidden rounded-xl border">
