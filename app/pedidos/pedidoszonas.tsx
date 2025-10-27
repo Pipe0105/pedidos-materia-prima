@@ -32,6 +32,7 @@ import {
   PEDIDOS_CACHE_TTL,
   setPedidosCache,
 } from "./pedidosCache";
+import { Trash2 } from "lucide-react";
 
 type unidadMedida = "bulto" | "unidad" | "litro" | null;
 
@@ -858,8 +859,9 @@ export default function PedidosZona({
                         {renderTotales(pedido)}
                       </TableCell>
                       <TableCell className="text-center">
-                        <div className="flex flex-wrap items-center justify-center gap-2">
+                        <div className="flex flex-nowrap items-center justify-center gap-3">
                           <PedidoDetalle pedido={pedido} zonaNombre={nombre} />
+
                           {pedido.estado !== "completado" && (
                             <Button
                               className="bg-green-700 text-white h-7 border-current"
@@ -869,6 +871,16 @@ export default function PedidosZona({
                               Completar
                             </Button>
                           )}
+
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => void eliminarPedido(pedido.id)}
+                            className="flex items-center gap-2 bg-rose-500 text-white shadow-sm transition hover:bg-rose-600"
+                          >
+                            <Trash2 className="h-4 w-4" aria-hidden="true" />
+                            Eliminar
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
