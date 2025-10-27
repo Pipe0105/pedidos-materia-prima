@@ -38,17 +38,17 @@ export function DashboardHeader({
             : "Sincronizando datos..."}
         </p>
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
         <Button
           asChild
           variant="secondary"
-          className="bg-white/15 text-white hover:bg-white/25"
+          className="bg-white/15 text-white hover:bg-white/25 w-full sm:w-auto"
         >
           <Link href="/inventario">Ver inventario</Link>
         </Button>
         <Button
           onClick={() => void onRefresh()}
-          className="bg-white text-[#1F4F9C] hover:bg-white/90"
+          className="bg-white text-[#1F4F9C] hover:bg-white/90 w-full sm:w-auto"
           disabled={isRefreshing}
         >
           {isRefreshing ? (
@@ -59,7 +59,9 @@ export function DashboardHeader({
             "Actualizar"
           )}
         </Button>
-        <NotificationBell {...notificationProps} />
+        <div className="flex w-full justify-end sm:w-auto">
+          <NotificationBell {...notificationProps} />
+        </div>
       </div>
     </header>
   );

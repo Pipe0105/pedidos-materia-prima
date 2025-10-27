@@ -89,7 +89,7 @@ export function InventarioTable({
     ));
 
   return (
-    <Table>
+    <Table className="min-w-7-[760px] text-sm">
       <TableHeader>
         <TableRow className="bg-slate-50">
           <TableHead className="font-semibold text-center">Material</TableHead>

@@ -702,7 +702,7 @@ export default function PedidosZona({
               <div className="h-10 animate-pulse rounded-lg bg-muted" />
             </div>
           ) : filtrados.length ? (
-            <Table>
+            <Table className="min-w-[700px] text-sm">
               <TableHeader>
                 <TableRow>
                   <TableHead className="text-center">Fecha pedido</TableHead>

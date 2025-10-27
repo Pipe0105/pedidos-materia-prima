@@ -520,14 +520,7 @@ function InventarioPageContent() {
           return;
         }
 
-        pedidoActualizadoEstado ||= "recibido";
-
-        const mensajeExito =
-          pedidoActualizadoEstado === "enviado"
-            ? "✅ Pedido deshecho y regresado a la lista de pedidos enviados."
-            : "✅ Pedido deshecho y restaurado en la lista de pedidos recibidos.";
-
-        alert(mensajeExito);
+        alert("✅ Pedido deshecho y restaurado en la lista de pedidos.");
 
         await cargar();
 

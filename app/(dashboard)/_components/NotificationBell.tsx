@@ -78,10 +78,7 @@ export function NotificationBell({
         {unreadCount} alertas sin leer
       </span>
       {isOpen && (
-        <aside
-          className="absolute right-0 top-14 z-20 w-96 overflow-hidden rounded-2xl
-        border border-[#1F4F9C]/20 bg-white text-slate-900 shadow-2xl"
-        >
+        <aside className="absolute right-0 top-14 z-20 w-screen max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-2xl border border-[#1F4F9C]/20 bg-white text-slate-900 shadow-2xl sm:w-96">
           <header className="bg-gradient-to-r from-[#1F4F9C]/90 to-[#5169A5] p-4 text-white">
             <h2 className="flex items-center gap-2 text-lg font-semibold">
               <AlertTriangle className="h-5 w-5" /> Alertas de inventario

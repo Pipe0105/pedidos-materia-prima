@@ -285,7 +285,7 @@ export default function MaterialesPage() {
             {/* FORMULARIO */}
             <Card>
               <CardHeader>
-                <CardTitle>Registro de el material</CardTitle>
+                <CardTitle>Paso 1. Registra el material</CardTitle>
                 <CardDescription>
                   Completa los campos: nombre, unidad y cantidades. Guarda o
                   cancela los cambios antes de continuar.
@@ -412,8 +412,11 @@ export default function MaterialesPage() {
             <Card>
               <CardHeader className="  flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
                 <div>
-                  <CardTitle>Lista de Materiales</CardTitle>
-                  <CardDescription></CardDescription>
+                  <CardTitle>Paso 2. Revisa el listado</CardTitle>
+                  <CardDescription>
+                    Usa los botones para editar o dar de baja materiales sin
+                    borrarlos del historial.
+                  </CardDescription>
                 </div>
                 <Button
                   variant="outline"
@@ -430,7 +433,6 @@ export default function MaterialesPage() {
                       <TableHead>Material</TableHead>
                       <TableHead>Unidad</TableHead>
                       <TableHead>Presentación</TableHead>
-                      <TableHead>Proveedor</TableHead>
                       <TableHead className="text-center">Acciones</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -455,8 +457,6 @@ export default function MaterialesPage() {
                             ? "Litros"
                             : "—"}
                         </TableCell>
-                        <TableCell>{m.proveedor ?? "—"}</TableCell>
-
                         <TableCell className="text-center">
                           <div className="flex h-full w-full justify-center items-center">
                             <Button
@@ -468,9 +468,8 @@ export default function MaterialesPage() {
                               Editar
                             </Button>
                             <Button
-                              variant="secondary"
+                              variant="destructive"
                               size="sm"
-                              className="bg-red-200"
                               onClick={() => void eliminarMaterial(m.id)}
                             >
                               Eliminar
@@ -482,7 +481,7 @@ export default function MaterialesPage() {
                     {!items.length && (
                       <TableRow>
                         <TableCell
-                          colSpan={5}
+                          colSpan={4}
                           className="text-center text-sm text-muted-foreground"
                         >
                           No hay materiales en esta zona. Usa el formulario de

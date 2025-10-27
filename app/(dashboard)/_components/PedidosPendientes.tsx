@@ -65,11 +65,11 @@ export function PedidosPendientes({
               Últimos movimientos listos para seguimiento y cierre.
             </CardDescription>
           </div>
-          <div className="flex gap-2">
+          <div className="flex w-full flex-wrap gap-2 sm:auto sm:justify-end">
             <Button
               asChild
               variant="ghost"
-              className="text-slate-600 hover:text-slate-900"
+              className="text-slate-600 hover:text-slate-900 w-full sm:w-auto"
             >
               <Link href="/pedidos">Ver todos</Link>
             </Button>
@@ -88,7 +88,7 @@ export function PedidosPendientes({
               ))}
             </div>
           ) : pedidos.length ? (
-            <Table>
+            <Table className="min-w-[720px] text-sm">
               <TableHeader>
                 <TableRow>
                   <TableHead>Fecha pedido</TableHead>

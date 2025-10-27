@@ -36,9 +36,9 @@ export function PedidosTable({ pedidos }: PedidosTableProps) {
   );
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <div className="max-h-[520px] overflow-y-auto">
-        <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
+    <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="max-h-[520px] overflow-x-auto overflow-y-auto">
+        <table className="min-w-[720px] divide-y divide-slate-200 text-left text-sm">
           <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
             <tr>
               <th scope="col" className="px-4 py-3">

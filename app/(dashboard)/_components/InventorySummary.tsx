@@ -37,8 +37,8 @@ export function InventorySummary({
 
   return (
     <section className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-1">
           <h2 className="text-lg font-semibold text-slate-900">
             Estado de Cobertura
           </h2>
@@ -47,12 +47,12 @@ export function InventorySummary({
           </p>
         </div>
         {isUpdating && (
-          <span className="flex items-center gap-2 text-xs font-medium text-[#1F4F9X]">
+          <span className="flex items-center gap-2 text-xs font-medium text-[#1F4F9C]">
             <Loader2 className="h-4 w-4 animate-spin" /> Actualizando datos
           </span>
         )}
       </div>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {cards.map(({ key, value, gradient, materials }) => {
           const tone = COBERTURA_TONO[key];
 
@@ -89,7 +89,7 @@ export function InventorySummary({
                   )}
                 </CardContent>
               </Card>
-              <div className="pointer-events-none absolute left-1/2 top-full z-10 mt-4 w-80 -translate-x-1/2 rounded-2xl border border-slate-200 bg-white p-4 text-left text-sm text-slate-700 opacity-0 shadow-xl transition duration-200 group-hover:opacity-100 group-focus-within:opacity-100">
+              <div className="pointer-events-none absolute left-1/2 top-full z-10 mt-4 w-full max-w-[calc(100vw-2.5rem)] -translate-x-1/2 rounded-2xl border border-slate-200 bg-white p-4 text-left text-sm text-slate-700 opacity-0 shadow-xl transition duration-200 group-hover:opacity-100 group-focus-within:opacity-100 sm:w-80">
                 <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
                   Detalle de materiales
                 </p>
