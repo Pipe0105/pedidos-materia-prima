@@ -144,8 +144,8 @@ export function InventarioTable({
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end">
-                    <div className="flex w-full max-w-2xl flex-wrap justify-end gap-3">
-                      <div className="flex flex-wrap items-center justify-end gap-2 rounded-xl border border-slate-200/80 bg-white/90 px-2 py-1 shadow-sm backdrop-blur-sm sm:flex-nowrap">
+                    <div className="flex w-full max-w-2xl items-center justify-end gap-3 overflow-x-auto pb-1">
+                      <div className="flex flex-nowrap items-center justify-end gap-2 rounded-xl border border-slate-200/80 bg-white/90 px-2 py-1 shadow-sm backdrop-blur-sm">
                         <Button
                           variant="ghost"
                           size="sm"
@@ -181,7 +181,7 @@ export function InventarioTable({
                         </Button>
                       </div>
 
-                      <div className="flex flex-wrap items-center justify-end gap-2 rounded-xl border border-red-200/80 bg-red-50/90 px-2 py-1 shadow-sm backdrop-blur-sm sm:flex-nowrap">
+                      <div className="flex flex-nowrap items-center justify-end gap-2 rounded-xl border border-red-200/80 bg-red-50/90 px-2 py-1 shadow-sm backdrop-blur-sm">
                         <Button
                           size="sm"
                           variant="ghost"
