@@ -164,7 +164,11 @@ export default function PedidoEditor() {
     );
   }
 
-  async function eliminarItem(id: string) {
+  async function eliminarItem(id: string, nombre?: string | null) {
+    const mensaje = nombre
+      ? `¿Seguro deseas eliminar el material "${nombre}" del pedido?`
+      : "¿Seguro deseas eliminar este material del pedido?";
+    if (!confirm(mensaje)) return;
     await supabase.from("pedido_items").delete().eq("id", id);
     setItems((prev) => prev.filter((it) => it.id !== id));
     notify("Material eliminado ✅", "success");
@@ -226,7 +230,9 @@ export default function PedidoEditor() {
                   </td>
                   <td className="p-2" align="center">
                     <button
-                      onClick={() => eliminarItem(it.id)}
+                      onClick={() =>
+                        eliminarItem(it.id, it.materiales?.nombre ?? null)
+                      }
                       className="text-rose-600 hover:underline text-sm"
                     >
                       Eliminar

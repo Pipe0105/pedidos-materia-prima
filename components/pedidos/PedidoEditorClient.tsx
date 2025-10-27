@@ -339,6 +339,11 @@ export default function PedidoEditorClient({ pedidoId }: { pedidoId: string }) {
   }
 
   function eliminarFila(idx: number) {
+    const fila = items[idx];
+    const mensaje = fila?.material_id
+      ? "¿seguro deseas eliminar esta fila del material seleccionado?"
+      : "¿Seguro deseas eliminar esta fila?";
+    if (!confirm(mensaje)) return;
     setItems((prev) => {
       const c = [...prev];
       c.splice(idx, 1);

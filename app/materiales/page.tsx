@@ -87,7 +87,11 @@ export default function MaterialesPage() {
   }, [zonaId]);
 
   // === CRUD ===
-  async function eliminarMaterial(id: string) {
+  async function eliminarMaterial(id: string, nombre?: string) {
+    const mensaje = nombre
+      ? `¿Seguro desea eliminar el material "${nombre}"?`
+      : "¿Seguro que desea eliminar este material?";
+    if (!confirm(mensaje)) return;
     const { error } = await supabase
       .from("materiales")
       .update({ activo: false })
@@ -470,7 +474,9 @@ export default function MaterialesPage() {
                             <Button
                               variant="destructive"
                               size="sm"
-                              onClick={() => void eliminarMaterial(m.id)}
+                              onClick={() =>
+                                void eliminarMaterial(m.id, m.nombre)
+                              }
                             >
                               Eliminar
                             </Button>

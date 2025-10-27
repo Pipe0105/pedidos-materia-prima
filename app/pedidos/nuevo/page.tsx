@@ -315,11 +315,15 @@ function NuevoPedidoPageContent() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() =>
+                              onClick={() => {
+                                const mensaje = it.nombre
+                                  ? `¿Seguro que deseas eliminar el material "${it.nombre}" del pedido?`
+                                  : "¿Seguro que deseas eliminar este material del pedido?";
+                                if (!confirm(mensaje)) return;
                                 setItems((prev) =>
                                   prev.filter((_, i) => i !== idx)
-                                )
-                              }
+                                );
+                              }}
                               className="text-red-600 hover:bg-red-50 hover:text-red-700"
                             >
                               Eliminar
