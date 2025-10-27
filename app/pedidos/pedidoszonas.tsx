@@ -112,6 +112,7 @@ export default function PedidosZona({
   const [q, setQ] = useState("");
   const [estadoFiltro, setEstadoFiltro] = useState<Pedido["estado"] | "">("");
   const [mostrarCompletados, setMostrarCompletados] = useState(false);
+  const [deshaciendoPedido, setDeshaciendoPedido] = useState(false);
 
   const resumenPorEstado = useMemo(() => {
     return pedidos.reduce<Record<Pedido["estado"], number>>(
@@ -191,6 +192,175 @@ export default function PedidosZona({
     void cargarPedidos();
   }, [cargarPedidos]);
 
+  const deshacerUltimoPedido = useCallback(async () => {
+    if (deshaciendoPedido) return;
+
+    const confirmar = window.confirm(
+      "¿Deseas deshacer el último pedido completado de esta planta?"
+    );
+
+    if (!confirmar) return;
+
+    setDeshaciendoPedido(true);
+
+    try {
+      const { data: ultimoMovimiento, error: ultimoError } = await supabase
+        .from("movimientos_inventario")
+        .select("ref_id")
+        .eq("zona_id", zonaId)
+        .eq("ref_tipo", "pedido")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (ultimoError) {
+        console.error(ultimoError);
+        notify(
+          "No pudimos buscar pedidos completados recientes. Intenta más tarde.",
+          "error"
+        );
+        return;
+      }
+
+      const pedidoId = ultimoMovimiento?.ref_id;
+
+      if (!pedidoId) {
+        notify(
+          "No hay pedidos completados para deshacer en esta planta.",
+          "info"
+        );
+        return;
+      }
+
+      const { data: pedidoActual, error: pedidoError } = await supabase
+        .from("pedidos")
+        .select("id, estado")
+        .eq("id", pedidoId)
+        .maybeSingle();
+
+      if (pedidoError) {
+        console.error(pedidoError);
+        notify(
+          "No pudimos verificar el estado del pedido seleccionado.",
+          "error"
+        );
+        return;
+      }
+
+      if (!pedidoActual || pedidoActual.estado !== "completado") {
+        notify(
+          "El último pedido encontrado ya no figura como completado.",
+          "warning"
+        );
+        return;
+      }
+
+      const { data: movimientosPedido, error: movimientosError } =
+        await supabase
+          .from("movimientos_inventario")
+          .select("id, material_id, bultos, kg")
+          .eq("zona_id", zonaId)
+          .eq("ref_tipo", "pedido")
+          .eq("ref_id", pedidoId)
+          .returns<
+            {
+              id: string;
+              material_id: string;
+              bultos: number | null;
+              kg: number | null;
+            }[]
+          >();
+
+      if (movimientosError) {
+        console.error(movimientosError);
+        notify("Error obteniendo los movimientos del pedido.", "error");
+        return;
+      }
+
+      if (!movimientosPedido?.length) {
+        notify(
+          "No encontramos movimientos de inventario asociados a ese pedido.",
+          "warning"
+        );
+        return;
+      }
+
+      const fechaActual = new Date().toISOString().slice(0, 10);
+
+      const movimientosReverso = movimientosPedido.map((mov) => ({
+        zona_id: zonaId,
+        material_id: mov.material_id,
+        fecha: fechaActual,
+        tipo: "salida" as const,
+        bultos: mov.bultos === null ? null : Number(mov.bultos),
+        kg: mov.kg === null ? null : Number(mov.kg),
+        ref_tipo: "pedido_deshacer",
+        ref_id: pedidoId,
+        notas: "Salida automática por deshacer pedido completado",
+      }));
+
+      const { data: movimientosInsertados, error: insertError } = await supabase
+        .from("movimientos_inventario")
+        .insert(movimientosReverso)
+        .select("id")
+        .returns<{ id: string }[]>();
+
+      if (insertError) {
+        console.error(insertError);
+        notify("No pudimos registrar la reversión del pedido.", "error");
+        return;
+      }
+
+      const { error: actualizarPedidoError } = await supabase
+        .from("pedidos")
+        .update({ estado: "recibido", inventario_posteado: false })
+        .eq("id", pedidoId);
+
+      if (actualizarPedidoError) {
+        console.error(actualizarPedidoError);
+        if (movimientosInsertados?.length) {
+          await supabase
+            .from("movimientos_inventario")
+            .delete()
+            .in(
+              "id",
+              movimientosInsertados.map((mov) => mov.id)
+            );
+        }
+        notify(
+          "No se pudo actualizar el pedido. Intenta nuevamente en unos minutos.",
+          "error"
+        );
+        return;
+      }
+
+      notify(
+        "Pedido deshecho ✅ y devuelto a la lista de pedidos recibidos.",
+        "success"
+      );
+
+      setPedidos((prev) => {
+        const actualizados = prev.map((pedido) =>
+          pedido.id === pedidoId ? { ...pedido, estado: "recibido" } : pedido
+        );
+        setPedidosCache(zonaId, actualizados);
+        return actualizados;
+      });
+
+      await cargarPedidos({ force: true });
+
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("pedidos:invalidate", { detail: { zonaId } })
+        );
+      }
+    } catch (error) {
+      console.error(error);
+      notify("Ocurrió un error inesperado al deshacer el pedido.", "error");
+    } finally {
+      setDeshaciendoPedido(false);
+    }
+  }, [cargarPedidos, deshaciendoPedido, notify, zonaId]);
   const filtrados = useMemo(() => {
     return pedidos
       .filter((p) =>
@@ -382,17 +552,29 @@ export default function PedidosZona({
             <CardTitle className="text-2xl">Pedidos de {nombre}</CardTitle>
             <CardDescription></CardDescription>
           </div>
-          <Button
-            onClick={() =>
-              router.push(
-                `/pedidos/nuevo?zonaId=${zonaId}&zonaNombre=${encodeURIComponent(
-                  nombre
-                )}`
-              )
-            }
-          >
-            Crear nuevo pedido
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="secondary"
+              onClick={() => void deshacerUltimoPedido()}
+              disabled={deshaciendoPedido}
+              className="bg-amber-100 text-amber-800 hover:bg-amber-200"
+            >
+              {deshaciendoPedido
+                ? "Deshaciendo pedido..."
+                : "Deshacer pedido completado"}
+            </Button>
+            <Button
+              onClick={() =>
+                router.push(
+                  `/pedidos/nuevo?zonaId=${zonaId}&zonaNombre=${encodeURIComponent(
+                    nombre
+                  )}`
+                )
+              }
+            >
+              Crear nuevo pedido
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-3 md:grid-cols-3">

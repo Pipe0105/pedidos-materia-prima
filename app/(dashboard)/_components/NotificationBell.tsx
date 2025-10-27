@@ -116,10 +116,14 @@ export function NotificationBell({
                               m.cobertura != null
                                 ? Math.max(0, m.cobertura)
                                 : 0;
+                            const coberturaRedondeada =
+                              Math.floor(coberturaDias);
                             const coberturaLabel =
                               coberturaDias > 0 && coberturaDias < 1
                                 ? "<1 día de cobertura"
-                                : `${fmtNum(coberturaDias)} días de cobertura`;
+                                : `${fmtNum(
+                                    coberturaRedondeada
+                                  )} días de cobertura`;
                             const zonas = m.zonas?.length
                               ? m.zonas.join(", ")
                               : null;
