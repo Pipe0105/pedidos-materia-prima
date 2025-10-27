@@ -285,7 +285,7 @@ export default function MaterialesPage() {
             {/* FORMULARIO */}
             <Card>
               <CardHeader>
-                <CardTitle>Paso 1. Registra el material</CardTitle>
+                <CardTitle>Registro de el material</CardTitle>
                 <CardDescription>
                   Completa los campos: nombre, unidad y cantidades. Guarda o
                   cancela los cambios antes de continuar.
@@ -412,11 +412,8 @@ export default function MaterialesPage() {
             <Card>
               <CardHeader className="  flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
                 <div>
-                  <CardTitle>Paso 2. Revisa el listado</CardTitle>
-                  <CardDescription>
-                    Usa los botones para editar o dar de baja materiales sin
-                    borrarlos del historial.
-                  </CardDescription>
+                  <CardTitle>Lista de Materiales</CardTitle>
+                  <CardDescription></CardDescription>
                 </div>
                 <Button
                   variant="outline"
@@ -471,8 +468,9 @@ export default function MaterialesPage() {
                               Editar
                             </Button>
                             <Button
-                              variant="destructive"
+                              variant="secondary"
                               size="sm"
+                              className="bg-red-200"
                               onClick={() => void eliminarMaterial(m.id)}
                             >
                               Eliminar
