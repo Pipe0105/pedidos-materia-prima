@@ -47,8 +47,7 @@ export function useDashboardData({
     const { data, error } = await supabase
       .from("pedidos")
       .select(
-        `id, fecha_pedido, fecha_entrega, solicitante, estado, total_bultos, total_kg
-        pedido_items (
+        `id, fecha_pedido, fecha_entrega, solicitante, estado, total_bultos, total_kg,pedido_items (
           material_id,
           materiales (nombre)
           )`

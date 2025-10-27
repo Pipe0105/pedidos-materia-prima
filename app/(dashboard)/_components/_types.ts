@@ -8,7 +8,7 @@ export type Pedido = {
   estado: PedidoEstado;
   total_bultos?: number | null;
   total_kg?: number | null;
-  pedido_kg?: {
+  pedido_items?: {
     material_id: string | null;
     material_nombre: string | null;
   }[];
