@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { fmtNum } from "@/lib/format";
+import { shouldRetryEstadoRecibido } from "@/lib/pedidos";
 import { useToast } from "@/components/toastprovider";
 import { Button } from "@/components/ui/button";
 import {
@@ -311,11 +312,39 @@ export default function PedidosZona({
         return;
       }
 
-      const { error: actualizarPedidoError } = await supabase
+      let pedidoActualizadoEstado: Pedido["estado"] | null = null;
+      const actualizadoRecibido = await supabase
         .from("pedidos")
         .update({ estado: "recibido", inventario_posteado: false })
-        .eq("id", pedidoId);
+        .eq("id", pedidoId)
+        .select("estado")
+        .maybeSingle();
 
+      let actualizarPedidoError = actualizadoRecibido.error ?? null;
+
+      if (!actualizarPedidoError && actualizadoRecibido.data) {
+        pedidoActualizadoEstado = actualizadoRecibido.data
+          .estado as Pedido["estado"];
+      } else if (actualizarPedidoError) {
+        if (shouldRetryEstadoRecibido(actualizarPedidoError)) {
+          console.warn(
+            "Fallo al devolver el pedido al estado 'recibido'. Se intentará marcar como 'enviado'.",
+            actualizarPedidoError
+          );
+          const actualizadoEnviado = await supabase
+            .from("pedidos")
+            .update({ estado: "enviado", inventario_posteado: false })
+            .eq("id", pedidoId)
+            .select("estado")
+            .maybeSingle();
+
+          actualizarPedidoError = actualizadoEnviado.error ?? null;
+          if (!actualizarPedidoError && actualizadoEnviado.data) {
+            pedidoActualizadoEstado = actualizadoEnviado.data
+              .estado as Pedido["estado"];
+          }
+        }
+      }
       if (actualizarPedidoError) {
         console.error(actualizarPedidoError);
         if (movimientosInsertados?.length) {
@@ -334,15 +363,21 @@ export default function PedidosZona({
         return;
       }
 
-      notify(
-        "Pedido deshecho ✅ y devuelto a la lista de pedidos recibidos.",
-        "success"
-      );
+      pedidoActualizadoEstado ||= "recibido";
+
+      const mensajeExito =
+        pedidoActualizadoEstado === "enviado"
+          ? "Pedido deshecho y devuelto a las lista de enviados"
+          : "Pedido deshecho y devuelto a la lista de pedidos recibidos";
+
+      notify(mensajeExito, "success");
 
       setPedidos((prev) => {
         const actualizados = prev.map(
           (pedido): Pedido =>
-            pedido.id === pedidoId ? { ...pedido, estado: "recibido" } : pedido
+            pedido.id === pedidoId
+              ? { ...pedido, estado: pedidoActualizadoEstado }
+              : pedido
         );
         setPedidosCache(zonaId, actualizados);
         return actualizados;
@@ -554,16 +589,6 @@ export default function PedidosZona({
             <CardDescription></CardDescription>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Button
-              variant="secondary"
-              onClick={() => void deshacerUltimoPedido()}
-              disabled={deshaciendoPedido}
-              className="bg-amber-100 text-amber-800 hover:bg-amber-200"
-            >
-              {deshaciendoPedido
-                ? "Deshaciendo pedido..."
-                : "Deshacer pedido completado"}
-            </Button>
             <Button
               onClick={() =>
                 router.push(

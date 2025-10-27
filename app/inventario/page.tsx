@@ -10,7 +10,11 @@ import {
 } from "react";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { InventarioActualRow } from "@/app/(dashboard)/_components/_types";
+import type {
+  InventarioActualRow,
+  PedidoEstado,
+} from "@/app/(dashboard)/_components/_types";
+import { shouldRetryEstadoRecibido } from "@/lib/pedidos";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Card,
@@ -34,6 +38,7 @@ import type {
   Unidad,
   Zona,
 } from "./types";
+import { nullable } from "zod";
 
 const EMPTY_EDITAR: MaterialEditar = { id: "", nombre: "", stockKg: 0 };
 const EMPTY_CONSUMO: MaterialConsumo = { id: "", nombre: "", unidad: "bulto" };
@@ -464,10 +469,39 @@ function InventarioPageContent() {
           return;
         }
 
-        const { error: actualizarPedidoError } = await supabase
+        let pedidoActualizadoEstado: PedidoEstado | null = null;
+        const actualizadoRecibido = await supabase
           .from("pedidos")
           .update({ estado: "recibido", inventario_posteado: false })
-          .eq("id", pedidoId);
+          .eq("id", pedidoId)
+          .select("estado")
+          .maybeSingle();
+
+        let actualizarPedidoError = actualizadoRecibido.error ?? null;
+
+        if (!actualizarPedidoError && actualizadoRecibido.data) {
+          pedidoActualizadoEstado = actualizadoRecibido.data
+            .estado as PedidoEstado;
+        } else if (actualizarPedidoError) {
+          if (shouldRetryEstadoRecibido(actualizarPedidoError)) {
+            console.warn(
+              "Fallo al devolver el pedido al estado 'recibido'. Se intentará marcar como 'enviado'.",
+              actualizarPedidoError
+            );
+            const actualizadoEnviado = await supabase
+              .from("pedidos")
+              .update({ estado: "enviado", inventario_posteado: false })
+              .eq("id", pedidoId)
+              .select("estado")
+              .maybeSingle();
+
+            actualizarPedidoError = actualizadoEnviado.error ?? null;
+            if (!actualizarPedidoError && actualizadoEnviado.data) {
+              pedidoActualizadoEstado = actualizadoEnviado.data
+                .estado as PedidoEstado;
+            }
+          }
+        }
 
         if (actualizarPedidoError) {
           console.error(actualizarPedidoError);
@@ -486,7 +520,14 @@ function InventarioPageContent() {
           return;
         }
 
-        alert("✅ Pedido deshecho y restaurado en la lista de pedidos.");
+        pedidoActualizadoEstado ||= "recibido";
+
+        const mensajeExito =
+          pedidoActualizadoEstado === "enviado"
+            ? "✅ Pedido deshecho y regresado a la lista de pedidos enviados."
+            : "✅ Pedido deshecho y restaurado en la lista de pedidos recibidos.";
+
+        alert(mensajeExito);
 
         await cargar();
 
