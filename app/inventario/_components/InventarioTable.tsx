@@ -1,4 +1,11 @@
 import { Button } from "@/components/ui/button";
+import {
+  History,
+  PackageMinus,
+  PencilLine,
+  RotateCcw,
+  Undo2,
+} from "lucide-react";
 import { Skeleton } from "@/components/Skeleton";
 import {
   Table,
@@ -136,55 +143,67 @@ export function InventarioTable({
                   </span>
                 </TableCell>
                 <TableCell className="text-right">
-                  <div className="flex flex-wrap justify-end gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() =>
-                        onVerHistorial(row.material_id, row.nombre)
-                      }
-                    >
-                      Historial
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() =>
-                        onEditar(row.material_id, row.nombre, row.stockKg)
-                      }
-                    >
-                      Editar
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() =>
-                        onConsumo(row.material_id, row.nombre, row.unidad)
-                      }
-                    >
-                      Consumo manual
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-red-600 hover:text-red-600"
-                      onClick={() => onDeshacerConsumo(row.material_id)}
-                    >
-                      Deshacer consumo
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-red-600 hover:text-red-600"
-                      disabled={deshaciendoPedidoMaterialId === row.material_id}
-                      onClick={() =>
-                        onDeshacerPedido(row.material_id, row.nombre)
-                      }
-                    >
-                      {deshaciendoPedidoMaterialId === row.material_id
-                        ? "Deshaciendo..."
-                        : "Deshacer pedido"}
-                    </Button>
+                  <div className="flex justify-end">
+                    <div className="grid w-full max-w-md grid-cols-1 gap-2 text-left sm:grid-cols-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="justify-start bg-gradient-to-r from-[#1F4F9C] to-[#29B8A6] text-white shadow-sm transition-all hover:from-[#1F4F9C]/90 hover:to-[#29B8A6]/90 hover:bg-transparent hover:shadow-md"
+                        onClick={() =>
+                          onVerHistorial(row.material_id, row.nombre)
+                        }
+                      >
+                        <History className="size-4" />
+                        Historial
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="justify-start bg-white/80 text-[#1F4F9C] shadow-sm transition-all hover:bg-white hover:text-[#163a73]"
+                        onClick={() =>
+                          onEditar(row.material_id, row.nombre, row.stockKg)
+                        }
+                      >
+                        <PencilLine className="size-4" />
+                        Editar
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="justify-start bg-gradient-to-r from-[#29B8A6] to-[#1F4F9C] text-white shadow-sm transition-all hover:from-[#29B8A6]/90 hover:to-[#1F4F9C]/90 hover:bg-transparent hover:shadow-md sm:col-span-2"
+                        onClick={() =>
+                          onConsumo(row.material_id, row.nombre, row.unidad)
+                        }
+                      >
+                        <PackageMinus className="size-4" />
+                        Consumo manual
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="justify-start border-transparent bg-white text-red-600 shadow-sm transition-all hover:bg-red-50 hover:text-red-700"
+                        onClick={() => onDeshacerConsumo(row.material_id)}
+                      >
+                        <RotateCcw className="size-4" />
+                        Deshacer consumo
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="justify-start border-transparent bg-white text-red-600 shadow-sm transition-all hover:bg-red-50 hover:text-red-700 disabled:text-red-400"
+                        disabled={
+                          deshaciendoPedidoMaterialId === row.material_id
+                        }
+                        onClick={() =>
+                          onDeshacerPedido(row.material_id, row.nombre)
+                        }
+                      >
+                        <Undo2 className="size-4" />
+                        {deshaciendoPedidoMaterialId === row.material_id
+                          ? "Deshaciendo..."
+                          : "Deshacer pedido"}
+                      </Button>
+                    </div>
                   </div>
                 </TableCell>
               </TableRow>
