@@ -457,7 +457,7 @@ export default function MaterialesPage() {
                           m.presentacion_kg_por_bulto
                             ? `${m.presentacion_kg_por_bulto} kg/bulto`
                             : m.unidad_medida === "unidad"
-                            ? "Unidades sueltas"
+                            ? "Unidades"
                             : m.unidad_medida === "litro"
                             ? "Litros"
                             : "—"}

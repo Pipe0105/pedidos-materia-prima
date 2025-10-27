@@ -7,6 +7,8 @@ import { fmtNum } from "@/lib/format";
 import { shouldRetryEstadoRecibido } from "@/lib/pedidos";
 import { useToast } from "@/components/toastprovider";
 import { Button } from "@/components/ui/button";
+import { calcularConsumoDiarioKg } from "@/lib/consumo";
+import type { InventarioActualRow } from "@/app/(dashboard)/_components/_types";
 import {
   Card,
   CardContent,
@@ -34,6 +36,7 @@ import {
 type unidadMedida = "bulto" | "unidad" | "litro" | null;
 
 type PedidoItem = {
+  material_id: string | null;
   bultos: number;
   kg: number | null;
   materiales: {
@@ -46,6 +49,7 @@ type Pedido = {
   id: string;
   fecha_pedido: string;
   fecha_entrega: string | null;
+  fecha_cobertura_hasta: string | null;
   solicitante: string | null;
   estado: "enviado" | "recibido" | "completado";
   total_bultos?: number | null;
@@ -72,7 +76,11 @@ type PedidoItemFromSupabase = Omit<PedidoItem, "materiales"> & {
     | null;
 };
 
-type PedidoFromSupabase = Omit<Pedido, "pedido_items"> & {
+type PedidoFromSupabase = Omit<
+  Pedido,
+  "pedido_items" | "fecha_cobertura_hasta"
+> & {
+  fecha_cobertura_hasta?: string | null;
   pedido_items: PedidoItemFromSupabase[] | null;
 };
 
@@ -138,20 +146,92 @@ export default function PedidosZona({
       }
 
       setLoading(!cache || force);
-      const { data, error } = await supabase
-        .from("pedidos")
-        .select(
-          `
-          id, fecha_pedido, fecha_entrega, solicitante, estado, total_bultos, total_kg, notas,
+      const [pedidosRes, inventarioRes] = await Promise.all([
+        supabase
+          .from("pedidos")
+          .select(
+            `
+          id, fecha_pedido, fecha_entrega, fecha_cobertura_hasta, solicitante, estado, total_bultos, total_kg, notas,
         pedido_items (
+          material_id,
           bultos, kg,
           materiales (nombre, unidad_medida)
 
         )
       `
-        )
-        .eq("zona_id", zonaId)
-        .order("fecha_pedido", { ascending: false });
+          )
+          .eq("zona_id", zonaId)
+          .order("fecha_pedido", { ascending: false }),
+        fetch(`/api/inventario?zonaId=${zonaId}`)
+          .then(async (response) => {
+            if (!response.ok) {
+              console.error(
+                "Error cargando inventario para cobertura",
+                response.statusText
+              );
+              return [] as InventarioActualRow[];
+            }
+
+            const payload = (await response.json()) as unknown;
+            return Array.isArray(payload)
+              ? (payload as InventarioActualRow[])
+              : [];
+          })
+          .catch((err) => {
+            console.error("Inventario cobertura fetch error", err);
+            return [] as InventarioActualRow[];
+          }),
+      ]);
+
+      const { data, error } = pedidosRes;
+      const inventario = inventarioRes;
+
+      const coberturaPorMaterial = inventario.reduce<Map<string, string>>(
+        (acc, item) => {
+          let coberturaDias: number | null = null;
+
+          if (item.unidad_medida === "unidad") {
+            const consumo =
+              typeof item.tasa_consumo_diaria_kg === "number" &&
+              Number.isFinite(item.tasa_consumo_diaria_kg) &&
+              item.tasa_consumo_diaria_kg > 0
+                ? item.tasa_consumo_diaria_kg
+                : null;
+
+            if (consumo) {
+              coberturaDias = item.stock_bultos / consumo;
+            }
+          } else {
+            const consumoKg = calcularConsumoDiarioKg({
+              nombre: item.nombre,
+              unidad_medida: item.unidad_medida,
+              presentacion_kg_por_bulto: item.presentacion_kg_por_bulto,
+              tasa_consumo_diaria_kg: item.tasa_consumo_diaria_kg,
+            });
+
+            if (consumoKg && consumoKg > 0) {
+              coberturaDias = item.stock_kg / consumoKg;
+            }
+          }
+
+          if (
+            coberturaDias != null &&
+            Number.isFinite(coberturaDias) &&
+            coberturaDias > 0 &&
+            item.material_id
+          ) {
+            const coberturaDate = new Date();
+            coberturaDate.setHours(0, 0, 0, 0);
+            coberturaDate.setDate(
+              coberturaDate.getDate() + Math.ceil(coberturaDias)
+            );
+            acc.set(item.material_id, coberturaDate.toISOString());
+          }
+
+          return acc;
+        },
+        new Map<string, string>()
+      );
 
       if (error) {
         notify("Error cargando pedidos: " + error.message, "error");
@@ -166,6 +246,8 @@ export default function PedidosZona({
               : materialRaw ?? null;
             return {
               ...itemTyped,
+              material_id: itemTyped.material_id ?? null,
+
               materiales: material
                 ? {
                     nombre: material.nombre ?? null,
@@ -175,9 +257,34 @@ export default function PedidosZona({
             } satisfies PedidoItem;
           });
 
+          const fechaCoberturaHasta = (() => {
+            if (!items?.length) {
+              return null;
+            }
+
+            const fechas = items
+              .map((item) =>
+                item.material_id
+                  ? coberturaPorMaterial.get(item.material_id) ?? null
+                  : null
+              )
+              .filter((value): value is string => Boolean(value));
+
+            if (!fechas.length) {
+              return null;
+            }
+
+            return fechas.reduce((min, current) => {
+              return new Date(current).getTime() < new Date(min).getTime()
+                ? current
+                : min;
+            });
+          })();
+
           return {
             ...pedidoTyped,
             pedido_items: items,
+            fecha_cobertura_hasta: fechaCoberturaHasta ?? null,
           } satisfies Pedido;
         });
 
@@ -702,11 +809,12 @@ export default function PedidosZona({
               <div className="h-10 animate-pulse rounded-lg bg-muted" />
             </div>
           ) : filtrados.length ? (
-            <Table className="min-w-[700px] text-sm">
+            <Table className="min-w-[800px] text-sm">
               <TableHeader>
                 <TableRow>
                   <TableHead className="text-center">Fecha pedido</TableHead>
                   <TableHead className="text-center">Fecha entrega</TableHead>
+                  <TableHead className="text-center">Cobertura hasta</TableHead>
                   <TableHead className="text-center">Solicitante</TableHead>
                   <TableHead className="text-center">Estado</TableHead>
                   <TableHead className="text-center">Totales</TableHead>
@@ -714,48 +822,59 @@ export default function PedidosZona({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtrados.map((pedido) => (
-                  <TableRow key={pedido.id}>
-                    <TableCell className="text-center">
-                      {pedido.fecha_pedido?.slice(0, 10) ?? "—"}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {pedido.fecha_entrega
-                        ? pedido.fecha_entrega.slice(0, 10)
-                        : "Pendiente"}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {pedido.solicitante ?? "Sin solicitante"}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {badgeEstado(pedido.estado)}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {renderTotales(pedido)}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <div className="flex flex-wrap items-center justify-center gap-2">
-                        <PedidoDetalle pedido={pedido} zonaNombre={nombre} />
-                        {pedido.estado !== "completado" && (
-                          <Button
-                            className="bg-green-700 text-white h-7 border-current"
-                            variant="secondary"
-                            onClick={() => marcarCompletado(pedido.id)}
-                          >
-                            Completar
-                          </Button>
-                        )}
-                        <Button
-                          variant="secondary"
-                          onClick={() => eliminarPedido(pedido.id)}
-                          className="bg-red-600 h-7 text-white"
-                        >
-                          Eliminar
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {filtrados.map((pedido) => {
+                  // ✅ Tipar la función correctamente
+                  const formatearFecha = (
+                    fecha: string | Date | undefined,
+                    sumarDia = false
+                  ): string => {
+                    if (!fecha) return "—";
+                    const date = new Date(fecha);
+                    if (sumarDia) date.setDate(date.getDate() + 1);
+                    return date.toLocaleDateString("es-ES");
+                  };
+
+                  return (
+                    <TableRow key={pedido.id}>
+                      <TableCell className="text-center">
+                        {formatearFecha(pedido.fecha_pedido)}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {pedido.fecha_entrega
+                          ? formatearFecha(pedido.fecha_entrega, true) // suma 1 día
+                          : "Pendiente"}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {pedido.fecha_cobertura_hasta
+                          ? pedido.fecha_cobertura_hasta.slice(0, 10)
+                          : "Pendiente"}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {pedido.solicitante ?? "Sin solicitante"}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {badgeEstado(pedido.estado)}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {renderTotales(pedido)}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex flex-wrap items-center justify-center gap-2">
+                          <PedidoDetalle pedido={pedido} zonaNombre={nombre} />
+                          {pedido.estado !== "completado" && (
+                            <Button
+                              className="bg-green-700 text-white h-7 border-current"
+                              variant="secondary"
+                              onClick={() => marcarCompletado(pedido.id)}
+                            >
+                              Completar
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           ) : (
