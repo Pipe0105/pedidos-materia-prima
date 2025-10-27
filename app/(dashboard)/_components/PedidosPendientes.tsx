@@ -28,7 +28,7 @@ import {
   ESTADO_LABEL,
   ESTADO_TONO,
 } from "@/app/(dashboard)/_components/dashboard";
-import { Pedido } from "@/app/(dashboard)/_components/_types";
+import { MaterialRow, Pedido } from "@/app/(dashboard)/_components/_types";
 
 type PedidosPendientesProps = {
   pedidos: Pedido[];
@@ -36,6 +36,7 @@ type PedidosPendientesProps = {
   error: string | null;
   hasCriticos: boolean;
   onCompletar: (id: string) => void;
+  materialesConCobertura: MaterialRow[];
 };
 
 function initialsFromName(nombre: string | null) {
@@ -50,6 +51,7 @@ export function PedidosPendientes({
   error,
   hasCriticos,
   onCompletar,
+  materialesConCobertura,
 }: PedidosPendientesProps) {
   return (
     <section>
@@ -91,6 +93,7 @@ export function PedidosPendientes({
                 <TableRow>
                   <TableHead>Fecha pedido</TableHead>
                   <TableHead>Fecha entrega</TableHead>
+                  <TableHead>Cobertura hasta</TableHead>
                   <TableHead>Solicitante</TableHead>
                   <TableHead>Totales</TableHead>
                   <TableHead>Estado</TableHead>
@@ -121,6 +124,43 @@ export function PedidosPendientes({
                           )
                         : "Sin fecha"}
                     </TableCell>
+                    <TableCell>
+                      {(() => {
+                        const items = p.pedido_items ?? [];
+                        const materialPrincipal =
+                          items.find((item) => item.material_id) ?? items[0];
+
+                        if (!materialPrincipal) {
+                          return "—";
+                        }
+
+                        const coberturaMaterial = materialPrincipal.material_id
+                          ? materialesConCobertura.find(
+                              (m) => m.id === materialPrincipal.material_id
+                            )
+                          : null;
+
+                        const coberturaDias =
+                          coberturaMaterial?.cobertura ?? null;
+
+                        if (coberturaDias == null) {
+                          return "Sin datos";
+                        }
+
+                        if (
+                          !Number.isFinite(coberturaDias) ||
+                          coberturaDias <= 0
+                        ) {
+                          return "Sin cobertura";
+                        }
+
+                        const coberturaDate = new Date(
+                          Date.now() + coberturaDias * 24 * 60 * 60 * 1000
+                        );
+
+                        return fmtDate(coberturaDate);
+                      })()}
+                    </TableCell>
 
                     <TableCell>
                       <div className="flex items-center gap-3">
@@ -133,8 +173,38 @@ export function PedidosPendientes({
                       </div>
                     </TableCell>
                     <TableCell className="text-sm text-slate-600">
-                      {fmtNum(p.total_bultos ?? 0)} b /{" "}
-                      {fmtNum(p.total_kg ?? 0)} kg
+                      <div className="flex flex-col gap-1">
+                        <span>
+                          {fmtNum(p.total_bultos ?? 0)} b /{" "}
+                          {fmtNum(p.total_kg ?? 0)} kg
+                        </span>
+                        {(() => {
+                          const items = p.pedido_items ?? [];
+                          if (!items.length) {
+                            return null;
+                          }
+
+                          const materialPrincipal =
+                            items.find((item) => item.material_nombre) ??
+                            items[0];
+
+                          const restantes = items.length - 1;
+                          const labelBase =
+                            materialPrincipal?.material_nombre ??
+                            "Material sin nombre";
+
+                          const label =
+                            restantes > 0
+                              ? `${labelBase} +${restantes} más`
+                              : labelBase;
+
+                          return (
+                            <span className="text-xs text-slate-500">
+                              {label}
+                            </span>
+                          );
+                        })()}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <span

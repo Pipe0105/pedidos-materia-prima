@@ -131,6 +131,7 @@ export default function HomePage() {
         error={pedidosError}
         hasCriticos={criticos.length > 0}
         onCompletar={handleCompletar}
+        materialesConCobertura={materialesConCobertura}
       />
     </PageContainer>
   );

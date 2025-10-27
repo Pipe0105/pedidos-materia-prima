@@ -47,7 +47,11 @@ export function useDashboardData({
     const { data, error } = await supabase
       .from("pedidos")
       .select(
-        "id,fecha_pedido,fecha_entrega,solicitante,estado,total_bultos,total_kg"
+        `id, fecha_pedido, fecha_entrega, solicitante, estado, total_bultos, total_kg
+        pedido_items (
+          material_id,
+          materiales (nombre)
+          )`
       )
       .eq("estado", "enviado")
       .order("fecha_pedido", { ascending: false })
@@ -58,7 +62,41 @@ export function useDashboardData({
       notify("No pudimos cargar los pedidos pendientes", "error");
     }
 
-    setPedidos(data ?? []);
+    type PedidoItemFromSupabase = {
+      material_id: string | null;
+      materiales:
+        | { nombre: string | null }
+        | { nombre: string | null }[]
+        | null;
+    };
+
+    type PedidoFromSupabase = Omit<Pedido, "pedido_items"> & {
+      pedido_items: PedidoItemFromSupabase[] | null;
+    };
+
+    const pedidosNormalizados = (data ?? []).map((pedido) => {
+      const pedidoTyped = pedido as PedidoFromSupabase;
+      const items = Array.isArray(pedidoTyped.pedido_items)
+        ? pedidoTyped.pedido_items.map((item) => {
+            const materialRaw = item.materiales;
+            const material = Array.isArray(materialRaw)
+              ? materialRaw[0] ?? null
+              : materialRaw ?? null;
+
+            return {
+              material_id: item.material_id ?? null,
+              material_nombre: material?.nombre ?? null,
+            } satisfies NonNullable<Pedido["pedido_items"]>[number];
+          })
+        : [];
+
+      return {
+        ...pedidoTyped,
+        pedido_items: items,
+      } satisfies Pedido;
+    });
+
+    setPedidos(pedidosNormalizados);
     setPedidosLoading(false);
   }, [notify]);
 

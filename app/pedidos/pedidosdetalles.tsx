@@ -65,7 +65,7 @@ export default function PedidoResumen({
 
   const unidadPrincipal = primerMaterial?.materiales?.unidad_medida ?? null;
 
-  const titulo = esPedidoMateriales
+  const tituloBase = esPedidoMateriales
     ? `PEDIDO ${
         primerMaterial?.materiales?.nombre
           ? primerMaterial.materiales.nombre.toUpperCase()
@@ -76,6 +76,10 @@ export default function PedidoResumen({
     : zonaNombre === "Desprese"
     ? "PEDIDO SALMUERA POLLO"
     : "PEDIDO PANIFICADORA";
+
+  const titulo = zonaNombre
+    ? `${tituloBase} ${zonaNombre.toUpperCase()}`
+    : tituloBase;
 
   const encabezadoCantidad = esPedidoMateriales
     ? `CANTIDAD ${
