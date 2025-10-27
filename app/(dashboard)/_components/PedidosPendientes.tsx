@@ -189,9 +189,21 @@ export function PedidosPendientes({
                             items[0];
 
                           const restantes = items.length - 1;
-                          const labelBase =
+                          const baseNombre =
                             materialPrincipal?.material_nombre ??
                             "Material sin nombre";
+
+                          const zonasMaterial = materialPrincipal?.material_id
+                            ? materialesConCobertura.find(
+                                (m) => m.id === materialPrincipal.material_id
+                              )?.zonas ?? []
+                            : [];
+
+                          const zonasLabel = zonasMaterial.length
+                            ? ` (${zonasMaterial.join(", ")})`
+                            : "";
+
+                          const labelBase = `${baseNombre}${zonasLabel}`;
 
                           const label =
                             restantes > 0
