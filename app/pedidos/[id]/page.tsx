@@ -31,6 +31,10 @@ type PedidoItem = {
   } | null;
 };
 
+type PedidoItemQueryResult = Omit<PedidoItem, "materiales"> & {
+  materiales: PedidoItem["materiales"] | PedidoItem["materiales"][];
+};
+
 export default function PedidoEditor() {
   const router = useRouter();
   const { id } = useParams<{ id: string }>();
@@ -44,7 +48,7 @@ export default function PedidoEditor() {
 
   useEffect(() => {
     const fetchData = async () => {
-      const { data: pedido } = await supabase
+      const { data: pedidoData } = await supabase
         .from("pedidos")
         .select(
           `id, fecha_pedido, fecha_entrega, solicitante, estado, total_bultos, total_kg, notas, zona_id,
@@ -53,7 +57,7 @@ export default function PedidoEditor() {
         .eq("id", pedidoId)
         .single();
 
-      const { data: items } = await supabase
+      const { data: rawItems } = await supabase
         .from("pedido_items")
         .select(
           `id, material_id, bultos, kg,
@@ -61,16 +65,22 @@ export default function PedidoEditor() {
         )
         .eq("pedido_id", pedidoId);
 
-      if (pedido) setPedido(pedido);
+      if (pedidoData) setPedido(pedidoData);
 
-      setItems(
-        (items || []).map((it: any) => ({
-          ...it,
-          materiales: Array.isArray(it.materiales)
-            ? it.materiales[0]
-            : it.materiales,
-        }))
-      );
+      const normalizedItems: PedidoItem[] = (
+        (rawItems ?? []) as PedidoItemQueryResult[]
+      ).map((item) => {
+        const material = Array.isArray(item.materiales)
+          ? item.materiales[0] ?? null
+          : item.materiales ?? null;
+
+        return {
+          ...item,
+          materiales: material,
+        };
+      });
+
+      setItems(normalizedItems);
 
       setLoading(false);
     };

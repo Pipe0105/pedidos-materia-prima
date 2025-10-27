@@ -9,7 +9,7 @@ import { NotificationBell } from "@/app/(dashboard)/_components/NotificationBell
 
 export type DashboardHeaderProps = {
   lastUpdated: Date | null;
-  isRefreshing: Boolean;
+  isRefreshing: boolean;
   onRefresh: () => Promise<void> | void;
   notificationProps: ComponentProps<typeof NotificationBell>;
 };
