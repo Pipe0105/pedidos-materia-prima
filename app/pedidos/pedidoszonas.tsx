@@ -151,8 +151,7 @@ export default function PedidosZona({
           .from("pedidos")
           .select(
             `
-          id, fecha_pedido, fecha_entrega, fecha_cobertura_hasta, solicitante, estado, total_bultos, total_kg, notas,
-        pedido_items (
+          id, fecha_pedido, fecha_entrega, solicitante, estado, total_bultos, total_kg, notas,        pedido_items (
           material_id,
           bultos, kg,
           materiales (nombre, unidad_medida)
