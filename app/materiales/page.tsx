@@ -433,6 +433,7 @@ export default function MaterialesPage() {
                       <TableHead>Material</TableHead>
                       <TableHead>Unidad</TableHead>
                       <TableHead>Presentación</TableHead>
+                      <TableHead>Proveedor</TableHead>
                       <TableHead className="text-center">Acciones</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -457,6 +458,8 @@ export default function MaterialesPage() {
                             ? "Litros"
                             : "—"}
                         </TableCell>
+                        <TableCell>{m.proveedor ?? "—"}</TableCell>
+
                         <TableCell className="text-center">
                           <div className="flex h-full w-full justify-center items-center">
                             <Button
@@ -481,7 +484,7 @@ export default function MaterialesPage() {
                     {!items.length && (
                       <TableRow>
                         <TableCell
-                          colSpan={4}
+                          colSpan={5}
                           className="text-center text-sm text-muted-foreground"
                         >
                           No hay materiales en esta zona. Usa el formulario de

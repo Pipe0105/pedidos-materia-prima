@@ -88,6 +88,8 @@ export default function HistorialPage() {
         const pedidosData = (pedidosRes.data ?? []) as PedidoSupabase[];
         const pedidosLimpios: Pedido[] = pedidosData.map((pedido) => ({
           ...pedido,
+          zona_id: pedido.zona_id ? String(pedido.zona_id) : null,
+
           zonas: Array.isArray(pedido.zonas)
             ? { nombre: pedido.zonas[0]?.nombre ?? null }
             : pedido.zonas ?? { nombre: null },
@@ -124,7 +126,12 @@ export default function HistorialPage() {
             );
           });
 
-        setZonas(zonasOrdenadas);
+        setZonas(
+          zonasOrdenadas.map((zona) => ({
+            ...zona,
+            id: String(zona.id),
+          }))
+        );
       }
 
       setLoading(false);
@@ -304,9 +311,13 @@ export default function HistorialPage() {
             </TabsList>
 
             {zonas.map((zona) => {
-              const pedidosZona = filtrados.filter(
-                (pedido) => pedido.zona_id === zona.id
-              );
+              const pedidosZona = filtrados.filter((pedido) => {
+                if (!pedido.zona_id) {
+                  return false;
+                }
+
+                return String(pedido.zona_id) === zona.id;
+              });
 
               return (
                 <TabsContent

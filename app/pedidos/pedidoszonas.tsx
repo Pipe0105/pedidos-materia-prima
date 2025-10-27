@@ -340,8 +340,9 @@ export default function PedidosZona({
       );
 
       setPedidos((prev) => {
-        const actualizados = prev.map((pedido) =>
-          pedido.id === pedidoId ? { ...pedido, estado: "recibido" } : pedido
+        const actualizados = prev.map(
+          (pedido): Pedido =>
+            pedido.id === pedidoId ? { ...pedido, estado: "recibido" } : pedido
         );
         setPedidosCache(zonaId, actualizados);
         return actualizados;
