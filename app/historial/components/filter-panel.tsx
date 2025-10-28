@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { Button } from "@/components/ui/button";
 
 type FilterPanelProps = {
   q: string;
@@ -101,14 +102,17 @@ export function FilterPanel({
           Rango rápido:
         </span>
         {quickOptions.map((option) => (
-          <button
+          <Button
             key={option.label}
             type="button"
+            variant="outline"
+            size="sm"
             onClick={() => onApplyRange(option.desde, option.hasta)}
-            className="rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 transition hover:border-blue-200 hover:bg-blue-100"
+            className="h-8 rounded-full border-blue-200 bg-blue-50 px-3 text-xs font-medium text-blue-700 transition-colors
+            hover:border-blue-300 hover:bg-blue-100 hover:text-blue-800"
           >
             {option.label}
-          </button>
+          </Button>
         ))}
       </div>
     </section>

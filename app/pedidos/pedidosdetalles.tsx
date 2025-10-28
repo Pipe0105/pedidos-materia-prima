@@ -3,6 +3,7 @@ import { useState, useRef } from "react";
 import { toPng } from "html-to-image";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { Button } from "@/components/ui/button";
 
 type UnidadMedida = "bulto" | "unidad" | "litro" | null;
 
@@ -179,7 +180,7 @@ export default function PedidoResumen({
 
   return (
     <>
-      <button
+      <Button
         onClick={() => {
           // calcular reparto automático
           const bultosTotales = pedido.total_bultos ?? 0;
@@ -202,10 +203,10 @@ export default function PedidoResumen({
           ]);
           setOpen(true);
         }}
-        className="rounded bg-blue-600 text-white px-3 py-1 text-sm hover:bg-blue-700"
+        className="gap-2 rounded bg-blue-600 text-white px-3 py-1 text-sm hover:bg-blue-700"
       >
         Ver formato
-      </button>
+      </Button>
       {open && (
         <div
           className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40"
@@ -273,23 +274,23 @@ export default function PedidoResumen({
 
             <div className="flex justify-between gap-2 mt-4 no-export">
               <div className="flex gap-2">
-                <button
+                <Button
                   onClick={descargarPNG}
-                  className="px-3 py-1 rounded border bg-green-600 text-white hover:bg-green-700"
+                  className="rounded bg-green-600 px-3 py-1 text-sm text-white hover:bg-green-700"
                 >
                   Descargar PNG
-                </button>
-                <button
+                </Button>
+                <Button
                   onClick={descargarPDF}
                   className="px-3 py-1 rounded border bg-red-600 text-white hover:bg-red-700"
                 >
                   Descargar PDF
-                </button>
+                </Button>
               </div>
 
               <button
                 onClick={() => setOpen(false)}
-                className="px-3 py-1 rounded border hover:bg-gray-100"
+                className="rounded px-3 py-1 text-sm"
               >
                 Cerrar
               </button>

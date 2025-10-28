@@ -2,9 +2,11 @@
 export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { supabase } from "@/lib/supabase";
-import { useToast } from "@/components/toastprovider";
+
 import MaterialPicker from "@/components/MaterialPicker";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/toastprovider";
+import { supabase } from "@/lib/supabase";
 
 type Pedido = {
   id: string;
@@ -229,14 +231,16 @@ export default function PedidoEditor() {
                     {it.kg ?? "—"}
                   </td>
                   <td className="p-2" align="center">
-                    <button
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-rose-600 hover:text-rose-700"
                       onClick={() =>
                         eliminarItem(it.id, it.materiales?.nombre ?? null)
                       }
-                      className="text-rose-600 hover:underline text-sm"
                     >
                       Eliminar
-                    </button>
+                    </Button>
                   </td>
                 </tr>
               ))}
@@ -250,14 +254,15 @@ export default function PedidoEditor() {
       </div>
 
       <div className="flex gap-3">
-        <button
+        <Button
           onClick={guardarCambios}
           disabled={saving}
-          className="rounded bg-blue-600 text-white px-4 py-2 text-sm hover:bg-blue-700 disabled:opacity-50"
+          className="text-sm disabled:opacity-50"
         >
           {saving ? "Guardando..." : "Guardar cambios"}
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="outline"
           onClick={() =>
             router.push(
               pedido?.zona_id
@@ -265,10 +270,10 @@ export default function PedidoEditor() {
                 : "/pedidos"
             )
           }
-          className="rounded border px-4 py-2 text-sm hover:bg-gray-100"
+          className="text-sm"
         >
           Cancelar
-        </button>
+        </Button>
       </div>
     </main>
   );

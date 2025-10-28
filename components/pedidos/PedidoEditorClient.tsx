@@ -2,9 +2,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/lib/supabase";
-import { round4, show2 } from "@/lib/math";
 import MaterialPicker from "@/components/MaterialPicker";
+import { Button } from "@/components/ui/button";
+import { round4, show2 } from "@/lib/math";
+import { supabase } from "@/lib/supabase";
 
 type Pedido = {
   id: string;
@@ -367,29 +368,34 @@ export default function PedidoEditorClient({ pedidoId }: { pedidoId: string }) {
         <div className="flex items-center gap-2">
           {isEditable && (
             <>
-              <button
-                onClick={guardarTodo}
-                className="rounded-lg bg-gray-900 px-4 py-2 text-sm text-white"
-              >
-                💾 Guardar
-              </button>
-              <button
+              <Button onClick={guardarTodo} className="gap-2">
+                <span role="img" aria-hidden="true"></span>
+                Guardar
+              </Button>
+              <Button
+                variant="outline"
                 onClick={enviar}
-                className="rounded-lg border px-4 py-2 text-sm"
+                className="gap-2"
                 title="Bloquea la edición de ítems"
               >
-                📤 Enviar
-              </button>
+                <span role="img" aria-hidden="true">
+                  📤
+                </span>
+                Enviar
+              </Button>
             </>
           )}
           {pedido.estado === "enviado" && (
-            <button
+            <Button
               onClick={completar}
-              className="rounded-lg bg-emerald-600 px-4 py-2 text-sm text-white"
+              className="gap-2 bg-emerald-600 text-white hover:bg-emerald-700"
               title="Crea entradas de inventario y cierra el pedido"
             >
-              ✅ Completar
-            </button>
+              <span role="img" aria-hidden="true">
+                ✅
+              </span>
+              Completar
+            </Button>
           )}
         </div>
       </header>
@@ -448,12 +454,9 @@ export default function PedidoEditorClient({ pedidoId }: { pedidoId: string }) {
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">Ítems</h2>
           {isEditable && (
-            <button
-              onClick={addFila}
-              className="rounded-lg border px-3 py-2 text-sm"
-            >
+            <Button variant="outline" onClick={addFila} className="gap-1">
               + Agregar ítem
-            </button>
+            </Button>
           )}
         </div>
 
@@ -505,12 +508,15 @@ export default function PedidoEditorClient({ pedidoId }: { pedidoId: string }) {
                   </td>
                   <td className="p-2">
                     {isEditable && (
-                      <button
-                        className="rounded-lg border px-2 py-1"
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8 rounded-lg"
                         onClick={() => eliminarFila(idx)}
+                        aria-label="Eliminar fila"
                       >
                         ✕
-                      </button>
+                      </Button>
                     )}
                   </td>
                 </tr>

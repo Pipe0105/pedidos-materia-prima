@@ -1,4 +1,5 @@
 import { Fragment } from "react";
+import { Button } from "@/components/ui/button";
 
 type FilterSummaryProps = {
   filters: {
@@ -17,26 +18,30 @@ export function FilterSummary({ filters, onClearAll }: FilterSummaryProps) {
       <span className="font-medium">Filtros activos:</span>
       {filters.map((filter) => (
         <Fragment key={`${filter.label}-${filter.value}`}>
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-2 rounded-full border-blue-200 bg-white px-3 text-xs font-medium text-blue-700
+            shadow-sm transition-colors hover:border-blue-300 hover:bg-blue-50"
             onClick={filter.onRemove}
-            className="flex items-center gap-2 rounded-full border border-blue-200 bg-white px-3 py-1 text-xs font-medium text-blue-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-50"
           >
             <span className="text-[11px] uppercase tracking-wide text-blue-400">
               {filter.label}
             </span>
             {filter.value}
             <span className="text-blue-300">×</span>
-          </button>
+          </Button>
         </Fragment>
       ))}
-      <button
+      <Button
         type="button"
+        variant="link"
+        className="ml-auto text-xs font-medium text-blue-600 hover:text-blue-700"
         onClick={onClearAll}
-        className="ml-auto text-xs font-medium text-blue-600 underline-offset-2 transition hover:underline"
       >
         Limpiar filtros
-      </button>
+      </Button>
     </div>
   );
 }

@@ -1,8 +1,8 @@
 import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 
+import { Button } from "@/components/ui/button";
 import { fmtNum } from "@/lib/format";
-
 import { PedidoEstadoBadge } from "@/app/historial/components/pedido-estado-badge";
 import type { Pedido } from "@/app/historial/types";
 
@@ -120,20 +120,26 @@ export function PedidosTable({ pedidos }: PedidosTableProps) {
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="inline-flex items-center gap-2">
-                      <button
+                      <Button
                         type="button"
+                        variant="outline"
+                        size="sm"
+                        className="rounded-full border-blue-200 bg-blue-50 text-xs font-semibold text-blue-700 transition-colors
+                        hover:border-blue-300 hover:bg-blue-100"
                         onClick={() => router.push(`/pedidos/${pedido.id}/ver`)}
-                        className="rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 transition hover:border-blue-200 hover:bg-blue-100"
                       >
                         Ver detalle
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         type="button"
+                        variant="outline"
+                        size="sm"
+                        className="rounded-full border-amber-200 bg-amber-50 text-xs font-semibold text-amber-700
+                        transition-colors hover:border-amber-300 hover:bg-amber-100"
                         onClick={() => router.push(`/pedidos/${pedido.id}`)}
-                        className="rounded-full border border-amber-100 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700 transition hover:border-amber-200 hover:bg-amber-100"
                       >
                         Editar
-                      </button>
+                      </Button>
                     </div>
                   </td>
                 </tr>

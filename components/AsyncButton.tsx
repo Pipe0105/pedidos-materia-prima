@@ -1,26 +1,26 @@
 "use client";
 import { useState } from "react";
 
-type Props = {
-  onClick: () => Promise<any>;
+import { Button } from "@/components/ui/button";
+
+type AsyncButtonProps = {
+  onClick: () => Promise<unknown>;
   children: React.ReactNode;
-  className?: string;
   busyText?: string;
-  disabled?: boolean;
-};
+} & Omit<React.ComponentProps<typeof Button>, "onClick">;
 
 export function AsyncButton({
   onClick,
   children,
-  className = "rounded-lg border px-3 py-2 text-sm",
   busyText = "Procesando…",
-  disabled = false,
-}: Props) {
+  disabled,
+  ...props
+}: AsyncButtonProps) {
   const [loading, setLoading] = useState(false);
   return (
-    <button
-      className={`${className} ${loading || disabled ? "opacity-60 cursor-not-allowed" : ""}`}
-      disabled={loading || disabled}
+    <Button
+      disabled={disabled || loading}
+      {...props}
       onClick={async () => {
         try {
           setLoading(true);
@@ -31,6 +31,6 @@ export function AsyncButton({
       }}
     >
       {loading ? busyText : children}
-    </button>
+    </Button>
   );
 }

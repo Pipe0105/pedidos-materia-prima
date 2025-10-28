@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toastprovider";
+import { Button } from "@/components/ui/button";
 
 type Pedido = {
   id: string;
@@ -62,12 +63,9 @@ export default function PedidoEditorClient({ pedidoId }: { pedidoId: string }) {
   return (
     <div className="space-y-4">
       {/* Botón guardar */}
-      <button
-        onClick={guardarTodo}
-        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
-      >
+      <Button onClick={guardarTodo} className="px-4 py-2">
         Guardar pedido
-      </button>
+      </Button>
     </div>
   );
 }
