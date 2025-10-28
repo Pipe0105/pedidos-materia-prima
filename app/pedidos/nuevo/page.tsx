@@ -26,7 +26,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useToast } from "@/components/toastprovider";
-import { supabase } from "@/lib/supabase";
 
 function LoadingNuevoPedido() {
   return (
@@ -91,7 +90,7 @@ function NuevoPedidoPageContent() {
             ? meta.presentacion_kg_por_bulto || 0
             : meta.unidad_medida === "litro"
             ? 1 // si 1 litro = 1kg
-            : 0, // unidades
+            : null,
         materiales: meta,
       },
     ]);
@@ -107,59 +106,68 @@ function NuevoPedidoPageContent() {
       return;
     }
 
-    setSaving(true);
+    if (items.some((item) => item.bultos <= 0)) {
+      notify("Todos los materiales deben tener al menos 1 bulto.", "error");
 
-    const hoy = new Date().toISOString().slice(0, 10);
-
-    const { data: pedido, error } = await supabase
-      .from("pedidos")
-      .insert({
-        zona_id: zonaId,
-        solicitante,
-        fecha_pedido: hoy,
-        fecha_entrega: fechaEntrega
-          ? fechaEntrega.toISOString().slice(0, 10)
-          : null,
-        notas,
-        estado: "enviado",
-        total_bultos: items.reduce((sum, it) => sum + it.bultos, 0),
-        total_kg: items.reduce((sum, it) => sum + (it.kg ?? 0), 0),
-      })
-      .select("id")
-      .single();
-
-    if (error) {
-      setSaving(false);
-      notify("Error creando pedido: " + error.message, "error");
       return;
     }
 
-    const pedidoId = pedido.id;
-    const itemsToInsert = items.map((it) => ({
-      pedido_id: pedidoId,
-      material_id: it.material_id,
-      bultos: it.bultos,
-      kg: it.kg,
-    }));
-
-    const { error: errorItems } = await supabase
-      .from("pedido_items")
-      .insert(itemsToInsert);
-
-    setSaving(false);
-
-    if (errorItems) {
-      notify("Error agregando materiales: " + errorItems.message, "error");
-    } else {
-      notify("Pedido creado ✅", "success");
-      if (zonaId) {
-        invalidatePedidosCache(zonaId);
-        window.dispatchEvent(
-          new CustomEvent("pedidos:invalidate", { detail: { zonaId } })
-        );
+    const ids = new Set<string>();
+    for (const item of items) {
+      if (ids.has(item.material_id)) {
+        notify("Hay materiales repetidos en el pedido.", "error");
+        return;
       }
+      ids.add(item.material_id);
+    }
+
+    setSaving(true);
+
+    try {
+      const response = await fetch("/api/pedidos", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          zonaId,
+          solicitante: solicitante.trim(),
+          fechaEntrega: fechaEntrega
+            ? fechaEntrega.toISOString().slice(0, 10)
+            : "",
+          notas: notas.trim(),
+          items: items.map((item) => ({
+            materialId: item.material_id,
+            bultos: item.bultos,
+            kg: item.kg,
+          })),
+        }),
+      });
+
+      const payload = (await response.json().catch(() => null)) as {
+        error?: string;
+      } | null;
+
+      if (!response.ok) {
+        const mensaje =
+          (payload && (payload.error as string)) ||
+          "No se pudo guardar el pedido";
+        notify(mensaje, "error");
+        return;
+      }
+
+      notify("Pedido creado ✅", "success");
+      invalidatePedidosCache(zonaId);
+      window.dispatchEvent(
+        new CustomEvent("pedidos:invalidate", { detail: { zonaId } })
+      );
       const redirecUrl = zonaId ? `/pedidos?zonaId=${zonaId}` : "/pedidos";
       router.push(redirecUrl);
+    } catch (error) {
+      console.error("guardarPedido", error);
+      notify("Error creando pedido. Intenta nuevamente.", "error");
+    } finally {
+      setSaving(false);
     }
   }
 
