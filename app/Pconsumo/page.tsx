@@ -20,8 +20,8 @@ type ZonaInfo = {
 };
 
 const ZONA_LABELS: Record<ZonaKey, string> = {
-  desprese: "Desprese",
-  desposte: "Desposte",
+  desprese: "Desprese Salmuera",
+  desposte: "Desposte Salmuera",
 };
 
 export default function PconsumoPage() {
@@ -187,12 +187,10 @@ export default function PconsumoPage() {
     <PageContainer className="space-y-8">
       <header className="rounded-2xl border bg-gradient-to-r from-[#1F4F9C] via-[#1F4F9C]/90 to-[#29B8A6]/80 p-6 text-white shadow-lg">
         <div className="space-y-2">
-          <p className="text-sm uppercase tracking-[0.2em] text-white/80">
-            Consumo manual
-          </p>
-          <h1 className="text-3xl font-semibold">Pedidos de materia prima</h1>
+          <h1 className="text-3xl font-semibold">Consumo Diario de Salmuera</h1>
           <p className="text-sm text-white/80">
-            Selecciona la planta para registrar un consumo manual de inventario.
+            Selecciona la planta para registrar un consumo manual de salmuera en
+            el inventario.
           </p>
         </div>
       </header>
@@ -207,20 +205,13 @@ export default function PconsumoPage() {
             <Button
               key={key}
               onClick={() => abrirConsumo(key)}
-              className="flex h-40 w-full flex-col items-start justify-between rounded-2xl border border-slate-200 bg-white p-6 text-left text-slate-900 shadow-sm transition hover:-translate-y-1 hover:shadow-xl focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 disabled:translate-y-0 disabled:border-slate-200/80 disabled:bg-slate-100/70 disabled:text-slate-400 disabled:shadow-none"
+              className="flex h-40 w-full flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-6 text-center text-slate-900 shadow-sm transition hover:-translate-y-1 hover:shadow-xl focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 disabled:translate-y-0 disabled:border-slate-200/80 disabled:bg-slate-100/70 disabled:text-slate-400 disabled:shadow-none"
               disabled={!disponible || guardando}
             >
-              <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+              <span className="text-lg font-semibold  uppercase tracking-[0.2em] text-slate-400">
                 Zona
               </span>
-              <span className="text-2xl font-semibold">{ZONA_LABELS[key]}</span>
-              <span className="text-sm text-slate-500">
-                {disponible
-                  ? `${materialesActivos} material${
-                      materialesActivos === 1 ? "" : "es"
-                    } activos`
-                  : "Sin materiales activos disponibles"}
-              </span>
+              <span className="text-3xl font-semibold">{ZONA_LABELS[key]}</span>
             </Button>
           );
         })}
