@@ -829,8 +829,37 @@ export default function PedidosZona({
                     sumarDia = false
                   ): string => {
                     if (!fecha) return "—";
-                    const date = new Date(fecha);
-                    if (sumarDia) date.setDate(date.getDate() + 1);
+
+                    const date = (() => {
+                      if (fecha instanceof Date) {
+                        return new Date(fecha.getTime());
+                      }
+
+                      const isoDateOnly = /^(\d{4})-(\d{2})-(\d{2})$/;
+                      const match =
+                        typeof fecha === "string"
+                          ? fecha.match(isoDateOnly)
+                          : null;
+
+                      if (match) {
+                        const [, year, month, day] = match;
+                        return new Date(
+                          Number(year),
+                          Number(month) - 1,
+                          Number(day)
+                        );
+                      }
+
+                      const parsed = new Date(fecha);
+                      return Number.isNaN(parsed.getTime()) ? null : parsed;
+                    })();
+
+                    if (!date) return "—";
+
+                    if (sumarDia) {
+                      date.setDate(date.getDate());
+                    }
+
                     return date.toLocaleDateString("es-ES");
                   };
 
