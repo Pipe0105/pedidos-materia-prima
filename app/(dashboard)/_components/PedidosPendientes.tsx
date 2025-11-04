@@ -157,6 +157,7 @@ export function PedidosPendientes({
                         const coberturaDate = new Date(
                           Date.now() + coberturaDias * 24 * 60 * 60 * 1000
                         );
+                        coberturaDate.setDate(coberturaDate.getDate() + 1);
 
                         return fmtDate(coberturaDate);
                       })()}

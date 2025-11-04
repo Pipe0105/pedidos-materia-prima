@@ -224,7 +224,7 @@ export default function PedidosZona({
             const coberturaDate = new Date();
             coberturaDate.setHours(0, 0, 0, 0);
             coberturaDate.setDate(
-              coberturaDate.getDate() + Math.ceil(coberturaDias)
+              coberturaDate.getDate() + Math.ceil(coberturaDias) + 1
             );
             acc.set(item.material_id, coberturaDate.toISOString());
           }

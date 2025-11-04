@@ -249,8 +249,8 @@ export function useDashboardData({
     async (id: string) => {
       const pedido = pedidos.find((p) => p.id === id);
       const confirmMessage = pedido
-        ? `¿Confirmas completar el pedido #${pedido.id}?`
-        : "¿Confirmas completar este pedido?";
+        ? `¿Completar este pedido?`
+        : "¿Completar este pedido?";
       if (typeof window !== "undefined" && !window.confirm(confirmMessage)) {
         return;
       }
