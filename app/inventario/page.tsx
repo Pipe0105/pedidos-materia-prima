@@ -66,6 +66,7 @@ function InventarioPageContent() {
   const [valorConsumo, setValorConsumo] = useState("");
   const [deshaciendoPedidoMaterialId, setDeshaciendoPedidoMaterialId] =
     useState<string | null>(null);
+  const deshaciendoPedidoRef = useRef(false);
 
   const abrirConsumoManual = (id: string, nombre: string, unidad: Unidad) => {
     setMaterialConsumo({ id, nombre, unidad });
@@ -357,6 +358,9 @@ function InventarioPageContent() {
 
   const deshacerUltimoPedido = useCallback(
     async (materialId: string, materialNombre: string) => {
+      if (deshaciendoPedidoRef.current) {
+        return;
+      }
       if (!zonaId) {
         alert("Selecciona una zona válida antes de deshacer un pedido.");
         return;
@@ -368,6 +372,7 @@ function InventarioPageContent() {
 
       if (!confirmar) return;
 
+      deshaciendoPedidoRef.current = true;
       setDeshaciendoPedidoMaterialId(materialId);
 
       try {
@@ -535,6 +540,7 @@ function InventarioPageContent() {
         console.error(error);
         alert("❌ Ocurrió un error inesperado al deshacer el pedido.");
       } finally {
+        deshaciendoPedidoRef.current = false;
         setDeshaciendoPedidoMaterialId(null);
       }
     },

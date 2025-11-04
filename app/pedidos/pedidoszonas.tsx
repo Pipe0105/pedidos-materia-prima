@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { fmtNum } from "@/lib/format";
@@ -123,7 +123,7 @@ export default function PedidosZona({
   const [q, setQ] = useState("");
   const [estadoFiltro, setEstadoFiltro] = useState<Pedido["estado"] | "">("");
   const [mostrarCompletados, setMostrarCompletados] = useState(false);
-  const [deshaciendoPedido, setDeshaciendoPedido] = useState(false);
+  const deshaciendoPedidoRef = useRef(false);
 
   const resumenPorEstado = useMemo(() => {
     return pedidos.reduce<Record<Pedido["estado"], number>>(
@@ -302,7 +302,7 @@ export default function PedidosZona({
   }, [cargarPedidos]);
 
   const deshacerUltimoPedido = useCallback(async () => {
-    if (deshaciendoPedido) return;
+    if (deshaciendoPedidoRef.current) return;
 
     const confirmar = window.confirm(
       "¿Deseas deshacer el último pedido completado de esta planta?"
@@ -310,7 +310,7 @@ export default function PedidosZona({
 
     if (!confirmar) return;
 
-    setDeshaciendoPedido(true);
+    deshaciendoPedidoRef.current = true;
 
     try {
       const { data: ultimoMovimiento, error: ultimoError } = await supabase
@@ -501,9 +501,9 @@ export default function PedidosZona({
       console.error(error);
       notify("Ocurrió un error inesperado al deshacer el pedido.", "error");
     } finally {
-      setDeshaciendoPedido(false);
+      deshaciendoPedidoRef.current = false;
     }
-  }, [cargarPedidos, deshaciendoPedido, notify, zonaId]);
+  }, [cargarPedidos, notify, zonaId]);
   const filtrados = useMemo(() => {
     return pedidos
       .filter((p) =>
