@@ -83,7 +83,7 @@ export function PedidosTable({ pedidos }: PedidosTableProps) {
                   className="odd:bg-white even:bg-slate-50/60 text-center"
                 >
                   <td className="px-4 py-3 text-slate-700">
-                    {formatearFecha(pedido.fecha_pedido)}
+                    {formatearFecha(pedido.fecha_pedido, true)}
                   </td>
                   <td className="px-4 py-3 text-slate-700">
                     {pedido.fecha_entrega

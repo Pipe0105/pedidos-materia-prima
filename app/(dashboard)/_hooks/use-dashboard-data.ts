@@ -254,6 +254,152 @@ export function useDashboardData({
       if (typeof window !== "undefined" && !window.confirm(confirmMessage)) {
         return;
       }
+
+      const { data: pedidoDetalle, error: pedidoDetalleError } = await supabase
+        .from("pedidos")
+        .select(
+          `zona_id,
+           pedido_items (
+             material_id,
+             bultos,
+             kg,
+             materiales (
+               unidad_medida,
+               presentacion_kg_por_bulto
+             )
+           )`
+        )
+        .eq("id", id)
+        .maybeSingle();
+
+      if (pedidoDetalleError) {
+        notify(
+          "No pudimos obtener los detalles del pedido para completarlo.",
+          "error"
+        );
+        return;
+      }
+
+      if (!pedidoDetalle) {
+        notify("No encontramos el pedido seleccionado.", "error");
+        return;
+      }
+
+      if (!pedidoDetalle.zona_id) {
+        notify(
+          "El pedido no tiene una planta asociada para actualizar el inventario.",
+          "error"
+        );
+        return;
+      }
+
+      const zonaId = pedidoDetalle.zona_id as string;
+
+      type PedidoItemDetalle = {
+        material_id: string | null;
+        bultos: number | null;
+        kg: number | null;
+        materiales:
+          | {
+              unidad_medida: "bulto" | "unidad" | "litro" | null;
+              presentacion_kg_por_bulto: number | null;
+            }
+          | {
+              unidad_medida: "bulto" | "unidad" | "litro" | null;
+              presentacion_kg_por_bulto: number | null;
+            }[]
+          | null;
+      };
+
+      const items = Array.isArray(pedidoDetalle.pedido_items)
+        ? pedidoDetalle.pedido_items.map((item) => {
+            const itemTyped = item as PedidoItemDetalle;
+            const material = Array.isArray(itemTyped.materiales)
+              ? itemTyped.materiales[0] ?? null
+              : itemTyped.materiales ?? null;
+
+            return {
+              material_id: itemTyped.material_id,
+              bultos: Number(itemTyped.bultos ?? 0),
+              kg: typeof itemTyped.kg === "number" ? itemTyped.kg : null,
+              materiales: material,
+            };
+          })
+        : [];
+
+      if (!items.length) {
+        notify(
+          "El pedido no tiene materiales para ingresar al inventario.",
+          "error"
+        );
+        return;
+      }
+
+      type MovimientoInventario = {
+        zona_id: string;
+        material_id: string | null;
+        fecha: string;
+        tipo: "entrada";
+        bultos: number;
+        kg: number;
+        ref_tipo: "pedido";
+        ref_id: string;
+        notas: string;
+      };
+
+      const movimientos = items.map<MovimientoInventario>((item) => {
+        const unidad = item.materiales?.unidad_medida ?? null;
+        const presentacion = item.materiales?.presentacion_kg_por_bulto ?? null;
+
+        let kg = 0;
+
+        if (unidad === "bulto") {
+          kg = item.kg ?? (presentacion ? item.bultos * presentacion : 0);
+        } else if (unidad === "litro") {
+          kg = item.kg ?? item.bultos;
+        } else {
+          kg = item.kg ?? (presentacion ? item.bultos * presentacion : 0);
+        }
+
+        return {
+          zona_id: zonaId,
+          material_id: item.material_id,
+          fecha: new Date().toISOString().slice(0, 10),
+          tipo: "entrada",
+          bultos: item.bultos,
+          kg,
+          ref_tipo: "pedido",
+          ref_id: id,
+          notas: "Ingreso por pedido completado",
+        };
+      });
+
+      type MovimientoInventarioConMaterial = MovimientoInventario & {
+        material_id: string;
+      };
+
+      const movimientosValidos = movimientos.filter(
+        (movimiento): movimiento is MovimientoInventarioConMaterial =>
+          typeof movimiento.material_id === "string" &&
+          movimiento.material_id.length > 0
+      );
+
+      if (!movimientosValidos.length) {
+        notify(
+          "No pudimos determinar los materiales para actualizar el inventario.",
+          "error"
+        );
+        return;
+      }
+
+      const { error: errMov } = await supabase
+        .from("movimientos_inventario")
+        .insert(movimientosValidos);
+
+      if (errMov) {
+        notify("Error registrando inventario: " + errMov.message, "error");
+        return;
+      }
       const { error } = await supabase
         .from("pedidos")
         .update({ estado: "completado" })
@@ -265,11 +411,18 @@ export function useDashboardData({
       }
 
       setPedidos((prev) => prev.filter((p) => p.id !== id));
-      await cargarPedidos();
+      await Promise.all([cargarPedidos(), cargarInventario()]);
       setLastUpdated(new Date());
-      notify("Pedido completado ✅", "success");
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("pedidos:invalidate", {
+            detail: { zonaId },
+          })
+        );
+      }
+      notify("Pedido completado ✅, inventario actualizado", "success");
     },
-    [cargarPedidos, notify, pedidos]
+    [cargarInventario, cargarPedidos, notify, pedidos]
   );
 
   return {
