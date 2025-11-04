@@ -125,14 +125,29 @@ export default function PedidoEditor() {
     };
   }, [items]);
 
+  const parseDateValue = (value: string) => {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      const [year, month, day] = value.split("-").map(Number);
+      return new Date(year, month - 1, day);
+    }
+
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return null;
+
+    return parsed;
+  };
+
   const formatDate = (value: string | null) => {
     if (!value) return "Sin fecha";
     try {
+      const parsedDate = parseDateValue(value);
+      if (!parsedDate) return value;
+
       return new Intl.DateTimeFormat("es-CL", {
         year: "numeric",
         month: "short",
         day: "2-digit",
-      }).format(new Date(value));
+      }).format(parsedDate);
     } catch {
       return value;
     }
@@ -226,15 +241,7 @@ export default function PedidoEditor() {
                   Fecha estimada
                 </dt>
                 <dd className="text-base font-semibold">
-                  {pedido.fecha_entrega
-                    ? formatDate(
-                        new Date(
-                          new Date(pedido.fecha_entrega).setDate(
-                            new Date(pedido.fecha_entrega).getDate() + 1
-                          )
-                        ).toISOString()
-                      )
-                    : "Sin fecha"}
+                  {formatDate(pedido.fecha_entrega)}
                 </dd>
               </div>
               <div>
