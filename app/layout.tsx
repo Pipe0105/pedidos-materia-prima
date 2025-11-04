@@ -42,12 +42,18 @@ export default function RootLayout({
           {!esLogin && (
             <header className="border-b bg-white">
               <nav className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
-                <Link
-                  href="/"
-                  className="font-semibold text-slate-900 text-base "
-                >
-                  Pedidos MP
-                </Link>
+                {esPconsumo ? (
+                  <span className="font-semibold text-slate-900 text-base">
+                    Pedidos MP
+                  </span>
+                ) : (
+                  <Link
+                    href="/"
+                    className="font-semibold text-slate-900 text-base "
+                  >
+                    Pedidos MP
+                  </Link>
+                )}
                 {!esPconsumo && (
                   <div className="flex items-center gap-2 sm:gap-4">
                     <div className="hidden items-center gap-4 text-sm sm:flex">
