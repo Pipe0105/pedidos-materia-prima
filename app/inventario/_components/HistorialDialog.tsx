@@ -58,8 +58,12 @@ export function HistorialDialog({
                 movimientos.map((movimientos, index) => (
                   <TableRow key={`${movimientos.created_at}-${index}`}>
                     <TableCell className="text-sm text-muted-foreground">
-                      {new Date(movimientos.created_at).toLocaleDateString(
-                        "es-CO"
+                      {new Date(movimientos.created_at).toLocaleString(
+                        "es-CO",
+                        {
+                          dateStyle: "short",
+                          timeStyle: "short",
+                        }
                       )}
                     </TableCell>
                     <TableCell className="capitalize">
