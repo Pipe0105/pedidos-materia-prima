@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { getSupabaseAdmin } from "@/lib/supabasedamin";
+import { getLocalDateISO } from "@/lib/utils";
 
 type MaterialRegistro = {
   id: string;
@@ -246,7 +247,7 @@ export async function POST(request: NextRequest) {
       0
     );
 
-    const fechaPedido = new Date().toISOString().slice(0, 10);
+    const fechaPedido = getLocalDateISO();
 
     const { data: pedidoInsert, error: pedidoError } = await supabaseAdmin
       .from("pedidos")

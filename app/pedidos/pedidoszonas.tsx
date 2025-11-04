@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { fmtNum } from "@/lib/format";
 import { shouldRetryEstadoRecibido } from "@/lib/pedidos";
+import { getLocalDateISO } from "@/lib/utils";
 import { useToast } from "@/components/toastprovider";
 import { Button } from "@/components/ui/button";
 import { calcularConsumoDiarioKg } from "@/lib/consumo";
@@ -393,8 +394,7 @@ export default function PedidosZona({
         return;
       }
 
-      const fechaActual = new Date().toISOString().slice(0, 10);
-
+      const fechaActual = getLocalDateISO();
       const movimientosReverso = movimientosPedido.map((mov) => ({
         zona_id: zonaId,
         material_id: mov.material_id,
@@ -565,7 +565,7 @@ export default function PedidosZona({
       return {
         zona_id: zonaId,
         material_id: item.material_id,
-        fecha: new Date().toISOString().slice(0, 10),
+        fecha: getLocalDateISO(),
         tipo: "entrada",
         bultos: item.bultos,
         kg,
