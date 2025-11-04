@@ -184,21 +184,47 @@ export default function PconsumoPage() {
   }, [materialConsumo, valorConsumo, zonaSeleccionada]);
 
   return (
-    <PageContainer className="flex min-h-screen flex-col items-center justify-center">
-      <div className="flex flex-col items-center gap-10">
-        <div className="grid w-full max-w-lg gap-6 sm:grid-cols-2">
-          {(Object.keys(ZONA_LABELS) as ZonaKey[]).map((key) => (
+    <PageContainer className="space-y-8">
+      <header className="rounded-2xl border bg-gradient-to-r from-[#1F4F9C] via-[#1F4F9C]/90 to-[#29B8A6]/80 p-6 text-white shadow-lg">
+        <div className="space-y-2">
+          <p className="text-sm uppercase tracking-[0.2em] text-white/80">
+            Consumo manual
+          </p>
+          <h1 className="text-3xl font-semibold">Pedidos de materia prima</h1>
+          <p className="text-sm text-white/80">
+            Selecciona la planta para registrar un consumo manual de inventario.
+          </p>
+        </div>
+      </header>
+
+      <section className="grid gap-4 sm:grid-cols-2">
+        {(Object.keys(ZONA_LABELS) as ZonaKey[]).map((key) => {
+          const zona = zonas[key];
+          const materialesActivos = zona?.materiales.length ?? 0;
+          const disponible = Boolean(zona && materialesActivos > 0);
+
+          return (
             <Button
               key={key}
               onClick={() => abrirConsumo(key)}
-              className="h-32 rounded-2xl text-lg font-semibold shadow-lg"
-              disabled={!zonas[key] || guardando}
+              className="flex h-40 w-full flex-col items-start justify-between rounded-2xl border border-slate-200 bg-white p-6 text-left text-slate-900 shadow-sm transition hover:-translate-y-1 hover:shadow-xl focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 disabled:translate-y-0 disabled:border-slate-200/80 disabled:bg-slate-100/70 disabled:text-slate-400 disabled:shadow-none"
+              disabled={!disponible || guardando}
             >
-              {ZONA_LABELS[key]}
+              <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+                Zona
+              </span>
+              <span className="text-2xl font-semibold">{ZONA_LABELS[key]}</span>
+              <span className="text-sm text-slate-500">
+                {disponible
+                  ? `${materialesActivos} material${
+                      materialesActivos === 1 ? "" : "es"
+                    } activos`
+                  : "Sin materiales activos disponibles"}
+              </span>
             </Button>
-          ))}
-        </div>
-      </div>
+          );
+        })}
+      </section>
 
       <ConsumoManualDialog
         open={showConsumo}
