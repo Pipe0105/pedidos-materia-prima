@@ -367,6 +367,32 @@ export default function PedidosZona({
         return;
       }
 
+      const { data: reversionPrevia, error: reversionError } = await supabase
+        .from("movimientos_inventario")
+        .select("id")
+        .eq("zona_id", zonaId)
+        .eq("ref_tipo", "pedido_deshacer")
+        .eq("ref_id", pedidoId)
+        .limit(1)
+        .returns<{ id: string }[]>();
+
+      if (reversionError) {
+        console.error(reversionError);
+        notify(
+          "No pudimos verificar si el pedido ya había sido deshecho anteriormente.",
+          "error"
+        );
+        return;
+      }
+
+      if (reversionPrevia && reversionPrevia.length > 0) {
+        notify(
+          "Este pedido ya fue deshecho anteriormente. No es posible repetir la operación.",
+          "warning"
+        );
+        return;
+      }
+
       const { data: movimientosPedido, error: movimientosError } =
         await supabase
           .from("movimientos_inventario")
