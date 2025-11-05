@@ -366,13 +366,17 @@ function InventarioPageContent() {
         return;
       }
 
+      deshaciendoPedidoRef.current = true;
+
       const confirmar = window.confirm(
         `¿Deseas deshacer el último pedido completado de ${materialNombre} en esta zona?`
       );
 
-      if (!confirmar) return;
+      if (!confirmar) {
+        deshaciendoPedidoRef.current = false;
+        return;
+      }
 
-      deshaciendoPedidoRef.current = true;
       setDeshaciendoPedidoMaterialId(materialId);
 
       try {

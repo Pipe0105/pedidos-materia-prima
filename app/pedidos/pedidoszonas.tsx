@@ -304,13 +304,16 @@ export default function PedidosZona({
   const deshacerUltimoPedido = useCallback(async () => {
     if (deshaciendoPedidoRef.current) return;
 
+    deshaciendoPedidoRef.current = true;
+
     const confirmar = window.confirm(
       "¿Deseas deshacer el último pedido completado de esta planta?"
     );
 
-    if (!confirmar) return;
-
-    deshaciendoPedidoRef.current = true;
+    if (!confirmar) {
+      deshaciendoPedidoRef.current = false;
+      return;
+    }
 
     try {
       const { data: ultimoMovimiento, error: ultimoError } = await supabase
