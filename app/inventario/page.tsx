@@ -354,19 +354,20 @@ function InventarioPageContent() {
 
         let coberturaDias: number | null = null;
 
-        if (consumoUnidades) {
-          coberturaDias =
-            consumoUnidades > 0
-              ? stockBultosDisponibles / consumoUnidades
-              : null;
+        if (consumoUnidades && consumoUnidades > 0) {
+          const diasCalculados = stockBultosDisponibles / consumoUnidades;
+          if (Number.isFinite(diasCalculados)) {
+            coberturaDias = Math.max(0, Math.floor(diasCalculados));
+          }
         } else if (consumoKg && consumoKg > 0) {
-          coberturaDias = stockKgDisponibles / consumoKg;
+          const diasCalculados = stockKgDisponibles / consumoKg;
+          if (Number.isFinite(diasCalculados)) {
+            coberturaDias = Math.max(0, Math.floor(diasCalculados));
+          }
         }
 
-        const cobertura =
-          coberturaDias != null && Number.isFinite(coberturaDias)
-            ? Math.floor(coberturaDias)
-            : null;
+        const cobertura = coberturaDias;
+
         let hasta: string | null = null;
 
         if (

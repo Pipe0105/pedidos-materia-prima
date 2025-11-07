@@ -200,7 +200,10 @@ export default function PedidosZona({
                 : null;
 
             if (consumo) {
-              coberturaDias = item.stock_bultos / consumo;
+              const diasCalculados = item.stock_bultos / consumo;
+              if (Number.isFinite(diasCalculados)) {
+                coberturaDias = Math.max(0, Math.floor(diasCalculados));
+              }
             }
           } else {
             const consumoKg = calcularConsumoDiarioKg({
@@ -211,7 +214,10 @@ export default function PedidosZona({
             });
 
             if (consumoKg && consumoKg > 0) {
-              coberturaDias = item.stock_kg / consumoKg;
+              const diasCalculados = item.stock_kg / consumoKg;
+              if (Number.isFinite(diasCalculados)) {
+                coberturaDias = Math.max(0, Math.floor(diasCalculados));
+              }
             }
           }
 

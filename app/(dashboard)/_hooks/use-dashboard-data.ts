@@ -202,7 +202,10 @@ export function useDashboardData({
               ? item.tasaConsumoDiariaKg
               : null;
           if (consumoUnidades) {
-            cobertura = item.stockBultos / consumoUnidades;
+            const diasCalculados = item.stockBultos / consumoUnidades;
+            if (Number.isFinite(diasCalculados)) {
+              cobertura = Math.max(0, Math.floor(diasCalculados));
+            }
           }
         } else {
           const consumoKg = calcularConsumoDiarioKg({
@@ -212,7 +215,10 @@ export function useDashboardData({
             tasa_consumo_diaria_kg: item.tasaConsumoDiariaKg,
           });
           if (consumoKg) {
-            cobertura = item.stockKg / consumoKg;
+            const diasCalculados = item.stockKg / consumoKg;
+            if (Number.isFinite(diasCalculados)) {
+              cobertura = Math.max(0, Math.floor(diasCalculados));
+            }
           }
         }
 
