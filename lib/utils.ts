@@ -12,17 +12,18 @@ export function getLocalDateISO(date: Date = new Date()) {
 }
 
 const DOMINGO = 0;
+const SABADO = 6;
 
 /**
  * Suma una cantidad de días evitando contar los domingos.
- * La fecha resultante siempre cae en un día distinto a domingo.
+ * La fecha resultante siempre cae en un día hábil (lunes a viernes).
  */
 export function sumarDiasSinDomingos(fechaInicio: Date, dias: number): Date {
   const resultado = new Date(fechaInicio);
   resultado.setHours(0, 0, 0, 0);
 
-  if (resultado.getDay() === DOMINGO) {
-    resultado.setDate(resultado.getDate() + 1);
+  while (resultado.getDay() === DOMINGO || resultado.getDay() === SABADO) {
+    resultado.setDate(resultado.getDate() - 1);
   }
 
   let restantes = Math.max(0, Math.floor(dias));
@@ -50,7 +51,8 @@ type CalcularFechaCoberturaOptions = {
 
 /**
  * Calcula la fecha de cobertura sumando los días estimados y días extra,
- * sin contar los domingos en el proceso.
+ * sin contar los domingos en el proceso y ajustando la fecha final
+ * al día hábil anterior si cae en fin de semana.
  */
 export function calcularFechaCobertura({
   coberturaDias,
