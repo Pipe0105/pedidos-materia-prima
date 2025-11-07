@@ -230,7 +230,6 @@ export default function PedidosZona({
             const coberturaDate = calcularFechaCobertura({
               coberturaDias,
               fechaInicio: new Date(),
-              diasExtra: 1,
             });
             acc.set(item.material_id, coberturaDate.toISOString());
           }

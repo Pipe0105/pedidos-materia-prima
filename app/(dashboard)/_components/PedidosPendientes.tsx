@@ -157,7 +157,6 @@ export function PedidosPendientes({
                         const coberturaDate = calcularFechaCobertura({
                           coberturaDias,
                           fechaInicio: new Date(),
-                          diasExtra: 1,
                         });
 
                         return fmtDate(coberturaDate);

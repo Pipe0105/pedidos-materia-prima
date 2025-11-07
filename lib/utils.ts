@@ -55,7 +55,7 @@ type CalcularFechaCoberturaOptions = {
 export function calcularFechaCobertura({
   coberturaDias,
   fechaInicio = new Date(),
-  diasExtra = 1,
+  diasExtra = 0,
 }: CalcularFechaCoberturaOptions): Date {
   const diasRestantes = Math.max(0, Math.floor(coberturaDias));
 

@@ -378,7 +378,6 @@ function InventarioPageContent() {
           const coberturaDate = calcularFechaCobertura({
             coberturaDias,
             fechaInicio: fechaReferencia,
-            diasExtra: 1,
           });
           hasta = coberturaDate.toISOString().slice(0, 10);
         }
