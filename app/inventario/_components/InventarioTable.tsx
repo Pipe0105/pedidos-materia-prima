@@ -124,15 +124,18 @@ export function InventarioTable({
                   </TableCell>
                 )}
                 <TableCell className="text-sm text-muted-foreground">
-                  {row.hasta
-                    ? `Hasta ${formatFechaHasta(
-                        (() => {
-                          const f = new Date(row.hasta.split("T")[0]);
-                          f.setDate(f.getDate() - 1);
-                          return f.toISOString().split("T")[0];
-                        })()
-                      )}`
-                    : "Sin estimación"}
+                  {(() => {
+                    const hasta = row.hasta;
+                    if (!hasta) {
+                      return "Sin estimación";
+                    }
+
+                    const isoDate = hasta.includes("T")
+                      ? hasta.split("T")[0] ?? hasta
+                      : hasta;
+
+                    return `Hasta ${formatFechaHasta(isoDate)}`;
+                  })()}
                 </TableCell>
 
                 <TableCell>

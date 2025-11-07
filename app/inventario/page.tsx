@@ -29,7 +29,8 @@ import { InventarioTable } from "./_components/InventarioTable";
 import { HistorialDialog } from "./_components/HistorialDialog";
 import { EditarInventarioDialog } from "./_components/EditarInventarioDialog";
 import { ConsumoManualDialog } from "./_components/ConsumoManualDialog";
-import { calcularFechaHasta } from "./utils";
+import { calcularConsumoDiarioKg } from "@/lib/consumo";
+import { calcularFechaCobertura } from "@/lib/utils";
 import type {
   MaterialConsumo,
   MaterialEditar,
@@ -38,7 +39,6 @@ import type {
   Unidad,
   Zona,
 } from "./types";
-import { nullable } from "zod";
 
 const EMPTY_EDITAR: MaterialEditar = { id: "", nombre: "", stockKg: 0 };
 const EMPTY_CONSUMO: MaterialConsumo = { id: "", nombre: "", unidad: "bulto" };
@@ -49,7 +49,6 @@ function InventarioPageContent() {
   const [zonas, setZonas] = useState<Zona[]>([]);
   const [zonaId, setZonaId] = useState<string | null>(null);
   const zonaFromQuery = searchParams.get("zonaId");
-  const fecha = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const [rows, setRows] = useState<StockRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [movimientos, setMovimientos] = useState<MovimientoInventario[]>([]);
@@ -307,39 +306,90 @@ function InventarioPageContent() {
 
       const payload = (await response.json()) as InventarioActualRow[];
 
+      const normalizarNumero = (valor: unknown) => {
+        if (typeof valor === "number") {
+          return valor;
+        }
+        if (typeof valor === "string") {
+          const numero = Number(valor);
+          return Number.isFinite(numero) ? numero : 0;
+        }
+        return 0;
+      };
+
+      const fechaReferencia = new Date();
+
       const data = payload.map((item) => {
         const unidad = item.unidad_medida as Unidad;
         const presentacion = item.presentacion_kg_por_bulto;
 
-        let consumo: number | null = null;
-        if (unidad === "unidad") {
-          consumo = item.tasa_consumo_diaria_kg ?? 1;
-        } else if (unidad === "bulto" && presentacion) {
-          consumo = item.tasa_consumo_diaria_kg
-            ? item.tasa_consumo_diaria_kg * presentacion
+        const tasaConsumo = item.tasa_consumo_diaria_kg;
+
+        const stockBase = normalizarNumero(item.stock);
+        const stockKg = normalizarNumero(item.stock_kg);
+        const stockBultos = normalizarNumero(item.stock_bultos);
+
+        const stockBultosDisponibles =
+          unidad === "unidad" ? stockBultos || stockBase : stockBultos;
+        const stockKgDisponibles =
+          unidad === "unidad" ? 0 : stockKg || stockBase;
+
+        const consumoUnidades =
+          unidad === "unidad" &&
+          typeof tasaConsumo === "number" &&
+          Number.isFinite(tasaConsumo) &&
+          tasaConsumo > 0
+            ? tasaConsumo
             : null;
-        } else {
-          consumo = item.tasa_consumo_diaria_kg ?? null;
+
+        const consumoKg =
+          unidad === "unidad"
+            ? null
+            : calcularConsumoDiarioKg({
+                nombre: item.nombre,
+                unidad_medida: unidad,
+                presentacion_kg_por_bulto: presentacion,
+                tasa_consumo_diaria_kg: tasaConsumo,
+              });
+
+        let coberturaDias: number | null = null;
+
+        if (consumoUnidades) {
+          coberturaDias =
+            consumoUnidades > 0
+              ? stockBultosDisponibles / consumoUnidades
+              : null;
+        } else if (consumoKg && consumoKg > 0) {
+          coberturaDias = stockKgDisponibles / consumoKg;
         }
 
-        let cobertura: number | null = null;
+        const cobertura =
+          coberturaDias != null && Number.isFinite(coberturaDias)
+            ? Math.floor(coberturaDias)
+            : null;
         let hasta: string | null = null;
 
-        if (consumo && consumo > 0) {
-          if (unidad === "unidad") {
-            cobertura = Math.floor(item.stock_bultos / consumo);
-            hasta = calcularFechaHasta(fecha, item.stock_bultos, consumo);
-          } else {
-            cobertura = Math.floor(item.stock_kg / consumo);
-            hasta = calcularFechaHasta(fecha, item.stock_kg, consumo);
-          }
+        if (
+          coberturaDias != null &&
+          Number.isFinite(coberturaDias) &&
+          coberturaDias > 0
+        ) {
+          const coberturaDate = calcularFechaCobertura({
+            coberturaDias,
+            fechaInicio: fechaReferencia,
+            diasExtra: 1,
+          });
+          hasta = coberturaDate.toISOString().slice(0, 10);
         }
 
         return {
           material_id: item.material_id,
           nombre: item.nombre,
-          stock: unidad === "unidad" ? item.stock_bultos : item.stock,
-          stockKg: unidad === "unidad" ? 0 : item.stock_kg,
+          stock:
+            unidad === "unidad"
+              ? stockBultosDisponibles
+              : stockBase || stockKgDisponibles,
+          stockKg: unidad === "unidad" ? 0 : stockKgDisponibles,
           unidad,
           hasta,
           cobertura,
@@ -354,7 +404,7 @@ function InventarioPageContent() {
     } finally {
       setLoading(false);
     }
-  }, [fecha, zonaId]);
+  }, [zonaId]);
 
   const deshacerUltimoPedido = useCallback(
     async (materialId: string, materialNombre: string) => {

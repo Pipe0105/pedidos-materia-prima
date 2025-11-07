@@ -9,21 +9,6 @@ export function formatUnidad(valor: number, unidad: Unidad) {
   return `${fmtNum(valor)} ${valor === 1 ? singular : plural}`;
 }
 
-export function calcularFechaHasta(
-  fechaBase: string,
-  stockDisponible: number,
-  consumoDiario: number | null
-) {
-  if (!consumoDiario || consumoDiario <= 0) return null;
-  let dias = Math.ceil(stockDisponible / consumoDiario);
-  const fecha = new Date(`${fechaBase}T00:00:00Z`);
-  while (dias > 0) {
-    fecha.setUTCDate(fecha.getUTCDate() + 1);
-    if (fecha.getUTCDay() !== 0) dias--;
-  }
-  return fecha.toISOString().slice(0, 10);
-}
-
 export const obtenerEtiquetaCobertura = (cobertura: number | null) => {
   if (cobertura === null) {
     return {
