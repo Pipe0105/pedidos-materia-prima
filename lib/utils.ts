@@ -57,7 +57,8 @@ export function calcularFechaCobertura({
   fechaInicio = new Date(),
   diasExtra = 1,
 }: CalcularFechaCoberturaOptions): Date {
-  const diasRestantes = Math.max(0, Math.ceil(coberturaDias));
+  const diasRestantes = Math.max(0, Math.floor(coberturaDias));
+
   const diasTotales = diasRestantes + Math.max(0, Math.floor(diasExtra));
 
   return sumarDiasSinDomingos(fechaInicio, diasTotales);
