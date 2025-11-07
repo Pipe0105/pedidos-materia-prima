@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/Skeleton";
 import { fmtDate, fmtNum } from "@/lib/format";
-import { cn } from "@/lib/utils";
+import { calcularFechaCobertura, cn } from "@/lib/utils";
 
 import {
   ESTADO_LABEL,
@@ -154,10 +154,11 @@ export function PedidosPendientes({
                           return "Sin cobertura";
                         }
 
-                        const coberturaDate = new Date(
-                          Date.now() + coberturaDias * 24 * 60 * 60 * 1000
-                        );
-                        coberturaDate.setDate(coberturaDate.getDate() + 1);
+                        const coberturaDate = calcularFechaCobertura({
+                          coberturaDias,
+                          fechaInicio: new Date(),
+                          diasExtra: 1,
+                        });
 
                         return fmtDate(coberturaDate);
                       })()}

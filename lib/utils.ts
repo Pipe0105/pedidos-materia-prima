@@ -10,3 +10,55 @@ export function getLocalDateISO(date: Date = new Date()) {
   const localDate = new Date(date.getTime() - offsetInMs);
   return localDate.toISOString().slice(0, 10);
 }
+
+const DOMINGO = 0;
+
+/**
+ * Suma una cantidad de días evitando contar los domingos.
+ * La fecha resultante siempre cae en un día distinto a domingo.
+ */
+export function sumarDiasSinDomingos(fechaInicio: Date, dias: number): Date {
+  const resultado = new Date(fechaInicio);
+  resultado.setHours(0, 0, 0, 0);
+
+  if (resultado.getDay() === DOMINGO) {
+    resultado.setDate(resultado.getDate() + 1);
+  }
+
+  let restantes = Math.max(0, Math.floor(dias));
+
+  while (restantes > 0) {
+    resultado.setDate(resultado.getDate() + 1);
+    if (resultado.getDay() === DOMINGO) {
+      continue;
+    }
+    restantes -= 1;
+  }
+
+  if (resultado.getDay() === DOMINGO) {
+    resultado.setDate(resultado.getDate() + 1);
+  }
+
+  return resultado;
+}
+
+type CalcularFechaCoberturaOptions = {
+  coberturaDias: number;
+  fechaInicio?: Date;
+  diasExtra?: number;
+};
+
+/**
+ * Calcula la fecha de cobertura sumando los días estimados y días extra,
+ * sin contar los domingos en el proceso.
+ */
+export function calcularFechaCobertura({
+  coberturaDias,
+  fechaInicio = new Date(),
+  diasExtra = 1,
+}: CalcularFechaCoberturaOptions): Date {
+  const diasRestantes = Math.max(0, Math.ceil(coberturaDias));
+  const diasTotales = diasRestantes + Math.max(0, Math.floor(diasExtra));
+
+  return sumarDiasSinDomingos(fechaInicio, diasTotales);
+}

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { fmtNum } from "@/lib/format";
 import { shouldRetryEstadoRecibido } from "@/lib/pedidos";
-import { getLocalDateISO } from "@/lib/utils";
+import { calcularFechaCobertura, getLocalDateISO } from "@/lib/utils";
 import { useToast } from "@/components/toastprovider";
 import { Button } from "@/components/ui/button";
 import { calcularConsumoDiarioKg } from "@/lib/consumo";
@@ -221,11 +221,11 @@ export default function PedidosZona({
             coberturaDias > 0 &&
             item.material_id
           ) {
-            const coberturaDate = new Date();
-            coberturaDate.setHours(0, 0, 0, 0);
-            coberturaDate.setDate(
-              coberturaDate.getDate() + Math.ceil(coberturaDias) + 1
-            );
+            const coberturaDate = calcularFechaCobertura({
+              coberturaDias,
+              fechaInicio: new Date(),
+              diasExtra: 1,
+            });
             acc.set(item.material_id, coberturaDate.toISOString());
           }
 
