@@ -33,7 +33,7 @@ import {
   PEDIDOS_CACHE_TTL,
   setPedidosCache,
 } from "./pedidosCache";
-import { Trash2 } from "lucide-react";
+import { MapPin, Trash2 } from "lucide-react";
 
 type unidadMedida = "bulto" | "unidad" | "litro" | null;
 
@@ -828,6 +828,19 @@ export default function PedidosZona({
       </Card>
 
       <Card>
+        <div className="sticky top-24 z-40 flex justify-end mr-8">
+          <div className="pointer-events-auto inline-flex items-center gap-3 rounded-full bg-gradient-to-r from-[#1F4F9C] via-[#1F4F9C]/90 to-[#29B8A6]/90 px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-primary/20 ring-1 ring-white/30 backdrop-blur">
+            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/15">
+              <MapPin className="h-3.5 w-3.5" />
+            </span>
+            <div className="flex flex-col leading-tight text-left">
+              <span className="text-[10px] uppercase tracking-[0.35em] text-white/60">
+                Zona actual
+              </span>
+              <span className="text-sm font-semibold text-white">{nombre}</span>
+            </div>
+          </div>
+        </div>
         <CardHeader className="space-y-1">
           <CardTitle>Pedidos Enviados</CardTitle>
           <CardDescription>
@@ -924,6 +937,15 @@ export default function PedidosZona({
                       <TableCell className="text-center">
                         <div className="flex flex-nowrap items-center justify-center gap-3">
                           <PedidoDetalle pedido={pedido} zonaNombre={nombre} />
+                          <Button
+                            variant="secondary"
+                            className="bg-blue-600 text-white shadow-sm transition hover:bg-blue-700"
+                            onClick={() =>
+                              router.push(`/pedidos/${pedido.id}/editar`)
+                            }
+                          >
+                            Editar
+                          </Button>
 
                           {pedido.estado !== "completado" && (
                             <Button
