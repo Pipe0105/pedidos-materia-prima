@@ -58,13 +58,25 @@ export function HistorialDialog({
                 movimientos.map((movimientos, index) => (
                   <TableRow key={`${movimientos.created_at}-${index}`}>
                     <TableCell className="text-sm text-muted-foreground">
-                      {new Date(movimientos.created_at).toLocaleString(
-                        "es-CO",
-                        {
-                          dateStyle: "short",
-                          timeStyle: "short",
-                        }
-                      )}
+                      <div className="flex flex-col">
+                        <span>
+                          {new Date(movimientos.created_at).toLocaleString(
+                            "es-CO",
+                            {
+                              dateStyle: "short",
+                              timeStyle: "short",
+                            }
+                          )}
+                        </span>
+                        {movimientos.dia_proceso ? (
+                          <span className="text-xs">
+                            Día proceso:{" "}
+                            <strong style={{ color: "black" }}>
+                              {movimientos.dia_proceso}
+                            </strong>
+                          </span>
+                        ) : null}
+                      </div>
                     </TableCell>
                     <TableCell className="capitalize">
                       {movimientos.tipo}

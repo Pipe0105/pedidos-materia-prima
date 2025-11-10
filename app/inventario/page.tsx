@@ -63,6 +63,8 @@ function InventarioPageContent() {
   const [materialConsumo, setMaterialConsumo] =
     useState<MaterialConsumo>(EMPTY_CONSUMO);
   const [valorConsumo, setValorConsumo] = useState("");
+  const [diaProceso, setDiaProceso] = useState("");
+
   const [deshaciendoPedidoMaterialId, setDeshaciendoPedidoMaterialId] =
     useState<string | null>(null);
   const deshaciendoPedidoRef = useRef(false);
@@ -70,6 +72,7 @@ function InventarioPageContent() {
   const abrirConsumoManual = (id: string, nombre: string, unidad: Unidad) => {
     setMaterialConsumo({ id, nombre, unidad });
     setValorConsumo("");
+    setDiaProceso("");
     setShowConsumo(true);
   };
 
@@ -77,6 +80,11 @@ function InventarioPageContent() {
     const cantidad = parseFloat(valorConsumo);
     if (Number.isNaN(cantidad) || cantidad <= 0) {
       alert("Por favor ingrese una cantidad válida.");
+      return;
+    }
+
+    if (!diaProceso) {
+      alert("Selecciona el día del proceso antes de guardar.");
       return;
     }
 
@@ -122,6 +130,7 @@ function InventarioPageContent() {
       bultos,
       kg,
       ref_tipo: "consumo_manual",
+      dia_proceso: diaProceso,
       notas: `Consumo manual registrado (${cantidad} ${unidad}${
         cantidad !== 1 ? "s" : ""
       })`,
@@ -132,6 +141,7 @@ function InventarioPageContent() {
     } else {
       alert("✅ Consumo manual guardado correctamente");
       setShowConsumo(false);
+      setDiaProceso("");
       await cargar();
     }
   };
@@ -279,7 +289,7 @@ function InventarioPageContent() {
     }
     const { data: movs, error } = await supabase
       .from("movimientos_inventario")
-      .select("fecha, tipo, bultos, kg, notas, created_at")
+      .select("fecha, tipo, bultos, kg, notas, created_at, dia_proceso")
       .eq("material_id", materialId)
       .eq("zona_id", zonaId)
       .order("created_at", { ascending: false });
@@ -813,11 +823,14 @@ function InventarioPageContent() {
         open={showConsumo}
         material={materialConsumo}
         value={valorConsumo}
+        selectedDay={diaProceso}
         onClose={() => {
           setShowConsumo(false);
           setMaterialConsumo(EMPTY_CONSUMO);
+          setDiaProceso("");
         }}
         onChange={setValorConsumo}
+        onDayChange={setDiaProceso}
         onSubmit={() => void guardarConsumoManual()}
       />
     </PageContainer>

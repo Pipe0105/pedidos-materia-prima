@@ -30,6 +30,7 @@ export default function PconsumoPage() {
   const [materialConsumo, setMaterialConsumo] =
     useState<MaterialConsumo>(EMPTY_CONSUMO);
   const [valorConsumo, setValorConsumo] = useState("");
+  const [diaProceso, setDiaProceso] = useState("");
   const [showConsumo, setShowConsumo] = useState(false);
   const [guardando, setGuardando] = useState(false);
 
@@ -113,6 +114,7 @@ export default function PconsumoPage() {
     setSelectedZonaKey(zonaKey);
     setMaterialConsumo(zona.materiales[0]);
     setValorConsumo("");
+    setDiaProceso("");
     setShowConsumo(true);
   };
 
@@ -125,6 +127,11 @@ export default function PconsumoPage() {
     const cantidad = parseFloat(valorConsumo);
     if (Number.isNaN(cantidad) || cantidad <= 0) {
       alert("Por favor ingrese una cantidad válida.");
+      return;
+    }
+
+    if (!diaProceso) {
+      alert("Selecciona el día del proceso antes de guardar.");
       return;
     }
 
@@ -168,6 +175,7 @@ export default function PconsumoPage() {
       bultos,
       kg,
       ref_tipo: "consumo_manual",
+      dia_proceso: diaProceso,
       notas: `Consumo manual registrado (${cantidad} ${unidad}${
         cantidad !== 1 ? "s" : ""
       })`,
@@ -178,10 +186,11 @@ export default function PconsumoPage() {
     } else {
       alert("✅ Consumo manual guardado correctamente");
       setShowConsumo(false);
+      setDiaProceso("");
     }
 
     setGuardando(false);
-  }, [materialConsumo, valorConsumo, zonaSeleccionada]);
+  }, [materialConsumo, valorConsumo, zonaSeleccionada, diaProceso]);
 
   return (
     <PageContainer className="space-y-8">
@@ -221,12 +230,15 @@ export default function PconsumoPage() {
         open={showConsumo}
         material={materialConsumo}
         value={valorConsumo}
+        selectedDay={diaProceso}
         onClose={() => {
           if (guardando) return;
           setShowConsumo(false);
           setValorConsumo("");
+          setDiaProceso("");
         }}
         onChange={setValorConsumo}
+        onDayChange={setDiaProceso}
         onSubmit={() => {
           if (!guardando) void guardarConsumoManual();
         }}

@@ -34,6 +34,8 @@ export type MovimientoInventario = {
   bultos: number | null;
   kg: number | null;
   notas: string | null;
+  dia_proceso: string | null;
+
   created_at: string;
 };
 
