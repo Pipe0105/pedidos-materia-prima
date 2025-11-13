@@ -154,13 +154,13 @@ function InventarioPageContent() {
 
     const { data: mov, error: errMov } = await supabase
       .from("movimientos_inventario")
-      .select("id, bultos, kg, fecha")
+      .select("id, bultos, kg, fecha, created_at")
       .eq("zona_id", zonaId)
       .eq("material_id", materialId)
       .eq("ref_tipo", "consumo_manual")
-      .order("fecha", { ascending: false })
+      .order("created_at", { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
 
     if (errMov || !mov) {
       alert("No hay consumos manuales para deshacer");
