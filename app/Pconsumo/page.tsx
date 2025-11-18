@@ -20,8 +20,8 @@ type ZonaInfo = {
 };
 
 const ZONA_LABELS: Record<ZonaKey, string> = {
-  desprese: "Desprese Salmuera",
   desposte: "Desposte Salmuera",
+  desprese: "Desprese Salmuera",
 };
 
 export default function PconsumoPage() {
@@ -49,8 +49,8 @@ export default function PconsumoPage() {
     for (const zona of zonasData ?? []) {
       const nombreNormalizado = zona.nombre.trim().toLowerCase();
       if (
-        nombreNormalizado === "desprese" ||
-        nombreNormalizado === "desposte"
+        nombreNormalizado === "desposte" ||
+        nombreNormalizado === "desprese"
       ) {
         const { data: materialesData, error: materialesError } = await supabase
           .from("materiales")
