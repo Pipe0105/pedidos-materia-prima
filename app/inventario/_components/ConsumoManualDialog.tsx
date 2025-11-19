@@ -16,6 +16,7 @@ type ConsumoManualDialogProps = {
   material: MaterialConsumo;
   value: string;
   selectedDay: string;
+  disabledDays?: string[];
   onClose: () => void;
   onChange: (value: string) => void;
   onDayChange: (day: string) => void;
@@ -27,12 +28,21 @@ export function ConsumoManualDialog({
   material,
   value,
   selectedDay,
+  disabledDays = [],
   onClose,
   onChange,
   onDayChange,
   onSubmit,
 }: ConsumoManualDialogProps) {
   const dias = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+  const hoy = new Date();
+  const indiceHoyNormalizado = Math.min(
+    (hoy.getDay() + 6) % 7,
+    dias.length - 1
+  );
+  const diasDisponibles = dias.filter(
+    (_, index) => index <= indiceHoyNormalizado
+  );
   return (
     <Dialog open={open} onOpenChange={(value) => !value && onClose()}>
       <DialogContent>
@@ -61,16 +71,20 @@ export function ConsumoManualDialog({
             Selecciona el día del proceso
           </label>
           <div className="flex flex-wrap gap-2">
-            {dias.map((dia) => (
-              <Button
-                key={dia}
-                type="button"
-                variant={dia === selectedDay ? "default" : "outline"}
-                onClick={() => onDayChange(dia)}
-              >
-                {dia}
-              </Button>
-            ))}
+            {diasDisponibles.map((dia) => {
+              const estaDeshabilitado = disabledDays.includes(dia);
+              return (
+                <Button
+                  key={dia}
+                  type="button"
+                  variant={dia === selectedDay ? "default" : "default"}
+                  disabled={estaDeshabilitado}
+                  onClick={() => onDayChange(dia)}
+                >
+                  {dia}
+                </Button>
+              );
+            })}
           </div>
         </div>
         <DialogFooter>

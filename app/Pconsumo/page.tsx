@@ -11,6 +11,29 @@ import { supabase } from "@/lib/supabase";
 
 const EMPTY_CONSUMO: MaterialConsumo = { id: "", nombre: "", unidad: "bulto" };
 
+const formatearFecha = (fecha: Date) => {
+  const year = fecha.getFullYear();
+  const month = `${fecha.getMonth() + 1}`.padStart(2, "0");
+  const day = `${fecha.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const obtenerRangoSemanaActual = () => {
+  const hoy = new Date();
+  const indiceNormalizado = (hoy.getDay() + 6) % 7;
+  const inicioSemana = new Date(hoy);
+  inicioSemana.setHours(0, 0, 0, 0);
+  inicioSemana.setDate(hoy.getDate() - indiceNormalizado);
+
+  const finSemana = new Date(inicioSemana);
+  finSemana.setDate(inicioSemana.getDate() + 6);
+
+  return {
+    inicio: formatearFecha(inicioSemana),
+    fin: formatearFecha(finSemana),
+  };
+};
+
 type ZonaKey = "desprese" | "desposte";
 
 type ZonaInfo = {
@@ -33,6 +56,37 @@ export default function PconsumoPage() {
   const [diaProceso, setDiaProceso] = useState("");
   const [showConsumo, setShowConsumo] = useState(false);
   const [guardando, setGuardando] = useState(false);
+  const [diasSemanaRegistrados, setDiasSemanaRegistrados] = useState<string[]>(
+    []
+  );
+  const cargarDiasRegistradosSemana = useCallback(async (zonaId: string) => {
+    const { inicio, fin } = obtenerRangoSemanaActual();
+    const { data, error } = await supabase
+      .from("movimientos_inventario")
+      .select("dia_proceso")
+      .eq("zona_id", zonaId)
+      .eq("ref_tipo", "consumo_manual")
+      .gte("fecha", inicio)
+      .lte("fecha", fin);
+
+    if (error) {
+      console.error(
+        "❌ Error obteniendo días registrados de consumo manual:",
+        error
+      );
+      return;
+    }
+
+    const diasRegistrados = Array.from(
+      new Set(
+        (data ?? [])
+          .map((registro) => registro.dia_proceso)
+          .filter((dia): dia is string => Boolean(dia))
+      )
+    );
+
+    setDiasSemanaRegistrados(diasRegistrados);
+  }, []);
 
   const cargarZonas = useCallback(async () => {
     const { data: zonasData, error: zonasError } = await supabase
@@ -115,6 +169,8 @@ export default function PconsumoPage() {
     setMaterialConsumo(zona.materiales[0]);
     setValorConsumo("");
     setDiaProceso("");
+    setDiasSemanaRegistrados([]);
+    void cargarDiasRegistradosSemana(zona.id);
     setShowConsumo(true);
   };
 
@@ -187,6 +243,11 @@ export default function PconsumoPage() {
       alert("✅ Consumo manual guardado correctamente");
       setShowConsumo(false);
       setDiaProceso("");
+      if (diaProceso) {
+        setDiasSemanaRegistrados((prev) =>
+          prev.includes(diaProceso) ? prev : [...prev, diaProceso]
+        );
+      }
     }
 
     setGuardando(false);
@@ -231,11 +292,13 @@ export default function PconsumoPage() {
         material={materialConsumo}
         value={valorConsumo}
         selectedDay={diaProceso}
+        disabledDays={diasSemanaRegistrados}
         onClose={() => {
           if (guardando) return;
           setShowConsumo(false);
           setValorConsumo("");
           setDiaProceso("");
+          setDiasSemanaRegistrados([]);
         }}
         onChange={setValorConsumo}
         onDayChange={setDiaProceso}
