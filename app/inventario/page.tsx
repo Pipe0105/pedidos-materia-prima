@@ -177,6 +177,7 @@ function InventarioPageContent() {
         bultos: mov.bultos,
         kg: mov.kg,
         ref_tipo: "deshacer consumo",
+        dia_proceso: mov.dia_proceso,
         notas: "deshacer consumo manual anterior",
       });
 
@@ -184,8 +185,8 @@ function InventarioPageContent() {
       alert("error al dehacer consumo" + errUndo.message);
     } else {
       const { error: errMark } = await supabase
-        .from("Movimientos_inventaio")
-        .update({ ref_tipo: " Consumo_manual_anulado" })
+        .from("movimientos_inventario")
+        .update({ ref_tipo: "consumo_manual_anulado" })
         .eq("id", mov.id);
 
       if (errMark) {
