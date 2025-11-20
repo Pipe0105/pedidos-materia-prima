@@ -77,7 +77,13 @@ export function ConsumoManualDialog({
                 <Button
                   key={dia}
                   type="button"
-                  variant={dia === selectedDay ? "default" : "default"}
+                  variant={dia === selectedDay ? "default" : "outline"}
+                  className={`min-w-[110px] border transition focus-visible:ring-2 focus-visible:ring-primary/40
+                    focus-visible:ring-offset-2 ${
+                      dia === selectedDay
+                        ? "border-primary bg-primary/10 text-primary"
+                        : ""
+                    }`}
                   disabled={estaDeshabilitado}
                   onClick={() => onDayChange(dia)}
                 >

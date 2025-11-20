@@ -154,7 +154,7 @@ function InventarioPageContent() {
 
     const { data: mov, error: errMov } = await supabase
       .from("movimientos_inventario")
-      .select("id, bultos, kg, fecha, created_at")
+      .select("id, bultos, kg, fecha, created_at, dia_proceso")
       .eq("zona_id", zonaId)
       .eq("material_id", materialId)
       .eq("ref_tipo", "consumo_manual")
@@ -183,6 +183,14 @@ function InventarioPageContent() {
     if (errUndo) {
       alert("error al dehacer consumo" + errUndo.message);
     } else {
+      const { error: errMark } = await supabase
+        .from("Movimientos_inventaio")
+        .update({ ref_tipo: " Consumo_manual_anulado" })
+        .eq("id", mov.id);
+
+      if (errMark) {
+        console.error("Error marcando consumo manual", errMark);
+      }
       alert("consumo manual deshecho correctamente");
       await cargar();
     }
