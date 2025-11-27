@@ -111,6 +111,7 @@ export function InventarioTable({
           renderSkeletonRows()
         ) : rows.length ? (
           rows.map((row) => {
+            const esAguja = row.nombre.toLowerCase().includes("aguja");
             const { estilo, texto } = obtenerEtiquetaCobertura(row.cobertura);
             return (
               <TableRow className="text-center" key={row.material_id}>
@@ -124,18 +125,20 @@ export function InventarioTable({
                   </TableCell>
                 )}
                 <TableCell className="text-sm text-muted-foreground">
-                  {(() => {
-                    const hasta = row.hasta;
-                    if (!hasta) {
-                      return "Sin estimación";
-                    }
+                  {esAguja
+                    ? "—"
+                    : (() => {
+                        const hasta = row.hasta;
+                        if (!hasta) {
+                          return "Sin estimación";
+                        }
 
-                    const isoDate = hasta.includes("T")
-                      ? hasta.split("T")[0] ?? hasta
-                      : hasta;
+                        const isoDate = hasta.includes("T")
+                          ? hasta.split("T")[0] ?? hasta
+                          : hasta;
 
-                    return `Hasta ${formatFechaHasta(isoDate)}`;
-                  })()}
+                        return `Hasta ${formatFechaHasta(isoDate)}`;
+                      })()}
                 </TableCell>
 
                 <TableCell>
