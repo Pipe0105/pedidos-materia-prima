@@ -42,6 +42,7 @@ import type {
 
 const EMPTY_EDITAR: MaterialEditar = { id: "", nombre: "", stockKg: 0 };
 const EMPTY_CONSUMO: MaterialConsumo = { id: "", nombre: "", unidad: "bulto" };
+const REF_TIPO_CONSUMO_AGUJAS = "consumo_manual_agujas" as const;
 
 function InventarioPageContent() {
   const searchParams = useSearchParams();
@@ -64,19 +65,33 @@ function InventarioPageContent() {
     useState<MaterialConsumo>(EMPTY_CONSUMO);
   const [valorConsumo, setValorConsumo] = useState("");
   const [diaProceso, setDiaProceso] = useState("");
+  const [notasConsumo, setNotasConsumo] = useState("");
+  const [notasEditadas, setNotasEditadas] = useState(false);
+  const [guardandoConsumo, setGuardandoConsumo] = useState(false);
 
   const [deshaciendoPedidoMaterialId, setDeshaciendoPedidoMaterialId] =
     useState<string | null>(null);
   const deshaciendoPedidoRef = useRef(false);
+
+  const buildNotasGenericas = (cantidad: number, unidad: Unidad) =>
+    cantidad > 0
+      ? `Consumo manual registrado (${cantidad} ${unidad}${
+          cantidad !== 1 ? "s" : ""
+        })`
+      : "Consumo manual registrado";
 
   const abrirConsumoManual = (id: string, nombre: string, unidad: Unidad) => {
     setMaterialConsumo({ id, nombre, unidad });
     setValorConsumo("");
     setDiaProceso("");
     setShowConsumo(true);
+    setNotasConsumo(buildNotasGenericas(0, unidad));
+    setNotasEditadas(false);
+    setGuardandoConsumo(false);
   };
 
   const guardarConsumoManual = async () => {
+    if (guardandoConsumo) return;
     const cantidad = parseFloat(valorConsumo);
     if (Number.isNaN(cantidad) || cantidad <= 0) {
       alert("Por favor ingrese una cantidad válida.");
@@ -92,59 +107,75 @@ function InventarioPageContent() {
       alert("Selecciona una zona antes de registrar consumo.");
       return;
     }
+    setGuardandoConsumo(true);
 
     const { id, unidad } = materialConsumo;
+    const notasGenericas = buildNotasGenericas(cantidad, unidad);
+    const notas = notasConsumo.trim() || notasGenericas;
 
-    const { data: matData, error: matError } = await supabase
-      .from("materiales")
-      .select("presentacion_kg_por_bulto")
-      .eq("id", id)
-      .single();
+    try {
+      const { data: matData, error: matError } = await supabase
+        .from("materiales")
+        .select("presentacion_kg_por_bulto")
+        .eq("id", id)
+        .single();
 
-    if (matError) {
-      alert("❌ Error obteniendo presentación del material.");
-      return;
-    }
+      if (matError) {
+        alert("❌ Error obteniendo presentación del material.");
+        return;
+      }
 
-    const presentacion = matData?.presentacion_kg_por_bulto || 1;
+      const presentacion = matData?.presentacion_kg_por_bulto || 1;
 
-    let bultos: number | null = null;
-    let kg = 0;
+      let bultos: number | null = null;
+      let kg = 0;
 
-    if (unidad === "bulto") {
-      bultos = cantidad;
-      kg = cantidad * presentacion;
-    } else if (unidad === "litro") {
-      bultos = null;
-      kg = cantidad;
-    } else if (unidad === "unidad") {
-      bultos = cantidad;
-      kg = 0;
-    }
+      if (unidad === "bulto") {
+        bultos = cantidad;
+        kg = cantidad * presentacion;
+      } else if (unidad === "litro") {
+        bultos = null;
+        kg = cantidad;
+      } else if (unidad === "unidad") {
+        bultos = cantidad;
+        kg = 0;
+      }
 
-    const { error } = await supabase.from("movimientos_inventario").insert({
-      zona_id: zonaId,
-      material_id: id,
-      fecha: new Date().toISOString().slice(0, 10),
-      tipo: "salida",
-      bultos,
-      kg,
-      ref_tipo: "consumo_manual",
-      dia_proceso: diaProceso,
-      notas: `Consumo manual registrado (${cantidad} ${unidad}${
-        cantidad !== 1 ? "s" : ""
-      })`,
-    });
+      const { error } = await supabase.from("movimientos_inventario").insert({
+        zona_id: zonaId,
+        material_id: id,
+        fecha: new Date().toISOString().slice(0, 10),
+        tipo: "salida",
+        bultos,
+        kg,
+        ref_tipo: REF_TIPO_CONSUMO_AGUJAS,
+        dia_proceso: diaProceso,
+        notas,
+      });
 
-    if (error) {
-      alert("❌ Error registrando consumo manual: " + error.message);
-    } else {
-      alert("✅ Consumo manual guardado correctamente");
-      setShowConsumo(false);
-      setDiaProceso("");
-      await cargar();
+      if (error) {
+        alert("❌ Error registrando consumo manual: " + error.message);
+      } else {
+        alert("✅ Consumo manual guardado correctamente");
+        setShowConsumo(false);
+        setDiaProceso("");
+        setNotasConsumo("");
+        setNotasEditadas(false);
+        await cargar();
+      }
+    } finally {
+      setGuardandoConsumo(false);
     }
   };
+
+  useEffect(() => {
+    if (!showConsumo || notasEditadas) return;
+
+    const cantidad = parseFloat(valorConsumo);
+    if (Number.isNaN(cantidad) || cantidad <= 0) return;
+
+    setNotasConsumo(buildNotasGenericas(cantidad, materialConsumo.unidad));
+  }, [valorConsumo, materialConsumo.unidad, showConsumo, notasEditadas]);
 
   const deshacerConsumoManual = async (materialId: string) => {
     if (!zonaId) {
@@ -157,7 +188,7 @@ function InventarioPageContent() {
       .select("id, bultos, kg, fecha, created_at, dia_proceso")
       .eq("zona_id", zonaId)
       .eq("material_id", materialId)
-      .eq("ref_tipo", "consumo_manual")
+      .in("ref_tipo", [REF_TIPO_CONSUMO_AGUJAS, "consumo_manual"])
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -837,10 +868,21 @@ function InventarioPageContent() {
           setShowConsumo(false);
           setMaterialConsumo(EMPTY_CONSUMO);
           setDiaProceso("");
+          setNotasConsumo("");
+          setNotasEditadas(false);
+          setGuardandoConsumo(false);
         }}
         onChange={setValorConsumo}
         onDayChange={setDiaProceso}
+        onNotesChange={(value) => {
+          setNotasConsumo(value);
+          setNotasEditadas(true);
+        }}
+        notesValue={notasConsumo}
+        notesLabel="Notas del consumo"
+        notesPlaceholder="Puedes ajustar el mensaje genérico o agregar observaciones"
         onSubmit={() => void guardarConsumoManual()}
+        submitting={guardandoConsumo}
       />
     </PageContainer>
   );

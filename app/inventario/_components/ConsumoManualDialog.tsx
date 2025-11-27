@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 
 import type { MaterialConsumo } from "../types";
 
@@ -17,10 +18,15 @@ type ConsumoManualDialogProps = {
   value: string;
   selectedDay: string;
   disabledDays?: string[];
+  notesValue?: string;
+  notesLabel?: string;
+  notesPlaceholder?: string;
   onClose: () => void;
   onChange: (value: string) => void;
   onDayChange: (day: string) => void;
+  onNotesChange?: (notes: string) => void;
   onSubmit: () => void;
+  submitting?: boolean;
 };
 
 export function ConsumoManualDialog({
@@ -29,10 +35,15 @@ export function ConsumoManualDialog({
   value,
   selectedDay,
   disabledDays = [],
+  notesValue,
+  notesLabel,
+  notesPlaceholder,
   onClose,
   onChange,
   onDayChange,
+  onNotesChange,
   onSubmit,
+  submitting = false,
 }: ConsumoManualDialogProps) {
   const dias = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
   const hoy = new Date();
@@ -93,11 +104,25 @@ export function ConsumoManualDialog({
             })}
           </div>
         </div>
+        {onNotesChange && (
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-muted-foreground">
+              {notesLabel ?? "Notas"}
+            </label>
+            <Textarea
+              value={notesValue ?? ""}
+              onChange={(event) => onNotesChange(event.target.value)}
+              placeholder={notesPlaceholder ?? "Agregar notas u observaciones"}
+            />
+          </div>
+        )}
         <DialogFooter>
           <Button variant="secondary" onClick={onClose}>
             Cancelar
           </Button>
-          <Button onClick={onSubmit}>Guardar</Button>
+          <Button onClick={onSubmit} disabled={submitting}>
+            {submitting ? "Guardando..." : "Guardar"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -42,6 +42,8 @@ type ZonaInfo = {
   materiales: MaterialConsumo[];
 };
 
+const REF_TIPO_CONSUMO_SALMUERA = "consumo_manual_salmuera" as const;
+
 const ZONA_LABELS: Record<ZonaKey, string> = {
   desposte: "Desposte Salmuera",
   desprese: "Desprese Salmuera",
@@ -65,7 +67,7 @@ export default function PconsumoPage() {
       .from("movimientos_inventario")
       .select("dia_proceso")
       .eq("zona_id", zonaId)
-      .eq("ref_tipo", "consumo_manual")
+      .eq("ref_tipo", REF_TIPO_CONSUMO_SALMUERA)
       .gte("fecha", inicio)
       .lte("fecha", fin);
 
@@ -230,7 +232,7 @@ export default function PconsumoPage() {
       tipo: "salida",
       bultos,
       kg,
-      ref_tipo: "consumo_manual",
+      ref_tipo: REF_TIPO_CONSUMO_SALMUERA,
       dia_proceso: diaProceso,
       notas: `Consumo manual registrado (${cantidad} ${unidad}${
         cantidad !== 1 ? "s" : ""
@@ -305,6 +307,7 @@ export default function PconsumoPage() {
         onSubmit={() => {
           if (!guardando) void guardarConsumoManual();
         }}
+        submitting={guardando}
       />
     </PageContainer>
   );
