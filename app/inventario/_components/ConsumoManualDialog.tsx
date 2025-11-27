@@ -1,3 +1,5 @@
+import type { ChangeEvent } from "react";
+
 import {
   Dialog,
   DialogContent,
@@ -54,6 +56,12 @@ export function ConsumoManualDialog({
   const diasDisponibles = dias.filter(
     (_, index) => index <= indiceHoyNormalizado
   );
+  const handleValueChange = (event: ChangeEvent<HTMLInputElement>) => {
+    onChange(event.target.value);
+  };
+  const handleNotesChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
+    onNotesChange?.(event.target.value);
+  };
   return (
     <Dialog open={open} onOpenChange={(value) => !value && onClose()}>
       <DialogContent>
@@ -71,7 +79,7 @@ export function ConsumoManualDialog({
           <Input
             type="number"
             value={value}
-            onChange={(event) => onChange(event.target.value)}
+            onChange={handleValueChange}
             placeholder={`Ingrese cantidad en ${material.unidad}${
               material.unidad !== "unidad" ? "s" : ""
             }`}
@@ -111,7 +119,7 @@ export function ConsumoManualDialog({
             </label>
             <Textarea
               value={notesValue ?? ""}
-              onChange={(event) => onNotesChange(event.target.value)}
+              onChange={handleNotesChange}
               placeholder={notesPlaceholder ?? "Agregar notas u observaciones"}
             />
           </div>
