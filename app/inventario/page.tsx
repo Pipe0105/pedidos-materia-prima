@@ -407,12 +407,16 @@ function InventarioPageContent() {
         const stockKg = normalizarNumero(item.stock_kg);
         const stockBultos = normalizarNumero(item.stock_bultos);
 
+        const presentacionSegura = presentacion ?? 0;
+
         const stockBultosDisponibles =
           unidad === "unidad"
-            ? stockBultos || stockBase
-            : stockBultos || (presentacion > 0 ? stockKg / presentacion : 0);
+            ? stockBultos ?? stockBase
+            : stockBultos ??
+              (presentacionSegura > 0 ? stockKg! / presentacionSegura : 0);
+
         const stockKgDisponibles =
-          unidad === "unidad" ? 0 : stockKg || stockBase;
+          unidad === "unidad" ? 0 : stockKg ?? stockBase;
 
         const consumoUnidades =
           unidad === "unidad" &&
