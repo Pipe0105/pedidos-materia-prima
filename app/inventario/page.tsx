@@ -251,12 +251,17 @@ function InventarioPageContent() {
 
     const { id, stockBultos } = materialEditar;
 
-
-    const { id, stockBultos } = materialEditar;
+    const { data: materialData, error: materialError } = await supabase
       .from("materiales")
       .select("unidad_medida, presentacion_kg_por_bulto")
       .eq("id", id)
       .single();
+    if (materialError) {
+      alert(
+        "❌ Error obteniendo el material seleccionado: " + materialError.message
+      );
+      return;
+    }
 
     const unidad = (materialData?.unidad_medida as Unidad) || "bulto";
     const presentacion = materialData?.presentacion_kg_por_bulto || 1;
@@ -292,16 +297,11 @@ function InventarioPageContent() {
       }
 
       const bultosDesdeKg = presentacion > 0 ? kg / presentacion : 0;
-      stockActualBultos += (Number.isFinite(bultosDesdeKg) ? bultosDesdeKg : 0) * mult;
-
-      const bultosDesdeKg = presentacion > 0 ? kg / presentacion : 0;
-      stockActualBultos += (Number.isFinite(bultosDesdeKg) ? bultosDesdeKg : 0) * mult;
-      }
+      stockActualBultos +=
+        (Number.isFinite(bultosDesdeKg) ? bultosDesdeKg : 0) * mult;
     });
 
     const diferencia = stockBultos - stockActualBultos;
-
-
 
     if (diferencia === 0) {
       alert("ℹ El stock ya es correcto, no se registró ningún cambio.");
@@ -469,11 +469,8 @@ function InventarioPageContent() {
             unidad === "unidad"
               ? stockBultosDisponibles
               : unidad === "bulto"
-                ? stockBultosDisponibles
-               
-               
-              
-                : stockBase || stockKgDisponibles,
+              ? stockBultosDisponibles
+              : stockBase || stockKgDisponibles,
           stockKg: unidad === "unidad" ? 0 : stockKgDisponibles,
           unidad,
           hasta,
@@ -889,7 +886,6 @@ function InventarioPageContent() {
           setMaterialEditar((prev) => ({
             ...prev,
             stockBultos: value,
-
           }))
         }
         onSubmit={() => void guardarEdicion()}
