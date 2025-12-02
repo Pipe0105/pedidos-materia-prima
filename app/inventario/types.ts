@@ -42,7 +42,8 @@ export type MovimientoInventario = {
 export type MaterialEditar = {
   id: string;
   nombre: string;
-  stockKg: number;
+  unidad: Unidad;
+  stockBultos: number;
 };
 
 export type MaterialConsumo = {

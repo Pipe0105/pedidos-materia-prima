@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 import type { MaterialEditar } from "../types";
-import { eventNames } from "process";
 
 type EditarInventarioDialogProps = {
   open: boolean;
@@ -38,11 +37,13 @@ export function EditarInventarioDialog({
         </DialogHeader>
         <div className="space-y-2">
           <label className="text-sm font-medium text-muted-foreground">
-            Nuevo stock (kg)
+            Nuevo stock (bultos)
           </label>
           <Input
             type="number"
-            value={Number.isFinite(material.stockKg) ? material.stockKg : 0}
+            value={
+              Number.isFinite(material.stockBultos) ? material.stockBultos : 0
+            }
             onChange={(event) => onChange(parseFloat(event.target.value) || 0)}
           />
         </div>

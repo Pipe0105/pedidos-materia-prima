@@ -25,7 +25,12 @@ type InventarioTableProps = {
   loading: boolean;
   mostrarColumnaKg: boolean;
   onVerHistorial: (materialId: string, nombre: string) => void;
-  onEditar: (materialId: string, nombre: string, stockKg: number) => void;
+  onEditar: (
+    materialId: string,
+    nombre: string,
+    stockBultos: number,
+    unidad: StockRow["unidad"]
+  ) => void;
   onConsumo: (
     materialId: string,
     nombre: string,
@@ -168,7 +173,12 @@ export function InventarioTable({
                           size="sm"
                           className="h-8 rounded-lg px-2.5 text-xs font-medium text-[#1F4F9C] transition-colors hover:bg-[#1F4F9C]/10 hover:text-[#163a73]"
                           onClick={() =>
-                            onEditar(row.material_id, row.nombre, row.stockKg)
+                            onEditar(
+                              row.material_id,
+                              row.nombre,
+                              row.stock,
+                              row.unidad
+                            )
                           }
                         >
                           <PencilLine className="size-4" />

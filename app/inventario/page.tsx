@@ -40,7 +40,12 @@ import type {
   Zona,
 } from "./types";
 
-const EMPTY_EDITAR: MaterialEditar = { id: "", nombre: "", stockKg: 0 };
+const EMPTY_EDITAR: MaterialEditar = {
+  id: "",
+  nombre: "",
+  stockBultos: 0,
+  unidad: "bulto",
+};
 const EMPTY_CONSUMO: MaterialConsumo = { id: "", nombre: "", unidad: "bulto" };
 const REF_TIPO_CONSUMO_AGUJAS = "consumo_manual_agujas" as const;
 
@@ -228,8 +233,13 @@ function InventarioPageContent() {
     }
   };
 
-  const abrirEditar = (id: string, nombre: string, stockKg: number) => {
-    setMaterialEditar({ id, nombre, stockKg });
+  const abrirEditar = (
+    id: string,
+    nombre: string,
+    stockBultos: number,
+    unidad: Unidad
+  ) => {
+    setMaterialEditar({ id, nombre, stockBultos, unidad });
     setShowEditar(true);
   };
 
@@ -239,9 +249,10 @@ function InventarioPageContent() {
       return;
     }
 
-    const { id, stockKg } = materialEditar;
+    const { id, stockBultos } = materialEditar;
 
-    const { data: materialData } = await supabase
+
+    const { id, stockBultos } = materialEditar;
       .from("materiales")
       .select("unidad_medida, presentacion_kg_por_bulto")
       .eq("id", id)
@@ -261,52 +272,69 @@ function InventarioPageContent() {
       return;
     }
 
-    let stockActual = 0;
+    let stockActualBultos = 0;
     (movs ?? []).forEach((m) => {
       const mult = m.tipo === "entrada" || m.tipo === "ajuste" ? 1 : -1;
 
       if (unidad === "unidad") {
-        stockActual += Number(m.bultos || 0) * mult;
-      } else {
-        stockActual += Number(m.kg || 0) * mult;
+        stockActualBultos += Number(m.bultos || 0) * mult;
+        return;
+      }
+
+      const kg = Number.isFinite(Number(m.kg)) ? Number(m.kg) : 0;
+      const bultosMovimiento = Number.isFinite(Number(m.bultos))
+        ? Number(m.bultos)
+        : 0;
+
+      if (bultosMovimiento !== 0) {
+        stockActualBultos += bultosMovimiento * mult;
+        return;
+      }
+
+      const bultosDesdeKg = presentacion > 0 ? kg / presentacion : 0;
+      stockActualBultos += (Number.isFinite(bultosDesdeKg) ? bultosDesdeKg : 0) * mult;
+
+      const bultosDesdeKg = presentacion > 0 ? kg / presentacion : 0;
+      stockActualBultos += (Number.isFinite(bultosDesdeKg) ? bultosDesdeKg : 0) * mult;
       }
     });
 
-    const diferencia = stockKg - stockActual;
+    const diferencia = stockBultos - stockActualBultos;
+
+
 
     if (diferencia === 0) {
-      alert("ℹ️ El stock ya es correcto, no se registró ningún cambio.");
+      alert("ℹ El stock ya es correcto, no se registró ningún cambio.");
       setShowEditar(false);
       return;
     }
+
+    const notas = `Ajuste manual: stock corregido a ${stockBultos} bulto${
+      stockBultos !== 1 ? "s" : ""
+    }`;
 
     const movimiento =
       unidad === "unidad"
         ? {
             zona_id: zonaId,
-            material_id: id,
-            fecha: new Date().toISOString().slice(0, 10),
+
             tipo: "ajuste",
             bultos: diferencia,
             kg: 0,
             ref_tipo: "ajuste_manual",
             ref_id: null,
-            notas: `Ajuste manual: stock corregido a ${stockKg} ${unidad}${
-              stockKg !== 1 ? "s" : ""
-            }`,
+            notas,
           }
         : {
             zona_id: zonaId,
             material_id: id,
             fecha: new Date().toISOString().slice(0, 10),
             tipo: "ajuste",
-            bultos: null,
-            kg: unidad === "bulto" ? diferencia : diferencia * presentacion,
+            bultos: diferencia,
+            kg: diferencia * presentacion,
             ref_tipo: "ajuste_manual",
             ref_id: null,
-            notas: `Ajuste manual: stock corregido a ${stockKg} ${unidad}${
-              stockKg !== 1 ? "s" : ""
-            }`,
+            notas,
           };
 
     const { error } = await supabase
@@ -380,7 +408,9 @@ function InventarioPageContent() {
         const stockBultos = normalizarNumero(item.stock_bultos);
 
         const stockBultosDisponibles =
-          unidad === "unidad" ? stockBultos || stockBase : stockBultos;
+          unidad === "unidad"
+            ? stockBultos || stockBase
+            : stockBultos || (presentacion > 0 ? stockKg / presentacion : 0);
         const stockKgDisponibles =
           unidad === "unidad" ? 0 : stockKg || stockBase;
 
@@ -438,7 +468,12 @@ function InventarioPageContent() {
           stock:
             unidad === "unidad"
               ? stockBultosDisponibles
-              : stockBase || stockKgDisponibles,
+              : unidad === "bulto"
+                ? stockBultosDisponibles
+               
+               
+              
+                : stockBase || stockKgDisponibles,
           stockKg: unidad === "unidad" ? 0 : stockKgDisponibles,
           unidad,
           hasta,
@@ -853,7 +888,8 @@ function InventarioPageContent() {
         onChange={(value) =>
           setMaterialEditar((prev) => ({
             ...prev,
-            stockKg: value,
+            stockBultos: value,
+
           }))
         }
         onSubmit={() => void guardarEdicion()}
