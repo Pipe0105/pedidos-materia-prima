@@ -1,9 +1,0 @@
-{
-  "buildCommand": "next build --no-lint",
-  "crons": [
-    {
-      "path": "/api/consumo/cron",
-      "schedule": "0 22 * * *"
-    }
-  ]
-}
