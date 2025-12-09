@@ -1,0 +1,230 @@
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import type React from "react";
+import { useState } from "react";
+
+import type { MovimientoInventario } from "../types";
+import { scale } from "pdfkit";
+
+function formatMovimientoFecha(movimiento: MovimientoInventario) {
+  let fechaBase = movimiento.created_at || movimiento.fecha;
+
+  if (!fechaBase) return "—";
+
+  // ¿La fecha viene sin hora?
+  const tieneHora = fechaBase.includes("T");
+
+  if (!tieneHora) {
+    const ahora = new Date();
+    const horaLocal = ahora.toTimeString().split(" ")[0]; // HH:MM:SS local
+    fechaBase = `${fechaBase}T${horaLocal}`;
+  }
+
+  const fecha = new Date(fechaBase);
+
+  if (Number.isNaN(fecha.getTime())) return "—";
+
+  return fecha.toLocaleString("es-CO", {
+    dateStyle: "short",
+    timeStyle: "short",
+  });
+}
+
+function getMovimientoFecha(movimiento: MovimientoInventario) {
+  let fechaBase = movimiento.created_at || movimiento.fecha;
+
+  if (!fechaBase) return null;
+
+  if (!fechaBase.includes("T")) {
+    const ahora = new Date();
+    const horaLocal = ahora.toTimeString().split(" ")[0];
+    fechaBase = `${fechaBase}T${horaLocal}`;
+  }
+
+  const fecha = new Date(fechaBase);
+
+  return Number.isNaN(fecha.getTime()) ? null : fecha;
+}
+
+type HistorialDialogProps = {
+  open: boolean;
+  materialNombre: string;
+  movimientos: MovimientoInventario[];
+  onClose: () => void;
+};
+
+export function HistorialDialog({
+  open,
+  materialNombre,
+  movimientos,
+  onClose,
+}: HistorialDialogProps) {
+  const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+  const [isZoomed, setIsZoomed] = useState(false);
+  const [transformOrigin, setTransformOrigin] = useState("center center");
+
+  const sortedMovimientos = [...movimientos].sort((a, b) => {
+    const fechaA = getMovimientoFecha(a);
+    const fechaB = getMovimientoFecha(b);
+
+    if (fechaA && fechaB) return fechaB.getTime() - fechaA.getTime();
+    if (fechaA) return -1;
+    if (fechaB) return 1;
+    return 0;
+  });
+  return (
+    <Dialog open={open} onOpenChange={(value) => !value && onClose()}>
+      <DialogContent className="sm:max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>Historial de movimientos</DialogTitle>
+          <DialogDescription>
+            {materialNombre
+              ? `Movimientos registrados para ${materialNombre}.`
+              : "Revisa los movimientos mas recientes del inventario."}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="max-h-[50vh] overflow-y-auto rounded-lg border">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-slate-50">
+                <TableHead className="font-semibold">Fecha</TableHead>
+                <TableHead className="font-semibold">Tipo</TableHead>
+                <TableHead className="font-semibold">Bultos</TableHead>
+                <TableHead className="font-semibold">Kg</TableHead>
+                <TableHead className="font-semibold">Notas</TableHead>
+
+                <TableHead className="font-semibold">Fotos</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {movimientos.length ? (
+                sortedMovimientos.map((movimiento, index) => (
+                  <TableRow
+                    key={movimiento.id ?? `${movimiento.created_at}-${index}`}
+                  >
+                    <TableCell className="text-sm text-muted-foreground">
+                      <div className="flex flex-col">
+                        <span>{formatMovimientoFecha(movimiento)}</span>
+                        {movimiento.dia_proceso ? (
+                          <span className="text-xs">
+                            Día proceso:{" "}
+                            <strong style={{ color: "black" }}>
+                              {movimiento.dia_proceso}
+                            </strong>
+                          </span>
+                        ) : null}
+                      </div>
+                    </TableCell>
+                    <TableCell className="capitalize">
+                      {movimiento.tipo}
+                    </TableCell>
+                    <TableCell>{movimiento.bultos ?? "-"}</TableCell>
+                    <TableCell>{movimiento.kg ?? "-"}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {movimiento.notas ?? "sin notas"}
+                    </TableCell>
+                    <TableCell>
+                      {movimiento.foto_url ? (
+                        <Button
+                          variant="link"
+                          className="px-0 text-sm"
+                          onClick={() => {
+                            setIsZoomed(false);
+                            setTransformOrigin("center center");
+                            setSelectedPhoto(movimiento.foto_url);
+                          }}
+                        >
+                          Ver foto
+                        </Button>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell
+                    colSpan={6}
+                    className="py-12 text-center text-sm text-muted-foreground"
+                  >
+                    No hay movimientos registrados para este material
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+        <DialogFooter>
+          <Button variant="secondary" onClick={onClose}>
+            Cerrar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+      <Dialog
+        open={Boolean(selectedPhoto)}
+        onOpenChange={(value) => {
+          if (!value) {
+            setSelectedPhoto(null);
+            setIsZoomed(false);
+            setTransformOrigin("center center");
+          }
+        }}
+      >
+        <DialogContent className="max-w-5xl w-full">
+          <DialogHeader>
+            <DialogTitle>Foto del movimiento</DialogTitle>
+            <DialogDescription>
+              Vista previa ampliada de la foto asociada a este movimiento.
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedPhoto ? (
+            <div className="flex justify-center max-h-[85vh] overflow-auto">
+              <img
+                src={selectedPhoto}
+                alt="Foto del movimiento"
+                onClick={(event) => {
+                  const rect = event.currentTarget.getBoundingClientRect();
+                  const offsetX =
+                    ((event.clientX - rect.left) / rect.height) * 100;
+                  const offsetY =
+                    ((event.clientY - rect.top) / rect.height) * 100;
+
+                  if (isZoomed) {
+                    setIsZoomed(false);
+                  } else {
+                    setTransformOrigin(`${offsetX}% ${offsetY}%`);
+                    setIsZoomed(true);
+                  }
+                }}
+                style={{
+                  transform: isZoomed ? "scale(2)" : "scale(1)",
+                  transformOrigin,
+                }}
+                className={`w-full object-contain rounded-lg shadow-md transition-transform duration-300 ${
+                  isZoomed ? "cursor-zoom-out" : "cursor-zoom-in"
+                }`}
+              />
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+    </Dialog>
+  );
+}
