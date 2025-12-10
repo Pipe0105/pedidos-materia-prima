@@ -327,24 +327,42 @@ function InventarioPageContent() {
       return;
     }
 
+    // 1️⃣ Identificar el ref_tipo según el tipo de material
+    const materialNombre = rows
+      .find((r) => r.material_id === materialId)
+      ?.nombre.toLowerCase();
+
+    let refTiposValidos: string[] = [];
+
+    if (materialNombre?.includes("salmuera")) {
+      refTiposValidos = ["consumo_manual_salmuera"];
+    } else if (materialNombre?.includes("aguja")) {
+      refTiposValidos = ["consumo_manual_agujas"];
+    } else {
+      // fallback para otros materiales
+      refTiposValidos = ["consumo_manual_agujas", "consumo_manual_salmuera"];
+    }
+
+    // 2️⃣ Buscar *el consumo más reciente* del material correcto
     const { data: mov, error: errMov } = await supabase
       .from("movimientos_inventario")
       .select(
         "id, bultos, kg, fecha, created_at, dia_proceso, material_id, foto_url"
       )
       .eq("zona_id", zonaId)
-      .eq("tipo", "salida")
-      .eq("ref_tipo", REF_TIPO_CONSUMO_AGUJAS)
-      .order("fecha", { ascending: false }) // 👈 USAR FECHA (incluye hora)
-      .order("id", { ascending: false })
+      .eq("material_id", materialId)
+      .in("ref_tipo", refTiposValidos)
+      .order("fecha", { ascending: false }) // incluye hora → orden correcto
+      .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
 
     if (errMov || !mov) {
-      alert("No hay consumos manuales para deshacer");
+      alert("No hay consumo manual para deshacer en este material.");
       return;
     }
 
+    // 3️⃣ Insertar entrada para revertir el consumo
     const { error: errUndo } = await supabase
       .from("movimientos_inventario")
       .insert({
@@ -354,43 +372,41 @@ function InventarioPageContent() {
         tipo: "entrada",
         bultos: Math.abs(mov.bultos),
         kg: Math.abs(mov.kg),
-        ref_tipo: "deshacer consumo",
+        ref_tipo: "deshacer_consumo",
         dia_proceso: mov.dia_proceso,
         notas: "deshacer consumo manual anterior",
       });
 
     if (errUndo) {
-      alert("error al dehacer consumo" + errUndo.message);
-    } else {
-      const { error: errMark } = await supabase
-        .from("movimientos_inventario")
-        .update({
-          ref_tipo: "consumo_manual_anulado",
-          ...(mov.foto_url ? { foto_url: null } : {}),
-        })
-        .eq("id", mov.id);
-
-      if (errMark) {
-        console.error("Error marcando consumo manual", errMark);
-      }
-
-      if (mov.foto_url) {
-        const photoPath = extractStoragePathFromPublicUrl(mov.foto_url);
-        if (photoPath) {
-          const { error: errDelete } = await supabase.storage
-            .from(STORAGE_BUCKET_CONSUMOS)
-            .remove([photoPath]);
-          if (errDelete) {
-            console.warn(
-              "No se pudo borrar la foto del consumo deshecho",
-              errDelete
-            );
-          }
-        }
-      }
-      alert("consumo manual deshecho correctamente");
-      await cargar();
+      alert("Error al deshacer consumo: " + errUndo.message);
+      return;
     }
+
+    // 4️⃣ Marcar el movimiento original como anulado
+    const { error: errMark } = await supabase
+      .from("movimientos_inventario")
+      .update({
+        ref_tipo: "consumo_manual_anulado",
+        ...(mov.foto_url ? { foto_url: null } : {}),
+      })
+      .eq("id", mov.id);
+
+    if (errMark) {
+      console.warn("Error marcando consumo manual como anulado:", errMark);
+    }
+
+    // 5️⃣ Borrar foto si existía
+    if (mov.foto_url) {
+      const photoPath = extractStoragePathFromPublicUrl(mov.foto_url);
+      if (photoPath) {
+        await supabase.storage
+          .from(STORAGE_BUCKET_CONSUMOS)
+          .remove([photoPath]);
+      }
+    }
+
+    alert("Consumo manual deshecho correctamente");
+    await cargar();
   };
 
   const abrirEditar = (
