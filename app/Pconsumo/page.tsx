@@ -228,7 +228,7 @@ export default function PconsumoPage() {
     const { error } = await supabase.from("movimientos_inventario").insert({
       zona_id: zonaSeleccionada.id,
       material_id: materialId,
-      fecha: new Date().toISOString().slice(0, 10),
+      fecha: new Date().toISOString(),
       tipo: "salida",
       bultos,
       kg,
