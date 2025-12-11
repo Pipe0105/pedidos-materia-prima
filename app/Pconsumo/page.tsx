@@ -123,7 +123,11 @@ export default function PconsumoPage() {
         }
 
         const materiales = (materialesData ?? [])
-          .filter((material) => material.activo !== false)
+          .filter(
+            (material) =>
+              material.activo !== false &&
+              material.nombre.toLowerCase().includes("salmuera")
+          )
           .map(
             (material) =>
               ({
