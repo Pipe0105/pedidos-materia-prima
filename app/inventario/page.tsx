@@ -1,13 +1,6 @@
 "use client";
 export const dynamic = "force-dynamic";
-import {
-  Suspense,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import type {
@@ -28,7 +21,7 @@ import { InventarioHeader } from "./_components/InventarioHeader";
 import { InventarioTable } from "./_components/InventarioTable";
 import { HistorialDialog } from "./_components/HistorialDialog";
 import { EditarInventarioDialog } from "./_components/EditarInventarioDialog";
-import { ConsumoManualDialog } from "./_components/ConsumoManualDialog";
+import { ConsumoManualAgujasDialog } from "./_components/ConsumoManualAgujasDialog";
 import { calcularConsumoDiarioKg } from "@/lib/consumo";
 import { calcularFechaCobertura } from "@/lib/utils";
 import imageCompression from "browser-image-compression";
@@ -40,7 +33,7 @@ import type {
   Unidad,
   Zona,
 } from "./types";
-import { file } from "pdfkit";
+import { parseFotoUrls, serializeFotoUrls } from "./_utils/fotos";
 
 const EMPTY_EDITAR: MaterialEditar = {
   id: "",
@@ -85,7 +78,6 @@ function InventarioPageContent() {
   const [materialHistorial, setMaterialHistorial] = useState("");
   const [showEditar, setShowEditar] = useState(false);
   const zonasInicializadas = useRef(false);
-  const [diasConsumidos, setDiasConsumidos] = useState<string[]>([]);
   const ultimaZonaQuery = useRef<string | null>(null);
   const [materialEditar, setMaterialEditar] =
     useState<MaterialEditar>(EMPTY_EDITAR);
@@ -97,8 +89,8 @@ function InventarioPageContent() {
   const [notasConsumo, setNotasConsumo] = useState("");
   const [notasEditadas, setNotasEditadas] = useState(false);
   const [guardandoConsumo, setGuardandoConsumo] = useState(false);
-  const [fotoConsumo, setFotoConsumo] = useState<File | null>(null);
   const [fotoError, setFotoError] = useState<string | null>(null);
+  const [fotosConsumo, setFotosConsumo] = useState<File[]>([]);
   const [deshaciendoPedidoMaterialId, setDeshaciendoPedidoMaterialId] =
     useState<string | null>(null);
   const deshaciendoPedidoRef = useRef(false);
@@ -110,33 +102,46 @@ function InventarioPageContent() {
         })`
       : "Consumo manual registrado";
 
-  const manejarFotoConsumo = async (file: File | null) => {
-    if (!file) {
-      setFotoConsumo(null);
+  const manejarFotosConsumo = async (files: File[] | null) => {
+    if (!files || files.length === 0) {
+      setFotosConsumo([]);
       setFotoError(null);
+      return;
+    }
+    if (files.length > 3) {
+      setFotosConsumo([]);
+      setFotoError("Solo puedes subir hasta 3 fotos por consumo.");
       return;
     }
 
     try {
-      const compressedFile = await imageCompression(file, {
-        maxSizeMB: 0.5,
-        useWebWorker: true,
-      });
+      const compressedFiles: File[] = [];
 
-      if (compressedFile.size > 0.5 * 1024 * 1024) {
-        setFotoConsumo(null);
-        setFotoError(
-          "La foto sigue pesando más de 0.5 MB incluso después de comprimir."
-        );
-        return;
+      for (const file of files) {
+        const compressedFile = await imageCompression(file, {
+          maxSizeMB: 0.5,
+          useWebWorker: true,
+        });
+
+        if (compressedFile.size > 0.5 * 1024 * 1024) {
+          setFotoError(
+            "Alguna foto pesa más de 0.5 MB incluso después de comprimir."
+          );
+          setFotosConsumo([]);
+          return;
+        }
+
+        compressedFiles.push(compressedFile);
       }
 
-      setFotoConsumo(compressedFile);
+      setFotosConsumo(compressedFiles);
       setFotoError(null);
     } catch (error) {
       console.error("Error comprimiendo foto de consumo:", error);
-      setFotoError("No se pudo procesar la imagen. Intenta con otra foto.");
-      setFotoConsumo(null);
+      setFotoError(
+        "No se pudo procesar las imágenes. Intenta con otras fotos."
+      );
+      setFotosConsumo([]);
     }
   };
   const abrirConsumoManual = async (
@@ -149,53 +154,10 @@ function InventarioPageContent() {
     setDiaProceso("");
     setNotasConsumo(buildNotasGenericas(0, unidad));
     setNotasEditadas(false);
-    setFotoConsumo(null);
+    setFotosConsumo([]);
     setFotoError(null);
     setShowConsumo(true);
-
-    if (zonaId) {
-      const usados = await cargarDiasConsumidos(id, zonaId);
-      setDiasConsumidos(usados);
-    }
   };
-
-  function getWeekNumber(date: Date) {
-    const d = new Date(
-      Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())
-    );
-    const dayNum = d.getUTCDay() || 7;
-    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-    return Math.ceil(((+d - +yearStart) / 86400000 + 1) / 7);
-  }
-
-  async function cargarDiasConsumidos(materialId: string, zonaId: string) {
-    const { data, error } = await supabase
-      .from("movimientos_inventario")
-      .select("dia_proceso, fecha")
-      .eq("zona_id", zonaId)
-      .eq("material_id", materialId)
-      .eq("tipo", "salida")
-      .eq("ref_tipo", "consumo_manual_agujas");
-
-    if (error) {
-      console.error("Error cargando días consumidos:", error);
-      return [];
-    }
-
-    const hoy = new Date();
-    const semanaActual = hoy.getFullYear() + "-" + getWeekNumber(hoy);
-
-    const usados = data
-      .filter((mov) => {
-        const f = new Date(mov.fecha);
-        const semanaMov = f.getFullYear() + "-" + getWeekNumber(f);
-        return semanaMov === semanaActual; // solo esta semana
-      })
-      .map((mov) => mov.dia_proceso);
-
-    return usados;
-  }
 
   const guardarConsumoManual = async () => {
     if (guardandoConsumo) return;
@@ -224,7 +186,6 @@ function InventarioPageContent() {
     const { id, unidad } = materialConsumo;
     const notasGenericas = buildNotasGenericas(cantidad, unidad);
     const notas = notasConsumo.trim() || notasGenericas;
-    let foto_url: string | null = null;
     let fotoUrl: string | null = null;
 
     try {
@@ -254,24 +215,29 @@ function InventarioPageContent() {
         bultos = cantidad * -1;
         kg = 0;
       }
-      if (fotoConsumo) {
-        const formData = new FormData();
-        formData.set("file", fotoConsumo);
+      if (fotosConsumo.length) {
+        const urls: string[] = [];
+        for (const foto of fotosConsumo) {
+          const formData = new FormData();
+          formData.set("file", foto);
 
-        const response = await fetch("/api/consumos/upload", {
-          method: "POST",
-          body: formData,
-        });
+          if (!response.ok) {
+            const payload = (await response.json()) as { error?: string };
+            const errorMessage = payload.error || "Error subiendo la foto";
+            alert("❌ " + errorMessage);
+            return;
+          }
 
-        if (!response.ok) {
-          const payload = (await response.json()) as { error?: string };
-          const errorMessage = payload.error || "Error subiendo la foto";
-          alert("❌ " + errorMessage);
-          return;
+          const response = await fetch("/api/consumos/upload", {
+            method: "POST",
+            body: formData,
+          });
+
+          const { url } = (await response.json()) as { url: string };
+          urls.push(url);
         }
 
-        const { url } = (await response.json()) as { url: string };
-        fotoUrl = url;
+        fotoUrl = serializeFotoUrls(urls);
       }
 
       const { error } = await supabase.from("movimientos_inventario").insert({
@@ -290,19 +256,13 @@ function InventarioPageContent() {
       if (error) {
         alert("❌ Error registrando consumo manual: " + error.message);
       } else {
-        // ⬇️⬇️⬇️ AQUI AGREGA LA LÍNEA IMPORTANTE ⬇️⬇️⬇️
-        setDiasConsumidos((prev) =>
-          prev.includes(diaProceso) ? prev : [...prev, diaProceso]
-        );
-        // ⬆️⬆️⬆️ AQUI MISMO ⬆️⬆️⬆️
-
         alert("✅ Consumo manual guardado correctamente");
 
         setShowConsumo(false);
         setDiaProceso("");
         setNotasConsumo("");
         setNotasEditadas(false);
-        setFotoConsumo(null);
+        setFotosConsumo([]);
         setFotoError(null);
 
         await cargar();
@@ -396,8 +356,9 @@ function InventarioPageContent() {
     }
 
     // 5️⃣ Borrar foto si existía
-    if (mov.foto_url) {
-      const photoPath = extractStoragePathFromPublicUrl(mov.foto_url);
+    const fotosPrevias = parseFotoUrls(mov.foto_url);
+    for (const foto of fotosPrevias) {
+      const photoPath = extractStoragePathFromPublicUrl(foto);
       if (photoPath) {
         await supabase.storage
           .from(STORAGE_BUCKET_CONSUMOS)
@@ -456,20 +417,39 @@ function InventarioPageContent() {
     const { data: movs, error } = await supabase
       .from("movimientos_inventario")
       .select(
-        "id, fecha, tipo, bultos, kg, notas, created_at, dia_proceso, foto_url"
+        "id, fecha, tipo, bultos, kg, notas, created_at, dia_proceso, foto_url, ref_tipo"
       )
       .eq("material_id", materialId)
       .eq("zona_id", zonaId)
       .order("fecha", { ascending: true })
       .order("created_at", { ascending: true });
 
-    if (error) {
-      console.error("Error cargando historial:", error.message);
-      setMovimientos([]);
-    } else {
-      setMovimientos((movs ?? []) as MovimientoInventario[]);
+  const actualizarNotasMovimiento = async (
+    movimientoId: string,
+    notas: string
+  ): Promise<boolean> => {
+    const notasLimpias = notas.trim();
+    if (!notasLimpias) {
+      alert("Las notas no pueden quedar vacías.");
+      return false;
     }
-    setShowHistorial(true);
+
+    const { error } = await supabase
+      .from("movimientos_inventario")
+      .update({ notas: notasLimpias })
+      .eq("id", movimientoId);
+
+    if (error) {
+      alert("No se pudo actualizar la nota: " + error.message);
+      return false;
+    }
+
+    setMovimientos((prev) =>
+      prev.map((mov) =>
+        mov.id === movimientoId ? { ...mov, notas: notasLimpias } : mov
+      )
+    );
+    return true;
   };
 
   const cargar = useCallback(async () => {
@@ -975,9 +955,8 @@ function InventarioPageContent() {
 
       <HistorialDialog
         open={showHistorial}
-        materialNombre={materialHistorial}
-        movimientos={movimientos}
-        onClose={() => setShowHistorial(false)}
+        editableRefTipos={[REF_TIPO_CONSUMO_AGUJAS]}
+        onUpdateNotas={actualizarNotasMovimiento}
       />
 
       <EditarInventarioDialog
@@ -996,7 +975,7 @@ function InventarioPageContent() {
         onSubmit={() => void guardarEdicion()}
       />
 
-      <ConsumoManualDialog
+      <ConsumoManualAgujasDialog
         open={showConsumo}
         material={materialConsumo}
         value={valorConsumo}
@@ -1009,7 +988,7 @@ function InventarioPageContent() {
           setNotasConsumo("");
           setNotasEditadas(false);
           setGuardandoConsumo(false);
-          setFotoConsumo(null);
+          setFotosConsumo([]);
           setFotoError(null);
         }}
         onChange={setValorConsumo}

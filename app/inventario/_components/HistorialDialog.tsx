@@ -15,11 +15,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import type React from "react";
 import { useState } from "react";
 
+import { parseFotoUrls } from "../_utils/fotos";
 import type { MovimientoInventario } from "../types";
-import { scale } from "pdfkit";
 
 function formatMovimientoFecha(movimiento: MovimientoInventario) {
   let fechaBase = movimiento.created_at || movimiento.fecha;
@@ -66,6 +67,8 @@ type HistorialDialogProps = {
   materialNombre: string;
   movimientos: MovimientoInventario[];
   onClose: () => void;
+  editableRefTipos?: string[];
+  onUpdateNotas?: (movimientoId: string, notas: string) => Promise<boolean>;
 };
 
 export function HistorialDialog({
@@ -73,10 +76,15 @@ export function HistorialDialog({
   materialNombre,
   movimientos,
   onClose,
+  editableRefTipos = [],
+  onUpdateNotas,
 }: HistorialDialogProps) {
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   const [isZoomed, setIsZoomed] = useState(false);
   const [transformOrigin, setTransformOrigin] = useState("center center");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingNotas, setEditingNotas] = useState<string>("");
+  const [savingNotas, setSavingNotas] = useState(false);
 
   const sortedMovimientos = [...movimientos].sort((a, b) => {
     const fechaA = getMovimientoFecha(a);
@@ -113,50 +121,122 @@ export function HistorialDialog({
             </TableHeader>
             <TableBody>
               {movimientos.length ? (
-                sortedMovimientos.map((movimiento, index) => (
-                  <TableRow
-                    key={movimiento.id ?? `${movimiento.created_at}-${index}`}
-                  >
-                    <TableCell className="text-sm text-muted-foreground">
-                      <div className="flex flex-col">
-                        <span>{formatMovimientoFecha(movimiento)}</span>
-                        {movimiento.dia_proceso ? (
-                          <span className="text-xs">
-                            Día proceso:{" "}
-                            <strong style={{ color: "black" }}>
-                              {movimiento.dia_proceso}
-                            </strong>
+                sortedMovimientos.map((movimiento, index) => {
+                  const movimientoId =
+                    movimiento.id ?? `${movimiento.created_at}-${index}`;
+                  const fotos = parseFotoUrls(movimiento.foto_url);
+                  const editable =
+                    editableRefTipos.includes(movimiento.ref_tipo ?? "") &&
+                    Boolean(onUpdateNotas) &&
+                    Boolean(movimiento.id);
+
+                  return (
+                    <TableRow key={movimientoId}>
+                      <TableCell className="text-sm text-muted-foreground">
+                        <div className="flex flex-col">
+                          <span>{formatMovimientoFecha(movimiento)}</span>
+                          {movimiento.dia_proceso ? (
+                            <span className="text-xs">
+                              Día proceso:{" "}
+                              <strong style={{ color: "black" }}>
+                                {movimiento.dia_proceso}
+                              </strong>
+                            </span>
+                          ) : null}
+                        </div>
+                      </TableCell>
+                      <TableCell className="capitalize">
+                        {movimiento.tipo}
+                      </TableCell>
+                      <TableCell>{movimiento.bultos ?? "-"}</TableCell>
+                      <TableCell>{movimiento.kg ?? "-"}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {editingId === movimiento.id ? (
+                          <div className="space-y-2">
+                            <Textarea
+                              value={editingNotas}
+                              onChange={(event) =>
+                                setEditingNotas(event.target.value)
+                              }
+                              rows={3}
+                            />
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                onClick={() => {
+                                  setEditingId(null);
+                                  setEditingNotas("");
+                                }}
+                              >
+                                Cancelar
+                              </Button>
+                              <Button
+                                size="sm"
+                                onClick={async () => {
+                                  if (!movimiento.id || !onUpdateNotas) return;
+                                  setSavingNotas(true);
+                                  const ok = await onUpdateNotas(
+                                    movimiento.id,
+                                    editingNotas
+                                  );
+                                  if (ok) {
+                                    setEditingId(null);
+                                    setEditingNotas("");
+                                  }
+                                  setSavingNotas(false);
+                                }}
+                                disabled={savingNotas}
+                              >
+                                {savingNotas ? "Guardando..." : "Guardar"}
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col gap-2">
+                            <span>{movimiento.notas ?? "sin notas"}</span>
+                            {editable ? (
+                              <Button
+                                variant="link"
+                                className="h-auto p-0 text-xs"
+                                onClick={() => {
+                                  setEditingId(movimiento.id ?? null);
+                                  setEditingNotas(movimiento.notas ?? "");
+                                }}
+                              >
+                                Editar nota
+                              </Button>
+                            ) : null}
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {fotos.length ? (
+                          <div className="flex flex-wrap gap-2">
+                            {fotos.map((foto, fotoIndex) => (
+                              <Button
+                                key={`${movimientoId}-foto-${fotoIndex}`}
+                                variant="link"
+                                className="px-0 text-sm"
+                                onClick={() => {
+                                  setIsZoomed(false);
+                                  setTransformOrigin("center center");
+                                  setSelectedPhoto(foto);
+                                }}
+                              >
+                                Ver foto {fotos.length > 1 ? fotoIndex + 1 : ""}
+                              </Button>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">
+                            -
                           </span>
-                        ) : null}
-                      </div>
-                    </TableCell>
-                    <TableCell className="capitalize">
-                      {movimiento.tipo}
-                    </TableCell>
-                    <TableCell>{movimiento.bultos ?? "-"}</TableCell>
-                    <TableCell>{movimiento.kg ?? "-"}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {movimiento.notas ?? "sin notas"}
-                    </TableCell>
-                    <TableCell>
-                      {movimiento.foto_url ? (
-                        <Button
-                          variant="link"
-                          className="px-0 text-sm"
-                          onClick={() => {
-                            setIsZoomed(false);
-                            setTransformOrigin("center center");
-                            setSelectedPhoto(movimiento.foto_url);
-                          }}
-                        >
-                          Ver foto
-                        </Button>
-                      ) : (
-                        <span className="text-sm text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               ) : (
                 <TableRow>
                   <TableCell

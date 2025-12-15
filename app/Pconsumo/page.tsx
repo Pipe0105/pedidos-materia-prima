@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { ConsumoManualDialog } from "@/app/inventario/_components/ConsumoManualDialog";
+import { ConsumoManualSalmueraDialog } from "@/app/inventario/_components/ConsumoManualSalmueraDialog";
 import type { MaterialConsumo, Unidad } from "@/app/inventario/types";
 import { PageContainer } from "@/components/PageContainer";
 import { Button } from "@/components/ui/button";
@@ -293,7 +293,7 @@ export default function PconsumoPage() {
         })}
       </section>
 
-      <ConsumoManualDialog
+      <ConsumoManualSalmueraDialog
         open={showConsumo}
         material={materialConsumo}
         value={valorConsumo}

@@ -37,6 +37,7 @@ export type MovimientoInventario = {
   notas: string | null;
   dia_proceso: string | null;
   foto_url: string | null;
+  ref_tipo?: string | null;
 
   created_at: string | null;
 };
