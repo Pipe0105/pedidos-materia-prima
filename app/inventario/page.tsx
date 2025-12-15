@@ -43,6 +43,7 @@ const EMPTY_EDITAR: MaterialEditar = {
 };
 const EMPTY_CONSUMO: MaterialConsumo = { id: "", nombre: "", unidad: "bulto" };
 const REF_TIPO_CONSUMO_AGUJAS = "consumo_manual_agujas" as const;
+const REF_TIPO_CONSUMO_SALMUERA = "consumo_manual_salmuera" as const;
 
 const STORAGE_BUCKET_CONSUMOS = "consumos";
 
@@ -188,6 +189,13 @@ function InventarioPageContent() {
     const notas = notasConsumo.trim() || notasGenericas;
     let fotoUrl: string | null = null;
 
+    const refTipo = (() => {
+      const nombre = materialConsumo.nombre.toLowerCase();
+      if (nombre.includes("salmuera")) return REF_TIPO_CONSUMO_SALMUERA;
+      if (nombre.includes("aguja")) return REF_TIPO_CONSUMO_AGUJAS;
+      return REF_TIPO_CONSUMO_AGUJAS;
+    })();
+
     try {
       const { data: matData, error: matError } = await supabase
         .from("materiales")
@@ -221,17 +229,17 @@ function InventarioPageContent() {
           const formData = new FormData();
           formData.set("file", foto);
 
+          const response = await fetch("/api/consumos/upload", {
+            method: "POST",
+            body: formData,
+          });
+
           if (!response.ok) {
             const payload = (await response.json()) as { error?: string };
             const errorMessage = payload.error || "Error subiendo la foto";
             alert("❌ " + errorMessage);
             return;
           }
-
-          const response = await fetch("/api/consumos/upload", {
-            method: "POST",
-            body: formData,
-          });
 
           const { url } = (await response.json()) as { url: string };
           urls.push(url);
@@ -247,7 +255,7 @@ function InventarioPageContent() {
         tipo: "salida",
         bultos,
         kg,
-        ref_tipo: REF_TIPO_CONSUMO_AGUJAS,
+        ref_tipo: refTipo,
         dia_proceso: diaProceso,
         notas,
         foto_url: fotoUrl,
@@ -424,6 +432,14 @@ function InventarioPageContent() {
       .order("fecha", { ascending: true })
       .order("created_at", { ascending: true });
 
+    if (error) {
+      alert("❌ Error obteniendo historial de movimientos.");
+      return;
+    }
+
+    setMovimientos(movs ?? []);
+    setShowHistorial(true);
+  };
   const actualizarNotasMovimiento = async (
     movimientoId: string,
     notas: string
@@ -955,6 +971,9 @@ function InventarioPageContent() {
 
       <HistorialDialog
         open={showHistorial}
+        materialNombre={materialHistorial}
+        movimientos={movimientos}
+        onClose={() => setShowHistorial(false)}
         editableRefTipos={[REF_TIPO_CONSUMO_AGUJAS]}
         onUpdateNotas={actualizarNotasMovimiento}
       />
@@ -980,7 +999,6 @@ function InventarioPageContent() {
         material={materialConsumo}
         value={valorConsumo}
         selectedDay={diaProceso}
-        disabledDays={diasConsumidos}
         onClose={() => {
           setShowConsumo(false);
           setMaterialConsumo(EMPTY_CONSUMO);
@@ -1000,8 +1018,8 @@ function InventarioPageContent() {
         notesValue={notasConsumo}
         notesLabel="Notas del consumo"
         notesPlaceholder="Puedes ajustar el mensaje genérico o agregar observaciones"
-        onPhotoChange={manejarFotoConsumo}
-        photoName={fotoConsumo?.name ?? null}
+        onPhotosChange={manejarFotosConsumo}
+        photoNames={fotosConsumo.map((file) => file.name)}
         photoError={fotoError}
         onSubmit={() => void guardarConsumoManual()}
         submitting={guardandoConsumo}
