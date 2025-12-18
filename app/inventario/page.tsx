@@ -708,7 +708,7 @@ function InventarioPageContent() {
           return;
         }
 
-        const fechaActual = new Date().toISOString().slice(0, 10);
+        const fechaActual = new Date().toISOString();
 
         const movimientosReverso = movimientosPedido.map((mov) => ({
           zona_id: zonaId,

@@ -370,7 +370,7 @@ export function useDashboardData({
         return {
           zona_id: zonaId,
           material_id: item.material_id,
-          fecha: new Date().toISOString().slice(0, 10),
+          fecha: new Date().toISOString(),
           tipo: "entrada",
           bultos: item.bultos,
           kg,

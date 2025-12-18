@@ -302,7 +302,7 @@ export default function PedidoEditorClient({ pedidoId }: { pedidoId: string }) {
       return;
     }
 
-    const fecha = pedido.fecha_pedido;
+    const fecha = new Date().toISOString();
 
     for (const it of its) {
       const payload = {
