@@ -16,6 +16,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { PageContainer } from "@/components/PageContainer";
 import { InventarioHeader } from "./_components/InventarioHeader";
 import { InventarioTable } from "./_components/InventarioTable";
@@ -46,6 +55,11 @@ const REF_TIPO_CONSUMO_AGUJAS = "consumo_manual_agujas" as const;
 const REF_TIPO_CONSUMO_SALMUERA = "consumo_manual_salmuera" as const;
 
 const STORAGE_BUCKET_CONSUMOS = "consumos";
+
+type PedidoParaDeshacer = {
+  id: string;
+  fecha: string | null;
+};
 
 function extractStoragePathFromPublicUrl(url: string | null) {
   if (!url) return null;
@@ -92,8 +106,18 @@ function InventarioPageContent() {
   const [guardandoConsumo, setGuardandoConsumo] = useState(false);
   const [fotoError, setFotoError] = useState<string | null>(null);
   const [fotosConsumo, setFotosConsumo] = useState<File[]>([]);
-  const [deshaciendoPedidoMaterialId, setDeshaciendoPedidoMaterialId] =
-    useState<string | null>(null);
+  const [deshaciendoPedidoMaterialId, setDeshaciendoPedidoMaterialId] = useState<string | null>(null);
+  const [showDeshacerPedidoModal, setShowDeshacerPedidoModal] = useState(false);
+  const [pedidosHoy, setPedidosHoy] = useState<PedidoParaDeshacer[]>([]);
+  const [pedidoSeleccionadoId, setPedidoSeleccionadoId] = useState<
+    string | null
+  >(null);
+  const [cargandoPedidosHoy, setCargandoPedidosHoy] = useState(false);
+  const [errorPedidosHoy, setErrorPedidosHoy] = useState<string | null>(null);
+  const [materialDeshacerPedido, setMaterialDeshacerPedido] = useState<{
+    id: string;
+    nombre: string;
+  } | null>(null);
   const deshaciendoPedidoRef = useRef(false);
 
   const buildNotasGenericas = (cantidad: number, unidad: Unidad) =>
@@ -589,8 +613,143 @@ function InventarioPageContent() {
     }
   }, [zonaId]);
 
-  const deshacerUltimoPedido = useCallback(
-    async (materialId: string, materialNombre: string) => {
+  const formatearFechaMovimiento = (fecha: string | null) => {
+    if (!fecha) return "sin hora";
+    const fechaNormalizada = fecha.includes("T")
+      ? fecha
+      : `${fecha}T00:00:00`;
+    const parsed = new Date(fechaNormalizada);
+    if (Number.isNaN(parsed.getTime())) return "sin hora";
+    return parsed.toLocaleTimeString("es-CO", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const obtenerPedidosCompletadosHoy = useCallback(
+    async (materialId: string) => {
+      if (!zonaId) return [];
+      const inicioHoy = new Date();
+      inicioHoy.setHours(0, 0, 0, 0);
+      const { data: movimientos, error } = await supabase
+        .from("movimientos_inventario")
+        .select("ref_id, created_at, fecha")
+        .eq("zona_id", zonaId)
+        .eq("ref_tipo", "pedido")
+        .eq("material_id", materialId)
+        .gte("created_at", inicioHoy.toISOString())
+        .order("created_at", { ascending: false })
+        .limit(50);
+
+      if (error) {
+        throw error;
+      }
+
+      if (!movimientos?.length) {
+        return [];
+      }
+
+      const idsOrdenados: string[] = [];
+      const fechaPorId = new Map<string, string | null>();
+
+      movimientos.forEach((mov) => {
+        if (!mov.ref_id) return;
+        if (idsOrdenados.includes(mov.ref_id)) return;
+        idsOrdenados.push(mov.ref_id);
+        fechaPorId.set(mov.ref_id, mov.created_at ?? mov.fecha ?? null);
+      });
+
+      if (!idsOrdenados.length) {
+        return [];
+      }
+
+      const { data: pedidos, error: pedidosError } = await supabase
+        .from("pedidos")
+        .select("id, estado")
+        .in("id", idsOrdenados);
+          }
+
+      if (pedidosError) {
+        throw pedidosError;
+      }
+
+      const estados = new Map(
+        (pedidos ?? []).map((pedido) => [pedido.id, pedido.estado])
+      );
+
+      return idsOrdenados
+        .filter((id) => estados.get(id) === "completado")
+        .map((id) => ({
+          id,
+          fecha: fechaPorId.get(id) ?? null,
+        }));
+    },
+    [zonaId]
+  );
+
+  const abrirDeshacerPedidoModal = useCallback(
+    (materialId: string, materialNombre: string) => {
+      setMaterialDeshacerPedido({ id: materialId, nombre: materialNombre });
+      setShowDeshacerPedidoModal(true);
+    },
+    []
+  );
+
+  const cerrarDeshacerPedidoModal = useCallback(() => {
+    setShowDeshacerPedidoModal(false);
+    setMaterialDeshacerPedido(null);
+    setPedidosHoy([]);
+    setPedidoSeleccionadoId(null);
+    setErrorPedidosHoy(null);
+  }, []);
+
+  useEffect(() => {
+    if (!showDeshacerPedidoModal || !materialDeshacerPedido || !zonaId) return;
+    let activo = true;
+
+    const cargarPedidosHoy = async () => {
+      setCargandoPedidosHoy(true);
+      setErrorPedidosHoy(null);
+      setPedidosHoy([]);
+      setPedidoSeleccionadoId(null);
+
+      try {
+        const pedidos = await obtenerPedidosCompletadosHoy(
+          materialDeshacerPedido.id
+        );
+        if (!activo) return;
+        setPedidosHoy(pedidos);
+        if (pedidos.length === 1) {
+          setPedidoSeleccionadoId(pedidos[0]?.id ?? null);
+        }
+
+      } catch (error) {
+        if (!activo) return;
+        console.error(error);
+        setErrorPedidosHoy(
+          "No pudimos cargar los pedidos completados de hoy."
+        );
+      } finally {
+        if (activo) {
+          setCargandoPedidosHoy(false);
+        }
+              }
+    };
+
+    void cargarPedidosHoy();
+
+    return () => {
+      activo = false;
+    };
+  }, [
+    obtenerPedidosCompletadosHoy,
+    materialDeshacerPedido,
+    showDeshacerPedidoModal,
+    zonaId,
+  ]);
+
+  const deshacerPedidoSeleccionado = useCallback(
+    async (pedidoId: string, materialNombre: string, materialId: string) => {
       if (deshaciendoPedidoRef.current) {
         return;
       }
@@ -600,185 +759,12 @@ function InventarioPageContent() {
       }
 
       deshaciendoPedidoRef.current = true;
-
       setDeshaciendoPedidoMaterialId(materialId);
 
       try {
-        const obtenerPedidosCompletados = async ({
-          materialIdFiltro,
-          soloHoy = false,
-        }: {
-          materialIdFiltro?: string;
-          soloHoy?: boolean;
-        }) => {
-          const query = supabase
-            .from("movimientos_inventario")
-            .select("ref_id, created_at, fecha")
-            .eq("zona_id", zonaId)
-            .eq("ref_tipo", "pedido")
-            .order("created_at", { ascending: false })
-            .limit(50);
-
-          if (materialIdFiltro) {
-            query.eq("material_id", materialIdFiltro);
-          }
-
-          if (soloHoy) {
-            const inicioHoy = new Date();
-            inicioHoy.setHours(0, 0, 0, 0);
-            query.gte("created_at", inicioHoy.toISOString());
-          }
-
-          const { data: movimientos, error } = await query;
-
-          if (error) {
-            throw error;
-          }
-
-          if (!movimientos?.length) {
-            return [];
-          }
-
-          const idsOrdenados: string[] = [];
-          const fechaPorId = new Map<string, string | null>();
-
-          movimientos.forEach((mov) => {
-            if (!mov.ref_id) return;
-            if (idsOrdenados.includes(mov.ref_id)) return;
-            idsOrdenados.push(mov.ref_id);
-            fechaPorId.set(mov.ref_id, mov.created_at ?? mov.fecha ?? null);
-          });
-
-          if (!idsOrdenados.length) {
-            return [];
-          }
-
-          const { data: pedidos, error: pedidosError } = await supabase
-            .from("pedidos")
-            .select("id, estado")
-            .in("id", idsOrdenados);
-
-          if (pedidosError) {
-            throw pedidosError;
-          }
-
-          const estados = new Map(
-            (pedidos ?? []).map((pedido) => [pedido.id, pedido.estado])
-          );
-
-          return idsOrdenados
-            .filter((id) => estados.get(id) === "completado")
-            .map((id) => ({
-              id,
-              fecha: fechaPorId.get(id) ?? null,
-            }));
-        };
-
-        const formatearFechaMovimiento = (fecha: string | null) => {
-          if (!fecha) return "sin hora";
-          const fechaNormalizada = fecha.includes("T")
-            ? fecha
-            : `${fecha}T00:00:00`;
-          const parsed = new Date(fechaNormalizada);
-          if (Number.isNaN(parsed.getTime())) return "sin hora";
-          return parsed.toLocaleTimeString("es-CO", {
-            hour: "2-digit",
-            minute: "2-digit",
-          });
-        };
-
-        const seleccionarPedido = (
-          pedidos: { id: string; fecha: string | null }[],
-          contexto: string
-        ) => {
-          if (pedidos.length === 1) {
-            return pedidos[0]?.id ?? null;
-          }
-
-          const opciones = pedidos
-            .map(
-              (pedido, index) =>
-                `${index + 1}. Pedido ${pedido.id} (${formatearFechaMovimiento(
-                  pedido.fecha
-                )})`
-            )
-            .join("\n");
-
-          const respuesta = window.prompt(
-            `Pedidos completados hoy${contexto}:\n${opciones}\n\nIngresa el número del pedido a deshacer:`
-          );
-
-          if (!respuesta) return null;
-
-          const indice = Number.parseInt(respuesta, 10);
-
-          if (Number.isNaN(indice) || indice < 1 || indice > pedidos.length) {
-            alert("Selección inválida. No se realizó ningún cambio.");
-            return null;
-          }
-
-          return pedidos[indice - 1]?.id ?? null;
-        };
-
-        let pedidoId: string | null = null;
-        let fallbackZona = false;
-
-        try {
-          const pedidosHoy = await obtenerPedidosCompletados({
-            materialIdFiltro: materialId,
-            soloHoy: true,
-          });
-
-          if (pedidosHoy.length) {
-            pedidoId = seleccionarPedido(pedidosHoy, ` para ${materialNombre}`);
-            if (!pedidoId) {
-              return;
-            }
-          } else {
-            const pedidosRecientes = await obtenerPedidosCompletados({
-              materialIdFiltro: materialId,
-            });
-            pedidoId = pedidosRecientes[0]?.id ?? null;
-          }
-        } catch (error) {
-          console.error(error);
-          alert("❌ Error buscando pedidos completados recientes.");
-          return;
-        }
-
-        if (!pedidoId) {
-          try {
-            const pedidosHoyZona = await obtenerPedidosCompletados({
-              soloHoy: true,
-            });
-
-            if (pedidosHoyZona.length) {
-              pedidoId = seleccionarPedido(pedidosHoyZona, " en esta zona");
-              if (!pedidoId) {
-                return;
-              }
-            } else {
-              const pedidosZona = await obtenerPedidosCompletados({});
-              pedidoId = pedidosZona[0]?.id ?? null;
-            }
-
-            fallbackZona = Boolean(pedidoId);
-          } catch (error) {
-            console.error(error);
-            alert("❌ Error buscando pedidos completados recientes.");
-            return;
-          }
-        }
-
-        if (!pedidoId) {
-          alert("No se encontraron pedidos completados para deshacer.");
-          return;
-        }
 
         const confirmar = window.confirm(
-          fallbackZona
-            ? `No hay pedidos completados recientes para ${materialNombre}. ¿Deseas deshacer el último pedido completado en esta zona?`
-            : `¿Deseas deshacer el último pedido completado de ${materialNombre} en esta zona?`
+          `¿Deseas deshacer el pedido ${pedidoId} de ${materialNombre}?`
         );
 
         if (!confirmar) {
@@ -929,6 +915,7 @@ function InventarioPageContent() {
         }
 
         alert("✅ Pedido deshecho y restaurado en la lista de pedidos.");
+        cerrarDeshacerPedidoModal();
 
         await cargar();
 
@@ -947,7 +934,7 @@ function InventarioPageContent() {
         setDeshaciendoPedidoMaterialId(null);
       }
     },
-    [cargar, zonaId]
+    [cargar, cerrarDeshacerPedidoModal, zonaId]
   );
 
   useEffect(() => {
@@ -1085,7 +1072,7 @@ function InventarioPageContent() {
                         onEditar={abrirEditar}
                         onConsumo={abrirConsumoManual}
                         onDeshacerConsumo={deshacerConsumoManual}
-                        onDeshacerPedido={deshacerUltimoPedido}
+                        onDeshacerPedido={abrirDeshacerPedidoModal}
                         deshaciendoPedidoMaterialId={
                           deshaciendoPedidoMaterialId
                         }
@@ -1110,6 +1097,97 @@ function InventarioPageContent() {
           </Card>
         )}
       </section>
+      <Dialog
+        open={showDeshacerPedidoModal}
+        onOpenChange={(value) => {
+          if (!value) {
+            cerrarDeshacerPedidoModal();
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Deshacer pedido completado</DialogTitle>
+            <DialogDescription>
+              Selecciona el pedido completado hoy para{" "}
+              {materialDeshacerPedido?.nombre ?? "este material"}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            {cargandoPedidosHoy ? (
+              <p className="text-sm text-muted-foreground">
+                Cargando pedidos completados de hoy...
+              </p>
+            ) : errorPedidosHoy ? (
+              <p className="text-sm text-rose-600">{errorPedidosHoy}</p>
+            ) : pedidosHoy.length ? (
+              <div className="space-y-2">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Pedidos completados hoy
+                </p>
+                <div className="max-h-60 space-y-2 overflow-y-auto pr-2">
+                  {pedidosHoy.map((pedido) => {
+                    const seleccionado = pedidoSeleccionadoId === pedido.id;
+                    return (
+                      <button
+                        key={pedido.id}
+                        type="button"
+                        onClick={() => setPedidoSeleccionadoId(pedido.id)}
+                        className={`flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-sm transition ${
+                          seleccionado
+                            ? "border-[#1F4F9C] bg-[#1F4F9C]/10 text-[#1F4F9C]"
+                            : "border-muted bg-background hover:bg-muted/60"
+                        }`}
+                      >
+                        <span className="font-medium">
+                          Pedido {pedido.id}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {formatearFechaMovimiento(pedido.fecha)}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                No hay pedidos completados hoy para este material.
+              </p>
+            )}
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={cerrarDeshacerPedidoModal}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={
+                !pedidoSeleccionadoId ||
+                cargandoPedidosHoy ||
+                Boolean(errorPedidosHoy)
+              }
+              onClick={() => {
+                if (!pedidoSeleccionadoId || !materialDeshacerPedido) return;
+                void deshacerPedidoSeleccionado(
+                  pedidoSeleccionadoId,
+                  materialDeshacerPedido.nombre,
+                  materialDeshacerPedido.id
+                );
+              }}
+            >
+              {deshaciendoPedidoMaterialId === materialDeshacerPedido?.id
+                ? "Deshaciendo..."
+                : "Deshacer pedido"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <HistorialDialog
         open={showHistorial}
