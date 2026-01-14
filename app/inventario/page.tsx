@@ -106,7 +106,8 @@ function InventarioPageContent() {
   const [guardandoConsumo, setGuardandoConsumo] = useState(false);
   const [fotoError, setFotoError] = useState<string | null>(null);
   const [fotosConsumo, setFotosConsumo] = useState<File[]>([]);
-  const [deshaciendoPedidoMaterialId, setDeshaciendoPedidoMaterialId] = useState<string | null>(null);
+  const [deshaciendoPedidoMaterialId, setDeshaciendoPedidoMaterialId] =
+    useState<string | null>(null);
   const [showDeshacerPedidoModal, setShowDeshacerPedidoModal] = useState(false);
   const [pedidosHoy, setPedidosHoy] = useState<PedidoParaDeshacer[]>([]);
   const [pedidoSeleccionadoId, setPedidoSeleccionadoId] = useState<
@@ -615,9 +616,7 @@ function InventarioPageContent() {
 
   const formatearFechaMovimiento = (fecha: string | null) => {
     if (!fecha) return "sin hora";
-    const fechaNormalizada = fecha.includes("T")
-      ? fecha
-      : `${fecha}T00:00:00`;
+    const fechaNormalizada = fecha.includes("T") ? fecha : `${fecha}T00:00:00`;
     const parsed = new Date(fechaNormalizada);
     if (Number.isNaN(parsed.getTime())) return "sin hora";
     return parsed.toLocaleTimeString("es-CO", {
@@ -667,7 +666,6 @@ function InventarioPageContent() {
         .from("pedidos")
         .select("id, estado")
         .in("id", idsOrdenados);
-          }
 
       if (pedidosError) {
         throw pedidosError;
@@ -722,18 +720,15 @@ function InventarioPageContent() {
         if (pedidos.length === 1) {
           setPedidoSeleccionadoId(pedidos[0]?.id ?? null);
         }
-
       } catch (error) {
         if (!activo) return;
         console.error(error);
-        setErrorPedidosHoy(
-          "No pudimos cargar los pedidos completados de hoy."
-        );
+        setErrorPedidosHoy("No pudimos cargar los pedidos completados de hoy.");
       } finally {
         if (activo) {
           setCargandoPedidosHoy(false);
         }
-              }
+      }
     };
 
     void cargarPedidosHoy();
@@ -762,7 +757,6 @@ function InventarioPageContent() {
       setDeshaciendoPedidoMaterialId(materialId);
 
       try {
-
         const confirmar = window.confirm(
           `¿Deseas deshacer el pedido ${pedidoId} de ${materialNombre}?`
         );
@@ -1139,9 +1133,7 @@ function InventarioPageContent() {
                             : "border-muted bg-background hover:bg-muted/60"
                         }`}
                       >
-                        <span className="font-medium">
-                          Pedido {pedido.id}
-                        </span>
+                        <span className="font-medium">Pedido {pedido.id}</span>
                         <span className="text-xs text-muted-foreground">
                           {formatearFechaMovimiento(pedido.fecha)}
                         </span>
