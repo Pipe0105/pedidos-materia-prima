@@ -323,7 +323,7 @@ export default function PedidosZona({
     try {
       const { data: ultimoMovimiento, error: ultimoError } = await supabase
         .from("movimientos_inventario")
-        .select("ref_id")
+        .select("ref_id, created_at")
         .eq("zona_id", zonaId)
         .eq("ref_tipo", "pedido")
         .order("created_at", { ascending: false })
@@ -374,12 +374,13 @@ export default function PedidosZona({
 
       const { data: reversionPrevia, error: reversionError } = await supabase
         .from("movimientos_inventario")
-        .select("id")
+        .select("id, created_at")
         .eq("zona_id", zonaId)
         .eq("ref_tipo", "pedido_deshacer")
         .eq("ref_id", pedidoId)
+        .order("created_at", { ascending: false })
         .limit(1)
-        .returns<{ id: string }[]>();
+        .maybeSingle();
 
       if (reversionError) {
         console.error(reversionError);
@@ -390,12 +391,21 @@ export default function PedidosZona({
         return;
       }
 
-      if (reversionPrevia && reversionPrevia.length > 0) {
-        notify(
-          "Este pedido ya fue deshecho anteriormente. No es posible repetir la operación.",
-          "warning"
-        );
-        return;
+      if (reversionPrevia) {
+        const fechaReversion = reversionPrevia.created_at
+          ? new Date(reversionPrevia.created_at)
+          : null;
+        const fechaPedido = ultimoMovimiento?.created_at
+          ? new Date(ultimoMovimiento.created_at)
+          : null;
+
+        if (!fechaPedido || (fechaReversion && fechaReversion >= fechaPedido)) {
+          notify(
+            "Este pedido ya fue deshecho anteriormente. No es posible repetir la operación.",
+            "warning"
+          );
+          return;
+        }
       }
 
       const { data: movimientosPedido, error: movimientosError } =
