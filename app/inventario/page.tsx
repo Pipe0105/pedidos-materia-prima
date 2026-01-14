@@ -604,44 +604,169 @@ function InventarioPageContent() {
       setDeshaciendoPedidoMaterialId(materialId);
 
       try {
-        const { data: ultimoMovimiento, error: ultimoError } = await supabase
-          .from("movimientos_inventario")
-          .select("ref_id")
-          .eq("zona_id", zonaId)
-          .eq("material_id", materialId)
-          .eq("ref_tipo", "pedido")
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
+        const obtenerPedidosCompletados = async ({
+          materialIdFiltro,
+          soloHoy = false,
+        }: {
+          materialIdFiltro?: string;
+          soloHoy?: boolean;
+        }) => {
+          const query = supabase
+            .from("movimientos_inventario")
+            .select("ref_id, created_at, fecha")
+            .eq("zona_id", zonaId)
+            .eq("ref_tipo", "pedido")
+            .order("created_at", { ascending: false })
+            .limit(50);
 
-        if (ultimoError) {
-          console.error(ultimoError);
+          if (materialIdFiltro) {
+            query.eq("material_id", materialIdFiltro);
+          }
+
+          if (soloHoy) {
+            const inicioHoy = new Date();
+            inicioHoy.setHours(0, 0, 0, 0);
+            query.gte("created_at", inicioHoy.toISOString());
+          }
+
+          const { data: movimientos, error } = await query;
+
+          if (error) {
+            throw error;
+          }
+
+          if (!movimientos?.length) {
+            return [];
+          }
+
+          const idsOrdenados: string[] = [];
+          const fechaPorId = new Map<string, string | null>();
+
+          movimientos.forEach((mov) => {
+            if (!mov.ref_id) return;
+            if (idsOrdenados.includes(mov.ref_id)) return;
+            idsOrdenados.push(mov.ref_id);
+            fechaPorId.set(mov.ref_id, mov.created_at ?? mov.fecha ?? null);
+          });
+
+          if (!idsOrdenados.length) {
+            return [];
+          }
+
+          const { data: pedidos, error: pedidosError } = await supabase
+            .from("pedidos")
+            .select("id, estado")
+            .in("id", idsOrdenados);
+
+          if (pedidosError) {
+            throw pedidosError;
+          }
+
+          const estados = new Map(
+            (pedidos ?? []).map((pedido) => [pedido.id, pedido.estado])
+          );
+
+          return idsOrdenados
+            .filter((id) => estados.get(id) === "completado")
+            .map((id) => ({
+              id,
+              fecha: fechaPorId.get(id) ?? null,
+            }));
+        };
+
+        const formatearFechaMovimiento = (fecha: string | null) => {
+          if (!fecha) return "sin hora";
+          const fechaNormalizada = fecha.includes("T")
+            ? fecha
+            : `${fecha}T00:00:00`;
+          const parsed = new Date(fechaNormalizada);
+          if (Number.isNaN(parsed.getTime())) return "sin hora";
+          return parsed.toLocaleTimeString("es-CO", {
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+        };
+
+        const seleccionarPedido = (
+          pedidos: { id: string; fecha: string | null }[],
+          contexto: string
+        ) => {
+          if (pedidos.length === 1) {
+            return pedidos[0]?.id ?? null;
+          }
+
+          const opciones = pedidos
+            .map(
+              (pedido, index) =>
+                `${index + 1}. Pedido ${pedido.id} (${formatearFechaMovimiento(
+                  pedido.fecha
+                )})`
+            )
+            .join("\n");
+
+          const respuesta = window.prompt(
+            `Pedidos completados hoy${contexto}:\n${opciones}\n\nIngresa el número del pedido a deshacer:`
+          );
+
+          if (!respuesta) return null;
+
+          const indice = Number.parseInt(respuesta, 10);
+
+          if (Number.isNaN(indice) || indice < 1 || indice > pedidos.length) {
+            alert("Selección inválida. No se realizó ningún cambio.");
+            return null;
+          }
+
+          return pedidos[indice - 1]?.id ?? null;
+        };
+
+        let pedidoId: string | null = null;
+        let fallbackZona = false;
+
+        try {
+          const pedidosHoy = await obtenerPedidosCompletados({
+            materialIdFiltro: materialId,
+            soloHoy: true,
+          });
+
+          if (pedidosHoy.length) {
+            pedidoId = seleccionarPedido(pedidosHoy, ` para ${materialNombre}`);
+            if (!pedidoId) {
+              return;
+            }
+          } else {
+            const pedidosRecientes = await obtenerPedidosCompletados({
+              materialIdFiltro: materialId,
+            });
+            pedidoId = pedidosRecientes[0]?.id ?? null;
+          }
+        } catch (error) {
+          console.error(error);
           alert("❌ Error buscando pedidos completados recientes.");
           return;
         }
 
-        let pedidoId = ultimoMovimiento?.ref_id;
-        let fallbackZona = false;
-
         if (!pedidoId) {
-          const { data: ultimoZona, error: ultimoZonaError } = await supabase
-            .from("movimientos_inventario")
-            .select("ref_id")
-            .eq("zona_id", zonaId)
-            .eq("ref_tipo", "pedido")
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle();
+          try {
+            const pedidosHoyZona = await obtenerPedidosCompletados({
+              soloHoy: true,
+            });
 
-          if (ultimoZonaError) {
-            console.error(ultimoZonaError);
+            if (pedidosHoyZona.length) {
+              pedidoId = seleccionarPedido(pedidosHoyZona, " en esta zona");
+              if (!pedidoId) {
+                return;
+              }
+            } else {
+              const pedidosZona = await obtenerPedidosCompletados({});
+              pedidoId = pedidosZona[0]?.id ?? null;
+            }
+
+            fallbackZona = Boolean(pedidoId);
+          } catch (error) {
+            console.error(error);
             alert("❌ Error buscando pedidos completados recientes.");
             return;
-          }
-
-          if (ultimoZona?.ref_id) {
-            pedidoId = ultimoZona.ref_id;
-            fallbackZona = true;
           }
         }
 
