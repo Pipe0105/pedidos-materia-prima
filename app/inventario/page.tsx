@@ -613,15 +613,16 @@ function InventarioPageContent() {
       setDeshaciendoPedidoMaterialId(materialId);
 
       try {
-        const { data: ultimoMovimiento, error: ultimoError } = await supabase
-          .from("movimientos_inventario")
-          .select("ref_id")
-          .eq("zona_id", zonaId)
-          .eq("material_id", materialId)
-          .eq("ref_tipo", "pedido")
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
+        const { data: movimientosRecientes, error: ultimoError } =
+          await supabase
+            .from("movimientos_inventario")
+            .select("ref_id, created_at")
+            .eq("zona_id", zonaId)
+            .eq("material_id", materialId)
+            .eq("ref_tipo", "pedido")
+            .order("created_at", { ascending: false })
+            .limit(20)
+            .returns<{ ref_id: string | null; created_at: string }[]>();
 
         if (ultimoError) {
           console.error(ultimoError);
@@ -629,53 +630,61 @@ function InventarioPageContent() {
           return;
         }
 
-        const pedidoId = ultimoMovimiento?.ref_id;
+        const candidatos = Array.from(
+          new Set(
+            (movimientosRecientes ?? [])
+              .map((mov) => mov.ref_id)
+              .filter((refId): refId is string => Boolean(refId))
+          )
+        );
+
+        let pedidoId: string | null = null;
+
+        for (const refId of candidatos) {
+          const { data: pedidoActual, error: pedidoError } = await supabase
+            .from("pedidos")
+            .select("id, estado")
+            .eq("id", refId)
+            .maybeSingle();
+
+          if (pedidoError) {
+            console.error(pedidoError);
+            alert("❌ Error verificando el estado del pedido seleccionado.");
+            return;
+          }
+
+          if (!pedidoActual || pedidoActual.estado !== "completado") {
+            continue;
+          }
+
+          const { data: reversionPrevia, error: reversionError } =
+            await supabase
+              .from("movimientos_inventario")
+              .select("id")
+              .eq("zona_id", zonaId)
+              .eq("ref_tipo", "pedido_deshacer")
+              .eq("ref_id", refId)
+              .limit(1)
+              .returns<{ id: string }[]>();
+
+          if (reversionError) {
+            console.error(reversionError);
+            alert(
+              "❌ Error verificando si el pedido ya había sido deshecho anteriormente."
+            );
+            return;
+          }
+
+          if (reversionPrevia && reversionPrevia.length > 0) {
+            continue;
+          }
+
+          pedidoId = refId;
+          break;
+        }
 
         if (!pedidoId) {
           alert("No se encontraron pedidos completados para deshacer.");
-          return;
-        }
-
-        const { data: pedidoActual, error: pedidoError } = await supabase
-          .from("pedidos")
-          .select("id, estado")
-          .eq("id", pedidoId)
-          .maybeSingle();
-
-        if (pedidoError) {
-          console.error(pedidoError);
-          alert("❌ Error verificando el estado del pedido seleccionado.");
-          return;
-        }
-
-        if (!pedidoActual || pedidoActual.estado !== "completado") {
-          alert(
-            "El último pedido encontrado ya no está marcado como completado."
-          );
-          return;
-        }
-
-        const { data: reversionPrevia, error: reversionError } = await supabase
-          .from("movimientos_inventario")
-          .select("id")
-          .eq("zona_id", zonaId)
-          .eq("ref_tipo", "pedido_deshacer")
-          .eq("ref_id", pedidoId)
-          .limit(1)
-          .returns<{ id: string }[]>();
-
-        if (reversionError) {
-          console.error(reversionError);
-          alert(
-            "❌ Error verificando si el pedido ya había sido deshecho anteriormente."
-          );
-          return;
-        }
-
-        if (reversionPrevia && reversionPrevia.length > 0) {
-          alert(
-            "Este pedido ya fue deshecho anteriormente. No es posible repetir la operación."
-          );
           return;
         }
 
