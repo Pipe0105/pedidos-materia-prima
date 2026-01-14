@@ -601,15 +601,6 @@ function InventarioPageContent() {
 
       deshaciendoPedidoRef.current = true;
 
-      const confirmar = window.confirm(
-        `¿Deseas deshacer el último pedido completado de ${materialNombre} en esta zona?`
-      );
-
-      if (!confirmar) {
-        deshaciendoPedidoRef.current = false;
-        return;
-      }
-
       setDeshaciendoPedidoMaterialId(materialId);
 
       try {
@@ -629,10 +620,43 @@ function InventarioPageContent() {
           return;
         }
 
-        const pedidoId = ultimoMovimiento?.ref_id;
+        let pedidoId = ultimoMovimiento?.ref_id;
+        let fallbackZona = false;
+
+        if (!pedidoId) {
+          const { data: ultimoZona, error: ultimoZonaError } = await supabase
+            .from("movimientos_inventario")
+            .select("ref_id")
+            .eq("zona_id", zonaId)
+            .eq("ref_tipo", "pedido")
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (ultimoZonaError) {
+            console.error(ultimoZonaError);
+            alert("❌ Error buscando pedidos completados recientes.");
+            return;
+          }
+
+          if (ultimoZona?.ref_id) {
+            pedidoId = ultimoZona.ref_id;
+            fallbackZona = true;
+          }
+        }
 
         if (!pedidoId) {
           alert("No se encontraron pedidos completados para deshacer.");
+          return;
+        }
+
+        const confirmar = window.confirm(
+          fallbackZona
+            ? `No hay pedidos completados recientes para ${materialNombre}. ¿Deseas deshacer el último pedido completado en esta zona?`
+            : `¿Deseas deshacer el último pedido completado de ${materialNombre} en esta zona?`
+        );
+
+        if (!confirmar) {
           return;
         }
         const { data: pedidoActual, error: pedidoError } = await supabase
