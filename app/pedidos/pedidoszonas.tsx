@@ -321,12 +321,12 @@ export default function PedidosZona({
     }
 
     try {
-      const { data: ultimoPedido, error: ultimoError } = await supabase
-        .from("pedidos")
-        .select("id, estado")
+      const { data: ultimoMovimiento, error: ultimoError } = await supabase
+        .from("movimientos_inventario")
+        .select("ref_id")
         .eq("zona_id", zonaId)
-        .eq("estado", "completado")
-        .order("fecha_pedido", { ascending: false })
+        .eq("ref_tipo", "pedido")
+        .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
 
@@ -339,7 +339,7 @@ export default function PedidosZona({
         return;
       }
 
-      const pedidoId = ultimoPedido?.id;
+      const pedidoId = ultimoMovimiento?.ref_id;
 
       if (!pedidoId) {
         notify(
@@ -353,7 +353,6 @@ export default function PedidosZona({
         .from("pedidos")
         .select("id, estado")
         .eq("id", pedidoId)
-        .eq("zona_id", zonaId)
         .maybeSingle();
 
       if (pedidoError) {
