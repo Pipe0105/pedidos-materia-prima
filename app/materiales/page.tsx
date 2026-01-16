@@ -26,6 +26,12 @@ import { supabase } from "@/lib/supabase";
 import { PageContainer } from "@/components/PageContainer";
 
 type Zona = { id: string; nombre: string };
+const ZONAS_OBJETIVO = ["desposte", "desprese", "panificadora"] as const;
+
+type ZonaObjetivo = (typeof ZONAS_OBJETIVO)[number];
+
+const esZonaObjetivo = (nombre: string): nombre is ZonaObjetivo =>
+  (ZONAS_OBJETIVO as readonly string[]).includes(nombre);
 
 type Material = {
   id: string;
@@ -52,7 +58,7 @@ export default function MaterialesPage() {
   });
   const [err, setErr] = useState<string | null>(null);
   const [ultimaActualizacion, setUltimaActualizacion] = useState<Date | null>(
-    null
+    null,
   );
 
   // === FUNCIONES DE CARGA ===
@@ -63,9 +69,7 @@ export default function MaterialesPage() {
       return;
     }
     const filtradas = (data ?? []).filter((z) =>
-      ["desposte", "desprese", "panificadora"].includes(
-        z.nombre.trim().toLowerCase()
-      )
+      esZonaObjetivo(z.nombre.trim().toLowerCase()),
     );
     setZonas(filtradas);
     if (filtradas.length > 0) setZonaId(filtradas[0].id);
@@ -156,7 +160,7 @@ export default function MaterialesPage() {
     if (error) {
       console.error(
         "❌ Error al guardar material:",
-        JSON.stringify(error, null, 2)
+        JSON.stringify(error, null, 2),
       );
       setErr("Error al guardar material.");
     } else {
@@ -359,8 +363,8 @@ export default function MaterialesPage() {
                       {form.unidad_medida === "bulto"
                         ? "bultos"
                         : form.unidad_medida === "unidad"
-                        ? "unidades"
-                        : "litros"}
+                          ? "unidades"
+                          : "litros"}
                       )
                     </span>
                     <Input
@@ -457,10 +461,10 @@ export default function MaterialesPage() {
                           m.presentacion_kg_por_bulto
                             ? `${m.presentacion_kg_por_bulto} kg/bulto`
                             : m.unidad_medida === "unidad"
-                            ? "Unidades"
-                            : m.unidad_medida === "litro"
-                            ? "Litros"
-                            : "—"}
+                              ? "Unidades"
+                              : m.unidad_medida === "litro"
+                                ? "Litros"
+                                : "—"}
                         </TableCell>
                         <TableCell className="text-center">
                           <div className="flex h-full w-full items-center justify-center gap-3">
