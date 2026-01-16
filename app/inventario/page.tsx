@@ -529,10 +529,11 @@ function InventarioPageContent() {
         params.set("fecha", fecha);
       }
 
-      const response = await fetch(`/api/inventario-snapshots?${params}`);
+      const response = await fetch(
+        `/api/inventario/inventario-snapshots?${params}`,
+      );
       if (!response.ok) {
         const payload = await parseJsonResponse<{ error?: string }>(response);
-        throw new Error(payload?.error ?? "No se pudo obtener snapshots");
       }
       const payload =
         (await parseJsonResponse<InventarioSnapshot[]>(response)) ?? [];
