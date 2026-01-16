@@ -75,6 +75,7 @@ function formatSnapshotFecha(fecha: string | null) {
 
 type HistorialDialogProps = {
   open: boolean;
+  materialId: string | null;
   materialNombre: string;
   movimientos: MovimientoInventario[];
   snapshots: InventarioSnapshot[];
@@ -89,6 +90,7 @@ type HistorialDialogProps = {
 
 export function HistorialDialog({
   open,
+  materialId,
   materialNombre,
   movimientos,
   snapshots,
@@ -107,6 +109,9 @@ export function HistorialDialog({
   const [editingNotas, setEditingNotas] = useState<string>("");
   const [savingNotas, setSavingNotas] = useState(false);
   const [activeTab, setActiveTab] = useState("movimientos");
+  const snapshotsFiltrados = materialId
+    ? snapshots.filter((snapshot) => snapshot.material_id === materialId)
+    : snapshots;
   const sortedMovimientos = [...movimientos].sort((a, b) => {
     const fechaA = getMovimientoFecha(a);
     const fechaB = getMovimientoFecha(b);
@@ -326,8 +331,8 @@ export function HistorialDialog({
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {snapshots.length ? (
-                        snapshots.map((snapshot) => (
+                      {snapshotsFiltrados.length ? (
+                        snapshotsFiltrados.map((snapshot) => (
                           <TableRow
                             key={
                               snapshot.id ??

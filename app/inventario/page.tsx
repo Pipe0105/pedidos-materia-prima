@@ -1302,6 +1302,7 @@ function InventarioPageContent() {
 
       <HistorialDialog
         open={showHistorial}
+        materialId={materialHistorialId}
         materialNombre={materialHistorial}
         movimientos={movimientos}
         snapshots={snapshots}
