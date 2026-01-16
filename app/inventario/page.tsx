@@ -235,6 +235,21 @@ function InventarioPageContent() {
     setShowConsumo(true);
   };
 
+  const parseJsonResponse = async <T,>(
+    response: Response,
+  ): Promise<T | null> => {
+    const contentType = response.headers.get("content-type") ?? "";
+    if (!contentType.includes("application/json")) {
+      return null;
+    }
+    try {
+      return (await response.json()) as T;
+    } catch (err) {
+      console.warn("No se pudo leer JSON de la respuesta", err);
+      return null;
+    }
+  };
+
   const guardarConsumoManual = async () => {
     if (guardandoConsumo) return;
     const cantidad = parseFloat(valorConsumo);
@@ -310,13 +325,20 @@ function InventarioPageContent() {
           });
 
           if (!response.ok) {
-            const payload = (await response.json()) as { error?: string };
-            const errorMessage = payload.error || "Error subiendo la foto";
+            const payload = await parseJsonResponse<{ error?: string }>(
+              response,
+            );
+            const errorMessage = payload?.error || "Error subiendo la foto";
             alert("❌ " + errorMessage);
             return;
           }
 
-          const { url } = (await response.json()) as { url: string };
+          const payload = await parseJsonResponse<{ url: string }>(response);
+          if (!payload?.url) {
+            alert("❌ No se pudo leer la URL de la foto.");
+            return;
+          }
+          const { url } = payload;
           urls.push(url);
         }
 
@@ -509,11 +531,11 @@ function InventarioPageContent() {
 
       const response = await fetch(`/api/inventario-snapshots?${params}`);
       if (!response.ok) {
-        const payload = await response.json();
+        const payload = await parseJsonResponse<{ error?: string }>(response);
         throw new Error(payload?.error ?? "No se pudo obtener snapshots");
       }
-
-      const payload = (await response.json()) as InventarioSnapshot[];
+      const payload =
+        (await parseJsonResponse<InventarioSnapshot[]>(response)) ?? [];
       setSnapshots(payload ?? []);
     } catch (err) {
       console.error("Error cargando snapshots:", err);
@@ -600,7 +622,8 @@ function InventarioPageContent() {
         throw new Error("No se pudo obtener el inventario");
       }
 
-      const payload = (await response.json()) as InventarioActualRow[];
+      const payload =
+        (await parseJsonResponse<InventarioActualRow[]>(response)) ?? [];
 
       const normalizarNumero = (valor: unknown) => {
         if (typeof valor === "number") {
