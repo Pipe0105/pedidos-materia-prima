@@ -33,7 +33,6 @@ import { EditarInventarioDialog } from "./_components/EditarInventarioDialog";
 import { ConsumoManualAgujasDialog } from "./_components/ConsumoManualAgujasDialog";
 import { calcularConsumoDiarioKg } from "@/lib/consumo";
 import { calcularFechaCobertura } from "@/lib/utils";
-import imageCompression from "browser-image-compression";
 import type {
   MaterialConsumo,
   MaterialEditar,
@@ -56,6 +55,8 @@ const REF_TIPO_CONSUMO_AGUJAS = "consumo_manual_agujas" as const;
 const REF_TIPO_CONSUMO_SALMUERA = "consumo_manual_salmuera" as const;
 
 const STORAGE_BUCKET_CONSUMOS = "consumos";
+const MAX_FOTO_MB = 0.5;
+const MAX_FOTO_DIMENSION = 1600;
 
 type PedidoParaDeshacer = {
   id: string;
@@ -79,6 +80,51 @@ function extractStoragePathFromPublicUrl(url: string | null) {
     console.warn("No se pudo obtener la ruta de la foto", error);
     return null;
   }
+}
+
+async function compressImageFile(file: File, maxSizeMB: number) {
+  const imageBitmap = await createImageBitmap(file);
+  const canvas = document.createElement("canvas");
+  const maxDimension = Math.max(imageBitmap.width, imageBitmap.height);
+  const scale =
+    maxDimension > MAX_FOTO_DIMENSION ? MAX_FOTO_DIMENSION / maxDimension : 1;
+  const targetWidth = Math.round(imageBitmap.width * scale);
+  const targetHeight = Math.round(imageBitmap.height * scale);
+
+  canvas.width = targetWidth;
+  canvas.height = targetHeight;
+
+  const context = canvas.getContext("2d");
+  if (!context) {
+    imageBitmap.close();
+    throw new Error("No se pudo crear el canvas para comprimir la imagen.");
+  }
+
+  context.drawImage(imageBitmap, 0, 0, targetWidth, targetHeight);
+  imageBitmap.close();
+
+  const toBlob = (quality: number) =>
+    new Promise<Blob | null>((resolve) => {
+      canvas.toBlob(resolve, "image/jpeg", quality);
+    });
+
+  let quality = 0.92;
+  let blob = await toBlob(quality);
+  const maxBytes = maxSizeMB * 1024 * 1024;
+
+  while (blob && blob.size > maxBytes && quality > 0.5) {
+    quality -= 0.07;
+    blob = await toBlob(quality);
+  }
+
+  if (!blob) {
+    throw new Error("No se pudo comprimir la imagen.");
+  }
+
+  return new File([blob], file.name, {
+    type: blob.type,
+    lastModified: file.lastModified,
+  });
 }
 
 function InventarioPageContent() {
@@ -152,12 +198,8 @@ function InventarioPageContent() {
       const compressedFiles: File[] = [];
 
       for (const file of files) {
-        const compressedFile = await imageCompression(file, {
-          maxSizeMB: 0.5,
-          useWebWorker: true,
-        });
-
-        if (compressedFile.size > 0.5 * 1024 * 1024) {
+        const compressedFile = await compressImageFile(file, MAX_FOTO_MB);
+        if (compressedFile.size > MAX_FOTO_MB * 1024 * 1024) {
           setFotoError(
             "Alguna foto pesa más de 0.5 MB incluso después de comprimir.",
           );
