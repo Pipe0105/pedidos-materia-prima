@@ -138,6 +138,7 @@ function InventarioPageContent() {
   const [movimientos, setMovimientos] = useState<MovimientoInventario[]>([]);
   const [snapshots, setSnapshots] = useState<InventarioSnapshot[]>([]);
   const [snapshotDate, setSnapshotDate] = useState("");
+  const [snapshotMonth, setSnapshotMonth] = useState("");
   const [snapshotLoading, setSnapshotLoading] = useState(false);
   const [snapshotError, setSnapshotError] = useState<string | null>(null);
   const [showHistorial, setShowHistorial] = useState(false);
@@ -517,6 +518,7 @@ function InventarioPageContent() {
     materialId: string,
     zona: string,
     fecha?: string,
+    mes?: string,
   ) => {
     setSnapshotLoading(true);
     setSnapshotError(null);
@@ -527,6 +529,8 @@ function InventarioPageContent() {
       });
       if (fecha) {
         params.set("fecha", fecha);
+      } else if (mes) {
+        params.set("mes", mes);
       }
 
       const response = await fetch(
@@ -575,14 +579,22 @@ function InventarioPageContent() {
     }
 
     setMovimientos(movs ?? []);
-    await cargarSnapshots(materialId, zonaId, snapshotDate);
+    await cargarSnapshots(materialId, zonaId, snapshotDate, snapshotMonth);
     setShowHistorial(true);
   };
 
   const actualizarFechaSnapshot = async (value: string) => {
     setSnapshotDate(value);
+    setSnapshotMonth("");
     if (!materialHistorialId || !zonaId) return;
     await cargarSnapshots(materialHistorialId, zonaId, value);
+  };
+
+  const actualizarMesSnapshot = async (value: string) => {
+    setSnapshotMonth(value);
+    setSnapshotDate("");
+    if (!materialHistorialId || !zonaId) return;
+    await cargarSnapshots(materialHistorialId, zonaId, undefined, value);
   };
   const actualizarNotasMovimiento = async (
     movimientoId: string,
@@ -1308,9 +1320,11 @@ function InventarioPageContent() {
         movimientos={movimientos}
         snapshots={snapshots}
         snapshotDate={snapshotDate}
+        snapshotMonth={snapshotMonth}
         snapshotError={snapshotError}
         snapshotLoading={snapshotLoading}
         onSnapshotDateChange={actualizarFechaSnapshot}
+        onSnapshotMonthChange={actualizarMesSnapshot}
         onClose={() => setShowHistorial(false)}
         editableRefTipos={[REF_TIPO_CONSUMO_AGUJAS]}
         onUpdateNotas={actualizarNotasMovimiento}

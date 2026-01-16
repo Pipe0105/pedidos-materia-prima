@@ -5,6 +5,7 @@ export async function GET(request: NextRequest) {
   const zonaId = request.nextUrl.searchParams.get("zonaId");
   const materialId = request.nextUrl.searchParams.get("materialId");
   const fecha = request.nextUrl.searchParams.get("fecha");
+  const mes = request.nextUrl.searchParams.get("mes");
 
   if (!zonaId || !materialId) {
     return NextResponse.json(
@@ -24,6 +25,34 @@ export async function GET(request: NextRequest) {
 
     if (fecha) {
       query = query.eq("fecha", fecha);
+    } else if (mes) {
+      const [year, month] = mes.split("-");
+      const yearNumber = Number(year);
+      const monthNumber = Number(month);
+      let appliedMonthFilter = false;
+
+      if (
+        Number.isFinite(yearNumber) &&
+        Number.isFinite(monthNumber) &&
+        monthNumber >= 1 &&
+        monthNumber <= 12
+      ) {
+        const startDate = `${yearNumber}-${String(monthNumber).padStart(
+          2,
+          "0",
+        )}-01`;
+        const lastDay = new Date(yearNumber, monthNumber, 0).getDate();
+        const endDate = `${yearNumber}-${String(monthNumber).padStart(
+          2,
+          "0",
+        )}-${String(lastDay).padStart(2, "0")}`;
+        query = query.gte("fecha", startDate).lte("fecha", endDate);
+        appliedMonthFilter = true;
+      }
+
+      if (!appliedMonthFilter) {
+        query = query.limit(30);
+      }
     } else {
       query = query.limit(30);
     }
