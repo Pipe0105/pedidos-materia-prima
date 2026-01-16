@@ -37,6 +37,7 @@ import imageCompression from "browser-image-compression";
 import type {
   MaterialConsumo,
   MaterialEditar,
+  InventarioSnapshot,
   MovimientoInventario,
   StockRow,
   Unidad,
@@ -89,8 +90,15 @@ function InventarioPageContent() {
   const [rows, setRows] = useState<StockRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [movimientos, setMovimientos] = useState<MovimientoInventario[]>([]);
+  const [snapshots, setSnapshots] = useState<InventarioSnapshot[]>([]);
+  const [snapshotDate, setSnapshotDate] = useState("");
+  const [snapshotLoading, setSnapshotLoading] = useState(false);
+  const [snapshotError, setSnapshotError] = useState<string | null>(null);
   const [showHistorial, setShowHistorial] = useState(false);
   const [materialHistorial, setMaterialHistorial] = useState("");
+  const [materialHistorialId, setMaterialHistorialId] = useState<string | null>(
+    null,
+  );
   const [showEditar, setShowEditar] = useState(false);
   const zonasInicializadas = useRef(false);
   const ultimaZonaQuery = useRef<string | null>(null);
@@ -151,7 +159,7 @@ function InventarioPageContent() {
 
         if (compressedFile.size > 0.5 * 1024 * 1024) {
           setFotoError(
-            "Alguna foto pesa más de 0.5 MB incluso después de comprimir."
+            "Alguna foto pesa más de 0.5 MB incluso después de comprimir.",
           );
           setFotosConsumo([]);
           return;
@@ -165,7 +173,7 @@ function InventarioPageContent() {
     } catch (error) {
       console.error("Error comprimiendo foto de consumo:", error);
       setFotoError(
-        "No se pudo procesar las imágenes. Intenta con otras fotos."
+        "No se pudo procesar las imágenes. Intenta con otras fotos.",
       );
       setFotosConsumo([]);
     }
@@ -173,7 +181,7 @@ function InventarioPageContent() {
   const abrirConsumoManual = async (
     id: string,
     nombre: string,
-    unidad: Unidad
+    unidad: Unidad,
   ) => {
     setMaterialConsumo({ id, nombre, unidad });
     setValorConsumo("");
@@ -340,7 +348,7 @@ function InventarioPageContent() {
     const { data: mov, error: errMov } = await supabase
       .from("movimientos_inventario")
       .select(
-        "id, bultos, kg, fecha, created_at, dia_proceso, material_id, foto_url"
+        "id, bultos, kg, fecha, created_at, dia_proceso, material_id, foto_url",
       )
       .eq("zona_id", zonaId)
       .eq("material_id", materialId)
@@ -407,7 +415,7 @@ function InventarioPageContent() {
     id: string,
     nombre: string,
     stockBultos: number,
-    unidad: Unidad
+    unidad: Unidad,
   ) => {
     setMaterialEditar({ id, nombre, stockBultos, unidad });
     setShowEditar(true);
@@ -441,16 +449,54 @@ function InventarioPageContent() {
     }
   };
 
+  const cargarSnapshots = async (
+    materialId: string,
+    zona: string,
+    fecha?: string,
+  ) => {
+    setSnapshotLoading(true);
+    setSnapshotError(null);
+    try {
+      const params = new URLSearchParams({
+        materialId,
+        zonaId: zona,
+      });
+      if (fecha) {
+        params.set("fecha", fecha);
+      }
+
+      const response = await fetch(`/api/inventario-snapshots?${params}`);
+      if (!response.ok) {
+        const payload = await response.json();
+        throw new Error(payload?.error ?? "No se pudo obtener snapshots");
+      }
+
+      const payload = (await response.json()) as InventarioSnapshot[];
+      setSnapshots(payload ?? []);
+    } catch (err) {
+      console.error("Error cargando snapshots:", err);
+      setSnapshotError(
+        err instanceof Error ? err.message : "No se pudo obtener snapshots.",
+      );
+      setSnapshots([]);
+    } finally {
+      setSnapshotLoading(false);
+    }
+  };
+
   const verHistorial = async (materialId: string, nombre: string) => {
     setMaterialHistorial(nombre);
+    setMaterialHistorialId(materialId);
     if (!zonaId) {
       alert("Selecciona una zona para ver el historial.");
       return;
     }
+    setSnapshotError(null);
+    setSnapshotLoading(true);
     const { data: movs, error } = await supabase
       .from("movimientos_inventario")
       .select(
-        "id, fecha, tipo, bultos, kg, notas, created_at, dia_proceso, foto_url, ref_tipo"
+        "id, fecha, tipo, bultos, kg, notas, created_at, dia_proceso, foto_url, ref_tipo",
       )
       .eq("material_id", materialId)
       .eq("zona_id", zonaId)
@@ -459,15 +505,23 @@ function InventarioPageContent() {
 
     if (error) {
       alert("❌ Error obteniendo historial de movimientos.");
+      setSnapshotLoading(false);
       return;
     }
 
     setMovimientos(movs ?? []);
+    await cargarSnapshots(materialId, zonaId, snapshotDate);
     setShowHistorial(true);
+  };
+
+  const actualizarFechaSnapshot = async (value: string) => {
+    setSnapshotDate(value);
+    if (!materialHistorialId || !zonaId) return;
+    await cargarSnapshots(materialHistorialId, zonaId, value);
   };
   const actualizarNotasMovimiento = async (
     movimientoId: string,
-    notas: string
+    notas: string,
   ): Promise<boolean> => {
     const notasLimpias = notas.trim();
     if (!notasLimpias) {
@@ -487,8 +541,8 @@ function InventarioPageContent() {
 
     setMovimientos((prev) =>
       prev.map((mov) =>
-        mov.id === movimientoId ? { ...mov, notas: notasLimpias } : mov
-      )
+        mov.id === movimientoId ? { ...mov, notas: notasLimpias } : mov,
+      ),
     );
     return true;
   };
@@ -533,12 +587,12 @@ function InventarioPageContent() {
 
         const stockBultosDisponibles =
           unidad === "unidad"
-            ? stockBultos ?? stockBase
-            : stockBultos ??
-              (presentacionSegura > 0 ? stockKg! / presentacionSegura : 0);
+            ? (stockBultos ?? stockBase)
+            : (stockBultos ??
+              (presentacionSegura > 0 ? stockKg! / presentacionSegura : 0));
 
         const stockKgDisponibles =
-          unidad === "unidad" ? 0 : stockKg ?? stockBase;
+          unidad === "unidad" ? 0 : (stockKg ?? stockBase);
 
         const consumoUnidades =
           unidad === "unidad" &&
@@ -595,8 +649,8 @@ function InventarioPageContent() {
             unidad === "unidad"
               ? stockBultosDisponibles
               : unidad === "bulto"
-              ? stockBultosDisponibles
-              : stockBase || stockKgDisponibles,
+                ? stockBultosDisponibles
+                : stockBase || stockKgDisponibles,
           stockKg: unidad === "unidad" ? 0 : stockKgDisponibles,
           unidad,
           hasta,
@@ -672,7 +726,7 @@ function InventarioPageContent() {
       }
 
       const estados = new Map(
-        (pedidos ?? []).map((pedido) => [pedido.id, pedido.estado])
+        (pedidos ?? []).map((pedido) => [pedido.id, pedido.estado]),
       );
 
       return idsOrdenados
@@ -682,7 +736,7 @@ function InventarioPageContent() {
           fecha: fechaPorId.get(id) ?? null,
         }));
     },
-    [zonaId]
+    [zonaId],
   );
 
   const abrirDeshacerPedidoModal = useCallback(
@@ -690,7 +744,7 @@ function InventarioPageContent() {
       setMaterialDeshacerPedido({ id: materialId, nombre: materialNombre });
       setShowDeshacerPedidoModal(true);
     },
-    []
+    [],
   );
 
   const cerrarDeshacerPedidoModal = useCallback(() => {
@@ -713,7 +767,7 @@ function InventarioPageContent() {
 
       try {
         const pedidos = await obtenerPedidosCompletadosHoy(
-          materialDeshacerPedido.id
+          materialDeshacerPedido.id,
         );
         if (!activo) return;
         setPedidosHoy(pedidos);
@@ -758,7 +812,7 @@ function InventarioPageContent() {
 
       try {
         const confirmar = window.confirm(
-          `¿Deseas deshacer el pedido ${pedidoId} de ${materialNombre}?`
+          `¿Deseas deshacer el pedido ${pedidoId} de ${materialNombre}?`,
         );
 
         if (!confirmar) {
@@ -772,7 +826,7 @@ function InventarioPageContent() {
 
         if (!pedidoActual || pedidoActual.estado !== "completado") {
           alert(
-            "El último pedido encontrado ya no está marcado como completado."
+            "El último pedido encontrado ya no está marcado como completado.",
           );
           return;
         }
@@ -789,14 +843,14 @@ function InventarioPageContent() {
         if (reversionError) {
           console.error(reversionError);
           alert(
-            "❌ Error verificando si el pedido ya había sido deshecho anteriormente."
+            "❌ Error verificando si el pedido ya había sido deshecho anteriormente.",
           );
           return;
         }
 
         if (reversionPrevia && reversionPrevia.length > 0) {
           alert(
-            "Este pedido ya fue deshecho anteriormente. No es posible repetir la operación."
+            "Este pedido ya fue deshecho anteriormente. No es posible repetir la operación.",
           );
           return;
         }
@@ -825,7 +879,7 @@ function InventarioPageContent() {
 
         if (!movimientosPedido?.length) {
           alert(
-            "No se encontraron movimientos de inventario para el pedido seleccionado."
+            "No se encontraron movimientos de inventario para el pedido seleccionado.",
           );
           return;
         }
@@ -874,7 +928,7 @@ function InventarioPageContent() {
           if (shouldRetryEstadoRecibido(actualizarPedidoError)) {
             console.warn(
               "Fallo al devolver el pedido al estado 'recibido'. Se intentará marcar como 'enviado'.",
-              actualizarPedidoError
+              actualizarPedidoError,
             );
             const actualizadoEnviado = await supabase
               .from("pedidos")
@@ -899,11 +953,11 @@ function InventarioPageContent() {
               .delete()
               .in(
                 "id",
-                movimientosInsertados.map((mov) => mov.id)
+                movimientosInsertados.map((mov) => mov.id),
               );
           }
           alert(
-            "❌ No se pudo actualizar el pedido. Intenta nuevamente en unos minutos."
+            "❌ No se pudo actualizar el pedido. Intenta nuevamente en unos minutos.",
           );
           return;
         }
@@ -917,7 +971,7 @@ function InventarioPageContent() {
           window.dispatchEvent(
             new CustomEvent("pedidos:invalidate", {
               detail: { zonaId },
-            })
+            }),
           );
         }
       } catch (error) {
@@ -928,7 +982,7 @@ function InventarioPageContent() {
         setDeshaciendoPedidoMaterialId(null);
       }
     },
-    [cargar, cerrarDeshacerPedidoModal, zonaId]
+    [cargar, cerrarDeshacerPedidoModal, zonaId],
   );
 
   useEffect(() => {
@@ -998,10 +1052,10 @@ function InventarioPageContent() {
   const zonaActual = zonas.find((zona) => zona.id === zonaId) ?? null;
   const totalMateriales = rows.length;
   const materialesCriticos = rows.filter(
-    (row) => row.cobertura != null && row.cobertura <= 3
+    (row) => row.cobertura != null && row.cobertura <= 3,
   ).length;
   const materialesEstables = rows.filter(
-    (row) => row.cobertura != null && row.cobertura >= 10
+    (row) => row.cobertura != null && row.cobertura >= 10,
   ).length;
   const mostrarColumnaKg = rows.some((row) => row.unidad !== "unidad");
 
@@ -1169,7 +1223,7 @@ function InventarioPageContent() {
                 void deshacerPedidoSeleccionado(
                   pedidoSeleccionadoId,
                   materialDeshacerPedido.nombre,
-                  materialDeshacerPedido.id
+                  materialDeshacerPedido.id,
                 );
               }}
             >
@@ -1185,6 +1239,11 @@ function InventarioPageContent() {
         open={showHistorial}
         materialNombre={materialHistorial}
         movimientos={movimientos}
+        snapshots={snapshots}
+        snapshotDate={snapshotDate}
+        snapshotError={snapshotError}
+        snapshotLoading={snapshotLoading}
+        onSnapshotDateChange={actualizarFechaSnapshot}
         onClose={() => setShowHistorial(false)}
         editableRefTipos={[REF_TIPO_CONSUMO_AGUJAS]}
         onUpdateNotas={actualizarNotasMovimiento}

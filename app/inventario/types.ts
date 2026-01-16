@@ -42,6 +42,16 @@ export type MovimientoInventario = {
   created_at: string | null;
 };
 
+export type InventarioSnapshot = {
+  id?: string;
+  fecha: string | null;
+  bultos: number | null;
+  kg: number | null;
+  material_id: string;
+  zona_id: string;
+  created_at: string | null;
+};
+
 export type MaterialEditar = {
   id: string;
   nombre: string;

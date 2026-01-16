@@ -15,12 +15,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import type React from "react";
 import { useState } from "react";
 
 import { parseFotoUrls } from "../_utils/fotos";
-import type { MovimientoInventario } from "../types";
+import type { InventarioSnapshot, MovimientoInventario } from "../types";
 
 function formatMovimientoFecha(movimiento: MovimientoInventario) {
   let fechaBase = movimiento.created_at || movimiento.fecha;
@@ -62,10 +63,25 @@ function getMovimientoFecha(movimiento: MovimientoInventario) {
   return Number.isNaN(fecha.getTime()) ? null : fecha;
 }
 
+function formatSnapshotFecha(fecha: string | null) {
+  if (!fecha) return "—";
+  const fechaBase = fecha.includes("T") ? fecha : `${fecha}T00:00:00`;
+  const parsed = new Date(fechaBase);
+  if (Number.isNaN(parsed.getTime())) return "—";
+  return parsed.toLocaleDateString("es-CO", {
+    dateStyle: "medium",
+  });
+}
+
 type HistorialDialogProps = {
   open: boolean;
   materialNombre: string;
   movimientos: MovimientoInventario[];
+  snapshots: InventarioSnapshot[];
+  snapshotDate: string;
+  snapshotError: string | null;
+  snapshotLoading: boolean;
+  onSnapshotDateChange: (value: string) => void;
   onClose: () => void;
   editableRefTipos?: string[];
   onUpdateNotas?: (movimientoId: string, notas: string) => Promise<boolean>;
@@ -75,6 +91,11 @@ export function HistorialDialog({
   open,
   materialNombre,
   movimientos,
+  snapshots,
+  snapshotDate,
+  snapshotError,
+  snapshotLoading,
+  onSnapshotDateChange,
   onClose,
   editableRefTipos = [],
   onUpdateNotas,
@@ -85,7 +106,7 @@ export function HistorialDialog({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingNotas, setEditingNotas] = useState<string>("");
   const [savingNotas, setSavingNotas] = useState(false);
-
+  const [activeTab, setActiveTab] = useState("movimientos");
   const sortedMovimientos = [...movimientos].sort((a, b) => {
     const fechaA = getMovimientoFecha(a);
     const fechaB = getMovimientoFecha(b);
@@ -97,7 +118,7 @@ export function HistorialDialog({
   });
   return (
     <Dialog open={open} onOpenChange={(value) => !value && onClose()}>
-      <DialogContent className="sm:max-w-3xl">
+      <DialogContent className="sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>Historial de movimientos</DialogTitle>
           <DialogDescription>
@@ -106,150 +127,237 @@ export function HistorialDialog({
               : "Revisa los movimientos mas recientes del inventario."}
           </DialogDescription>
         </DialogHeader>
-        <div className="max-h-[50vh] overflow-y-auto rounded-lg border">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-slate-50">
-                <TableHead className="font-semibold">Fecha</TableHead>
-                <TableHead className="font-semibold">Tipo</TableHead>
-                <TableHead className="font-semibold">Bultos</TableHead>
-                <TableHead className="font-semibold">Kg</TableHead>
-                <TableHead className="font-semibold">Notas</TableHead>
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="movimientos">Movimientos</TabsTrigger>
+            <TabsTrigger value="snapshots">Snapshots</TabsTrigger>
+          </TabsList>
+          <TabsContent value="movimientos">
+            <div className="max-h-[50vh] overflow-y-auto rounded-lg border">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-slate-50">
+                    <TableHead className="font-semibold">Fecha</TableHead>
+                    <TableHead className="font-semibold">Tipo</TableHead>
+                    <TableHead className="font-semibold">Bultos</TableHead>
+                    <TableHead className="font-semibold">Kg</TableHead>
+                    <TableHead className="font-semibold">Notas</TableHead>
 
-                <TableHead className="font-semibold">Fotos</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {movimientos.length ? (
-                sortedMovimientos.map((movimiento, index) => {
-                  const movimientoId =
-                    movimiento.id ?? `${movimiento.created_at}-${index}`;
-                  const fotos = parseFotoUrls(movimiento.foto_url);
-                  const editable =
-                    editableRefTipos.includes(movimiento.ref_tipo ?? "") &&
-                    Boolean(onUpdateNotas) &&
-                    Boolean(movimiento.id);
+                    <TableHead className="font-semibold">Fotos</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {movimientos.length ? (
+                    sortedMovimientos.map((movimiento, index) => {
+                      const movimientoId =
+                        movimiento.id ?? `${movimiento.created_at}-${index}`;
+                      const fotos = parseFotoUrls(movimiento.foto_url);
+                      const editable =
+                        editableRefTipos.includes(movimiento.ref_tipo ?? "") &&
+                        Boolean(onUpdateNotas) &&
+                        Boolean(movimiento.id);
 
-                  return (
-                    <TableRow key={movimientoId}>
-                      <TableCell className="text-sm text-muted-foreground">
-                        <div className="flex flex-col">
-                          <span>{formatMovimientoFecha(movimiento)}</span>
-                          {movimiento.dia_proceso ? (
-                            <span className="text-xs">
-                              Día proceso:{" "}
-                              <strong style={{ color: "black" }}>
-                                {movimiento.dia_proceso}
-                              </strong>
-                            </span>
-                          ) : null}
-                        </div>
-                      </TableCell>
-                      <TableCell className="capitalize">
-                        {movimiento.tipo}
-                      </TableCell>
-                      <TableCell>{movimiento.bultos ?? "-"}</TableCell>
-                      <TableCell>{movimiento.kg ?? "-"}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {editingId === movimiento.id ? (
-                          <div className="space-y-2">
-                            <Textarea
-                              value={editingNotas}
-                              onChange={(event) =>
-                                setEditingNotas(event.target.value)
-                              }
-                              rows={3}
-                            />
-                            <div className="flex gap-2">
-                              <Button
-                                size="sm"
-                                variant="secondary"
-                                onClick={() => {
-                                  setEditingId(null);
-                                  setEditingNotas("");
-                                }}
-                              >
-                                Cancelar
-                              </Button>
-                              <Button
-                                size="sm"
-                                onClick={async () => {
-                                  if (!movimiento.id || !onUpdateNotas) return;
-                                  setSavingNotas(true);
-                                  const ok = await onUpdateNotas(
-                                    movimiento.id,
-                                    editingNotas
-                                  );
-                                  if (ok) {
-                                    setEditingId(null);
-                                    setEditingNotas("");
-                                  }
-                                  setSavingNotas(false);
-                                }}
-                                disabled={savingNotas}
-                              >
-                                {savingNotas ? "Guardando..." : "Guardar"}
-                              </Button>
+                      return (
+                        <TableRow key={movimientoId}>
+                          <TableCell className="text-sm text-muted-foreground">
+                            <div className="flex flex-col">
+                              <span>{formatMovimientoFecha(movimiento)}</span>
+                              {movimiento.dia_proceso ? (
+                                <span className="text-xs">
+                                  Día proceso:{" "}
+                                  <strong style={{ color: "black" }}>
+                                    {movimiento.dia_proceso}
+                                  </strong>
+                                </span>
+                              ) : null}
                             </div>
-                          </div>
-                        ) : (
-                          <div className="flex flex-col gap-2">
-                            <span>{movimiento.notas ?? "sin notas"}</span>
-                            {editable ? (
-                              <Button
-                                variant="link"
-                                className="h-auto p-0 text-xs"
-                                onClick={() => {
-                                  setEditingId(movimiento.id ?? null);
-                                  setEditingNotas(movimiento.notas ?? "");
-                                }}
-                              >
-                                Editar nota
-                              </Button>
-                            ) : null}
-                          </div>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {fotos.length ? (
-                          <div className="flex flex-wrap gap-2">
-                            {fotos.map((foto, fotoIndex) => (
-                              <Button
-                                key={`${movimientoId}-foto-${fotoIndex}`}
-                                variant="link"
-                                className="px-0 text-sm"
-                                onClick={() => {
-                                  setIsZoomed(false);
-                                  setTransformOrigin("center center");
-                                  setSelectedPhoto(foto);
-                                }}
-                              >
-                                Ver foto {fotos.length > 1 ? fotoIndex + 1 : ""}
-                              </Button>
-                            ))}
-                          </div>
-                        ) : (
-                          <span className="text-sm text-muted-foreground">
-                            -
-                          </span>
-                        )}
+                          </TableCell>
+                          <TableCell className="capitalize">
+                            {movimiento.tipo}
+                          </TableCell>
+                          <TableCell>{movimiento.bultos ?? "-"}</TableCell>
+                          <TableCell>{movimiento.kg ?? "-"}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {editingId === movimiento.id ? (
+                              <div className="space-y-2">
+                                <Textarea
+                                  value={editingNotas}
+                                  onChange={(event) =>
+                                    setEditingNotas(event.target.value)
+                                  }
+                                  rows={3}
+                                />
+                                <div className="flex gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="secondary"
+                                    onClick={() => {
+                                      setEditingId(null);
+                                      setEditingNotas("");
+                                    }}
+                                  >
+                                    Cancelar
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    onClick={async () => {
+                                      if (!movimiento.id || !onUpdateNotas)
+                                        return;
+                                      setSavingNotas(true);
+                                      const ok = await onUpdateNotas(
+                                        movimiento.id,
+                                        editingNotas,
+                                      );
+                                      if (ok) {
+                                        setEditingId(null);
+                                        setEditingNotas("");
+                                      }
+                                      setSavingNotas(false);
+                                    }}
+                                    disabled={savingNotas}
+                                  >
+                                    {savingNotas ? "Guardando..." : "Guardar"}
+                                  </Button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex flex-col gap-2">
+                                <span>{movimiento.notas ?? "sin notas"}</span>
+                                {editable ? (
+                                  <Button
+                                    variant="link"
+                                    className="h-auto p-0 text-xs"
+                                    onClick={() => {
+                                      setEditingId(movimiento.id ?? null);
+                                      setEditingNotas(movimiento.notas ?? "");
+                                    }}
+                                  >
+                                    Editar nota
+                                  </Button>
+                                ) : null}
+                              </div>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {fotos.length ? (
+                              <div className="flex flex-wrap gap-2">
+                                {fotos.map((foto, fotoIndex) => (
+                                  <Button
+                                    key={`${movimientoId}-foto-${fotoIndex}`}
+                                    variant="link"
+                                    className="px-0 text-sm"
+                                    onClick={() => {
+                                      setIsZoomed(false);
+                                      setTransformOrigin("center center");
+                                      setSelectedPhoto(foto);
+                                    }}
+                                  >
+                                    Ver foto{" "}
+                                    {fotos.length > 1 ? fotoIndex + 1 : ""}
+                                  </Button>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-sm text-muted-foreground">
+                                -
+                              </span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  ) : (
+                    <TableRow>
+                      <TableCell
+                        colSpan={6}
+                        className="py-12 text-center text-sm text-muted-foreground"
+                      >
+                        No hay movimientos registrados para este material
                       </TableCell>
                     </TableRow>
-                  );
-                })
-              ) : (
-                <TableRow>
-                  <TableCell
-                    colSpan={6}
-                    className="py-12 text-center text-sm text-muted-foreground"
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </TabsContent>
+          <TabsContent value="snapshots">
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="flex flex-col gap-1">
+                  <label
+                    htmlFor="snapshot-date"
+                    className="text-xs font-semibold uppercase tracking-wide text-muted-foreground"
                   >
-                    No hay movimientos registrados para este material
-                  </TableCell>
-                </TableRow>
+                    Fecha del snapshot
+                  </label>
+                  <input
+                    id="snapshot-date"
+                    type="date"
+                    value={snapshotDate}
+                    onChange={(event) =>
+                      onSnapshotDateChange(event.target.value)
+                    }
+                    className="w-48 rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
+                  />
+                </div>
+                {snapshotDate ? (
+                  <Button
+                    variant="ghost"
+                    onClick={() => onSnapshotDateChange("")}
+                  >
+                    Limpiar fecha
+                  </Button>
+                ) : null}
+              </div>
+              {snapshotLoading ? (
+                <p className="text-sm text-muted-foreground">
+                  Cargando snapshots...
+                </p>
+              ) : snapshotError ? (
+                <p className="text-sm text-rose-600">{snapshotError}</p>
+              ) : (
+                <div className="max-h-[45vh] overflow-y-auto rounded-lg border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-slate-50">
+                        <TableHead className="font-semibold">Fecha</TableHead>
+                        <TableHead className="font-semibold">Bultos</TableHead>
+                        <TableHead className="font-semibold">Kg</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {snapshots.length ? (
+                        snapshots.map((snapshot) => (
+                          <TableRow
+                            key={
+                              snapshot.id ??
+                              `${snapshot.fecha}-${snapshot.material_id}`
+                            }
+                          >
+                            <TableCell className="text-sm text-muted-foreground">
+                              {formatSnapshotFecha(snapshot.fecha)}
+                            </TableCell>
+                            <TableCell>{snapshot.bultos ?? "-"}</TableCell>
+                            <TableCell>{snapshot.kg ?? "-"}</TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell
+                            colSpan={3}
+                            className="py-12 text-center text-sm text-muted-foreground"
+                          >
+                            No hay snapshots disponibles para este material.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
               )}
-            </TableBody>
-          </Table>
-        </div>
+            </div>
+          </TabsContent>
+        </Tabs>
         <DialogFooter>
           <Button variant="secondary" onClick={onClose}>
             Cerrar
