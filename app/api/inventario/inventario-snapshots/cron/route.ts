@@ -39,7 +39,7 @@ export async function GET() {
     }
 
     const zonasObjetivo = (zonas ?? []).filter((zona) =>
-      ZONAS_OBJETIVO.includes(normalizarNombreZona(zona.nombre)),
+      ZONAS_OBJETIVO.has(normalizarNombreZona(zona.nombre)),
     ) as ZonaRow[];
 
     if (!zonasObjetivo.length) {
