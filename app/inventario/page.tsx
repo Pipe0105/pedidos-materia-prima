@@ -33,6 +33,12 @@ import { EditarInventarioDialog } from "./_components/EditarInventarioDialog";
 import { ConsumoManualAgujasDialog } from "./_components/ConsumoManualAgujasDialog";
 import { calcularConsumoDiarioKg } from "@/lib/consumo";
 import { calcularFechaCobertura } from "@/lib/utils";
+import {
+  actualizarStockMap,
+  buildNotaConStock,
+  buildStockBultosMap,
+  obtenerStockActual,
+} from "@/lib/inventario-notas";
 import type {
   MaterialConsumo,
   MaterialEditar,
@@ -61,6 +67,22 @@ const MAX_FOTO_DIMENSION = 1600;
 type PedidoParaDeshacer = {
   id: string;
   fecha: string | null;
+};
+
+const obtenerStockMap = async (zonaId: string) => {
+  try {
+    const response = await fetch(`/api/inventario?zonaId=${zonaId}`);
+
+    if (!response.ok) {
+      return new Map();
+    }
+
+    const payload = (await response.json()) as InventarioActualRow[];
+    return buildStockBultosMap(payload);
+  } catch (error) {
+    console.warn("No se pudo obtener el stock actual", error);
+    return new Map();
+  }
 };
 
 function extractStoragePathFromPublicUrl(url: string | null) {
@@ -953,17 +975,32 @@ function InventarioPageContent() {
 
         const fechaActual = new Date().toISOString();
 
-        const movimientosReverso = movimientosPedido.map((mov) => ({
-          zona_id: zonaId,
-          material_id: mov.material_id,
-          fecha: fechaActual,
-          tipo: "salida" as const,
-          bultos: mov.bultos === null ? null : Number(mov.bultos),
-          kg: mov.kg === null ? null : Number(mov.kg),
-          ref_tipo: "pedido_deshacer",
-          ref_id: pedidoId,
-          notas: "Salida automática por deshacer pedido completado",
-        }));
+        const stockMap = await obtenerStockMap(zonaId);
+
+        const movimientosReverso = movimientosPedido.map((mov) => {
+          const materialId = mov.material_id;
+          const bultos = mov.bultos === null ? null : Number(mov.bultos);
+          const stockActual = obtenerStockActual(stockMap, materialId);
+          const notas = buildNotaConStock({
+            base: "Salida automática por deshacer pedido completado",
+            tipo: "salida",
+            cantidad: bultos,
+            stockActual,
+          });
+          actualizarStockMap(stockMap, materialId, "salida", bultos);
+
+          return {
+            zona_id: zonaId,
+            material_id: materialId,
+            fecha: fechaActual,
+            tipo: "salida" as const,
+            bultos,
+            kg: mov.kg === null ? null : Number(mov.kg),
+            ref_tipo: "pedido_deshacer",
+            ref_id: pedidoId,
+            notas,
+          };
+        });
 
         const { data: movimientosInsertados, error: insertError } =
           await supabase

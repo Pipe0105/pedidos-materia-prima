@@ -11,6 +11,12 @@ import { Button } from "@/components/ui/button";
 import { calcularConsumoDiarioKg } from "@/lib/consumo";
 import type { InventarioActualRow } from "@/app/(dashboard)/_components/_types";
 import {
+  actualizarStockMap,
+  buildNotaConStock,
+  buildStockBultosMap,
+  obtenerStockActual,
+} from "@/lib/inventario-notas";
+import {
   Card,
   CardContent,
   CardDescription,
@@ -78,6 +84,22 @@ type PedidoItemFromSupabase = Omit<PedidoItem, "materiales"> & {
     | null;
 };
 
+const obtenerStockMap = async (zonaId: string) => {
+  try {
+    const response = await fetch(`/api/inventario?zonaId=${zonaId}`);
+
+    if (!response.ok) {
+      return new Map();
+    }
+
+    const payload = (await response.json()) as InventarioActualRow[];
+    return buildStockBultosMap(payload);
+  } catch (error) {
+    console.warn("No se pudo obtener el stock actual", error);
+    return new Map();
+  }
+};
+
 type PedidoFromSupabase = Omit<
   Pedido,
   "pedido_items" | "fecha_cobertura_hasta"
@@ -131,7 +153,7 @@ export default function PedidosZona({
         acc[pedido.estado] = acc[pedido.estado] + 1;
         return acc;
       },
-      { enviado: 0, recibido: 0, completado: 0 }
+      { enviado: 0, recibido: 0, completado: 0 },
     );
   }, [pedidos]);
 
@@ -159,7 +181,7 @@ export default function PedidosZona({
           materiales (nombre, unidad_medida)
 
         )
-      `
+      `,
           )
           .eq("zona_id", zonaId)
           .order("fecha_pedido", { ascending: false }),
@@ -168,7 +190,7 @@ export default function PedidosZona({
             if (!response.ok) {
               console.error(
                 "Error cargando inventario para cobertura",
-                response.statusText
+                response.statusText,
               );
               return [] as InventarioActualRow[];
             }
@@ -236,7 +258,7 @@ export default function PedidosZona({
 
           return acc;
         },
-        new Map<string, string>()
+        new Map<string, string>(),
       );
 
       if (error) {
@@ -248,8 +270,8 @@ export default function PedidosZona({
             const itemTyped = item as PedidoItemFromSupabase;
             const materialRaw = itemTyped.materiales;
             const material = Array.isArray(materialRaw)
-              ? materialRaw[0] ?? null
-              : materialRaw ?? null;
+              ? (materialRaw[0] ?? null)
+              : (materialRaw ?? null);
             return {
               ...itemTyped,
               material_id: itemTyped.material_id ?? null,
@@ -271,8 +293,8 @@ export default function PedidosZona({
             const fechas = items
               .map((item) =>
                 item.material_id
-                  ? coberturaPorMaterial.get(item.material_id) ?? null
-                  : null
+                  ? (coberturaPorMaterial.get(item.material_id) ?? null)
+                  : null,
               )
               .filter((value): value is string => Boolean(value));
 
@@ -299,7 +321,7 @@ export default function PedidosZona({
       }
       setLoading(false);
     },
-    [zonaId, notify]
+    [zonaId, notify],
   );
 
   useEffect(() => {
@@ -312,7 +334,7 @@ export default function PedidosZona({
     deshaciendoPedidoRef.current = true;
 
     const confirmar = window.confirm(
-      "¿Deseas deshacer el último pedido completado de esta planta?"
+      "¿Deseas deshacer el último pedido completado de esta planta?",
     );
 
     if (!confirmar) {
@@ -334,7 +356,7 @@ export default function PedidosZona({
         console.error(ultimoError);
         notify(
           "No pudimos buscar pedidos completados recientes. Intenta más tarde.",
-          "error"
+          "error",
         );
         return;
       }
@@ -344,7 +366,7 @@ export default function PedidosZona({
       if (!pedidoId) {
         notify(
           "No hay pedidos completados para deshacer en esta planta.",
-          "info"
+          "info",
         );
         return;
       }
@@ -359,7 +381,7 @@ export default function PedidosZona({
         console.error(pedidoError);
         notify(
           "No pudimos verificar el estado del pedido seleccionado.",
-          "error"
+          "error",
         );
         return;
       }
@@ -367,7 +389,7 @@ export default function PedidosZona({
       if (!pedidoActual || pedidoActual.estado !== "completado") {
         notify(
           "El último pedido encontrado ya no figura como completado.",
-          "warning"
+          "warning",
         );
         return;
       }
@@ -386,7 +408,7 @@ export default function PedidosZona({
         console.error(reversionError);
         notify(
           "No pudimos verificar si el pedido ya había sido deshecho anteriormente.",
-          "error"
+          "error",
         );
         return;
       }
@@ -402,7 +424,7 @@ export default function PedidosZona({
         if (!fechaPedido || (fechaReversion && fechaReversion >= fechaPedido)) {
           notify(
             "Este pedido ya fue deshecho anteriormente. No es posible repetir la operación.",
-            "warning"
+            "warning",
           );
           return;
         }
@@ -433,23 +455,37 @@ export default function PedidosZona({
       if (!movimientosPedido?.length) {
         notify(
           "No encontramos movimientos de inventario asociados a ese pedido.",
-          "warning"
+          "warning",
         );
         return;
       }
 
       const fechaActual = new Date().toISOString();
-      const movimientosReverso = movimientosPedido.map((mov) => ({
-        zona_id: zonaId,
-        material_id: mov.material_id,
-        fecha: fechaActual,
-        tipo: "salida" as const,
-        bultos: mov.bultos === null ? null : Number(mov.bultos),
-        kg: mov.kg === null ? null : Number(mov.kg),
-        ref_tipo: "pedido_deshacer",
-        ref_id: pedidoId,
-        notas: "Salida automática por deshacer pedido completado",
-      }));
+      const stockMap = await obtenerStockMap(zonaId);
+      const movimientosReverso = movimientosPedido.map((mov) => {
+        const materialId = mov.material_id;
+        const bultos = mov.bultos === null ? null : Number(mov.bultos);
+        const stockActual = obtenerStockActual(stockMap, materialId);
+        const notas = buildNotaConStock({
+          base: "Salida automática por deshacer pedido completado",
+          tipo: "salida",
+          cantidad: bultos,
+          stockActual,
+        });
+        actualizarStockMap(stockMap, materialId, "salida", bultos);
+
+        return {
+          zona_id: zonaId,
+          material_id: materialId,
+          fecha: fechaActual,
+          tipo: "salida" as const,
+          bultos,
+          kg: mov.kg === null ? null : Number(mov.kg),
+          ref_tipo: "pedido_deshacer",
+          ref_id: pedidoId,
+          notas,
+        };
+      });
 
       const { data: movimientosInsertados, error: insertError } = await supabase
         .from("movimientos_inventario")
@@ -480,7 +516,7 @@ export default function PedidosZona({
         if (shouldRetryEstadoRecibido(actualizarPedidoError)) {
           console.warn(
             "Fallo al devolver el pedido al estado 'recibido'. Se intentará marcar como 'enviado'.",
-            actualizarPedidoError
+            actualizarPedidoError,
           );
           const actualizadoEnviado = await supabase
             .from("pedidos")
@@ -504,12 +540,12 @@ export default function PedidosZona({
             .delete()
             .in(
               "id",
-              movimientosInsertados.map((mov) => mov.id)
+              movimientosInsertados.map((mov) => mov.id),
             );
         }
         notify(
           "No se pudo actualizar el pedido. Intenta nuevamente en unos minutos.",
-          "error"
+          "error",
         );
         return;
       }
@@ -528,7 +564,7 @@ export default function PedidosZona({
           (pedido): Pedido =>
             pedido.id === pedidoId
               ? { ...pedido, estado: pedidoActualizadoEstado }
-              : pedido
+              : pedido,
         );
         setPedidosCache(zonaId, actualizados);
         return actualizados;
@@ -538,7 +574,7 @@ export default function PedidosZona({
 
       if (typeof window !== "undefined") {
         window.dispatchEvent(
-          new CustomEvent("pedidos:invalidate", { detail: { zonaId } })
+          new CustomEvent("pedidos:invalidate", { detail: { zonaId } }),
         );
       }
     } catch (error) {
@@ -551,7 +587,9 @@ export default function PedidosZona({
   const filtrados = useMemo(() => {
     return pedidos
       .filter((p) =>
-        q ? (p.solicitante ?? "").toLowerCase().includes(q.toLowerCase()) : true
+        q
+          ? (p.solicitante ?? "").toLowerCase().includes(q.toLowerCase())
+          : true,
       )
       .filter((p) => (estadoFiltro ? p.estado === estadoFiltro : true))
       .filter((p) => (mostrarCompletados ? true : p.estado !== "completado"));
@@ -573,11 +611,12 @@ export default function PedidosZona({
   }
 
   async function marcarCompletado(id: string) {
+    const stockMap = await obtenerStockMap(zonaId);
     const { data: items, error: errItems } = await supabase
       .from("pedido_items")
       .select(
         `id, material_id, bultos, kg,
-         materiales ( unidad_medida, presentacion_kg_por_bulto )`
+         materiales ( unidad_medida, presentacion_kg_por_bulto )`,
       )
       .eq("pedido_id", id);
 
@@ -607,6 +646,20 @@ export default function PedidosZona({
         kg = item.kg ?? (presentacion ? item.bultos * presentacion : 0);
       }
 
+      const materialId = item.material_id ?? "";
+      const stockActual = materialId
+        ? obtenerStockActual(stockMap, materialId)
+        : null;
+      const notas = buildNotaConStock({
+        base: "Ingreso por pedido completado",
+        tipo: "entrada",
+        cantidad: item.bultos,
+        stockActual,
+      });
+      if (materialId) {
+        actualizarStockMap(stockMap, materialId, "entrada", item.bultos);
+      }
+
       return {
         zona_id: zonaId,
         material_id: item.material_id,
@@ -616,7 +669,7 @@ export default function PedidosZona({
         kg,
         ref_tipo: "pedido",
         ref_id: id,
-        notas: "Ingreso por pedido completado",
+        notas,
       };
     });
 
@@ -639,7 +692,7 @@ export default function PedidosZona({
     } else {
       setPedidos((prev) => {
         const actualizados = prev.map(
-          (p): Pedido => (p.id === id ? { ...p, estado: "completado" } : p)
+          (p): Pedido => (p.id === id ? { ...p, estado: "completado" } : p),
         );
         setPedidosCache(zonaId, actualizados);
         return actualizados;
@@ -745,8 +798,8 @@ export default function PedidosZona({
               onClick={() =>
                 router.push(
                   `/pedidos/nuevo?zonaId=${zonaId}&zonaNombre=${encodeURIComponent(
-                    nombre
-                  )}`
+                    nombre,
+                  )}`,
                 )
               }
             >
@@ -772,7 +825,7 @@ export default function PedidosZona({
                     {ESTADO_HELPERS[estado]}
                   </p>
                 </div>
-              )
+              ),
             )}
           </div>
           <div className="rounded-lg bg-muted/40 p-4 text-sm text-muted-foreground">
@@ -884,7 +937,7 @@ export default function PedidosZona({
                   // ✅ Tipar la función correctamente
                   const formatearFecha = (
                     fecha: string | Date | undefined,
-                    sumarDia = false
+                    sumarDia = false,
                   ): string => {
                     if (!fecha) return "—";
 
@@ -904,7 +957,7 @@ export default function PedidosZona({
                         return new Date(
                           Number(year),
                           Number(month) - 1,
-                          Number(day)
+                          Number(day),
                         );
                       }
 

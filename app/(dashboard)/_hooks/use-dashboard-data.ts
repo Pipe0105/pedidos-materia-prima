@@ -4,6 +4,12 @@ import { useCallback, useState } from "react";
 import { toNum } from "@/lib/format";
 import { supabase } from "@/lib/supabase";
 import { calcularConsumoDiarioKg } from "@/lib/consumo";
+import {
+  actualizarStockMap,
+  buildNotaConStock,
+  buildStockBultosMap,
+  obtenerStockActual,
+} from "@/lib/inventario-notas";
 
 import { ToastType } from "@/components/toastprovider";
 import {
@@ -28,6 +34,22 @@ type UseDashboardDataResult = {
   marcarCompletado: (id: string) => Promise<void>;
 };
 
+const obtenerStockMap = async (zonaId: string) => {
+  try {
+    const response = await fetch(`/api/inventario?zonaId=${zonaId}`);
+
+    if (!response.ok) {
+      return new Map();
+    }
+
+    const payload = (await response.json()) as InventarioActualRow[];
+    return buildStockBultosMap(payload);
+  } catch (error) {
+    console.warn("No se pudo obtener el stock actual", error);
+    return new Map();
+  }
+};
+
 export function useDashboardData({
   notify,
 }: UseDashboardDataArgs): UseDashboardDataResult {
@@ -50,7 +72,7 @@ export function useDashboardData({
         `id, fecha_pedido, fecha_entrega, solicitante, estado, total_bultos, total_kg,pedido_items (
           material_id,
           materiales (nombre)
-          )`
+          )`,
       )
       .eq("estado", "enviado")
       .order("fecha_pedido", { ascending: false })
@@ -79,8 +101,8 @@ export function useDashboardData({
         ? pedidoTyped.pedido_items.map((item) => {
             const materialRaw = item.materiales;
             const material = Array.isArray(materialRaw)
-              ? materialRaw[0] ?? null
-              : materialRaw ?? null;
+              ? (materialRaw[0] ?? null)
+              : (materialRaw ?? null);
 
             return {
               material_id: item.material_id ?? null,
@@ -188,7 +210,7 @@ export function useDashboardData({
 
           return acc;
         },
-        new Map<string, MaterialAgrupado>()
+        new Map<string, MaterialAgrupado>(),
       );
 
       const materiales = Array.from(materialesAgrupados.values()).reduce<
@@ -224,7 +246,7 @@ export function useDashboardData({
 
         if (cobertura !== null) {
           const zonas = Array.from(item.zonas).filter(
-            (zona) => zona.length > 0
+            (zona) => zona.length > 0,
           );
 
           acc.push({ id: item.id, nombre: item.nombre, cobertura, zonas });
@@ -237,7 +259,7 @@ export function useDashboardData({
     } catch (error) {
       console.error(error);
       setInventarioError(
-        error instanceof Error ? error.message : "Error inesperado"
+        error instanceof Error ? error.message : "Error inesperado",
       );
       notify("No pudimos calcular la cobertura de inventario", "error");
       setMaterialesConCobertura([]);
@@ -273,7 +295,7 @@ export function useDashboardData({
                unidad_medida,
                presentacion_kg_por_bulto
              )
-           )`
+           )`,
         )
         .eq("id", id)
         .maybeSingle();
@@ -281,7 +303,7 @@ export function useDashboardData({
       if (pedidoDetalleError) {
         notify(
           "No pudimos obtener los detalles del pedido para completarlo.",
-          "error"
+          "error",
         );
         return;
       }
@@ -294,7 +316,7 @@ export function useDashboardData({
       if (!pedidoDetalle.zona_id) {
         notify(
           "El pedido no tiene una planta asociada para actualizar el inventario.",
-          "error"
+          "error",
         );
         return;
       }
@@ -321,8 +343,8 @@ export function useDashboardData({
         ? pedidoDetalle.pedido_items.map((item) => {
             const itemTyped = item as PedidoItemDetalle;
             const material = Array.isArray(itemTyped.materiales)
-              ? itemTyped.materiales[0] ?? null
-              : itemTyped.materiales ?? null;
+              ? (itemTyped.materiales[0] ?? null)
+              : (itemTyped.materiales ?? null);
 
             return {
               material_id: itemTyped.material_id,
@@ -336,10 +358,12 @@ export function useDashboardData({
       if (!items.length) {
         notify(
           "El pedido no tiene materiales para ingresar al inventario.",
-          "error"
+          "error",
         );
         return;
       }
+
+      const stockMap = await obtenerStockMap(zonaId);
 
       type MovimientoInventario = {
         zona_id: string;
@@ -367,6 +391,20 @@ export function useDashboardData({
           kg = item.kg ?? (presentacion ? item.bultos * presentacion : 0);
         }
 
+        const materialId = item.material_id ?? "";
+        const stockActual = materialId
+          ? obtenerStockActual(stockMap, materialId)
+          : null;
+        const notas = buildNotaConStock({
+          base: "Ingreso por pedido completado",
+          tipo: "entrada",
+          cantidad: item.bultos,
+          stockActual,
+        });
+        if (materialId) {
+          actualizarStockMap(stockMap, materialId, "entrada", item.bultos);
+        }
+
         return {
           zona_id: zonaId,
           material_id: item.material_id,
@@ -376,7 +414,7 @@ export function useDashboardData({
           kg,
           ref_tipo: "pedido",
           ref_id: id,
-          notas: "Ingreso por pedido completado",
+          notas,
         };
       });
 
@@ -387,21 +425,21 @@ export function useDashboardData({
       const movimientosValidos = movimientos.filter(
         (movimiento): movimiento is MovimientoInventarioConMaterial =>
           typeof movimiento.material_id === "string" &&
-          movimiento.material_id.length > 0
+          movimiento.material_id.length > 0,
       );
 
       if (!movimientosValidos.length) {
         notify(
           "No pudimos determinar los materiales para actualizar el inventario.",
-          "error"
+          "error",
         );
         return;
       }
 
       const inserciones = await Promise.all(
         movimientosValidos.map((movimiento) =>
-          supabase.from("movimientos_inventario").insert(movimiento)
-        )
+          supabase.from("movimientos_inventario").insert(movimiento),
+        ),
       );
 
       const errMov = inserciones.find(({ error }) => error)?.error;
@@ -427,12 +465,12 @@ export function useDashboardData({
         window.dispatchEvent(
           new CustomEvent("pedidos:invalidate", {
             detail: { zonaId },
-          })
+          }),
         );
       }
       notify("Pedido completado ✅, inventario actualizado", "success");
     },
-    [cargarInventario, cargarPedidos, notify, pedidos]
+    [cargarInventario, cargarPedidos, notify, pedidos],
   );
 
   return {
