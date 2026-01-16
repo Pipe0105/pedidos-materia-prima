@@ -7,7 +7,7 @@ type ZonaRow = {
   nombre: string | null;
 };
 
-const ZONAS_OBJETIVO = ["desposte", "desprese", "panificadora"] as const;
+const ZONAS_OBJETIVO = new Set(["desposte", "desprese", "panificadora"]);
 
 function normalizarNombreZona(nombre: string | null) {
   return nombre?.trim().toLowerCase() ?? "";
