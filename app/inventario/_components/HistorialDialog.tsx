@@ -80,11 +80,9 @@ type HistorialDialogProps = {
   movimientos: MovimientoInventario[];
   snapshots: InventarioSnapshot[];
   snapshotDate: string;
-  snapshotMonth: string;
   snapshotError: string | null;
   snapshotLoading: boolean;
   onSnapshotDateChange: (value: string) => void;
-  onSnapshotMonthChange: (value: string) => void;
   onClose: () => void;
   editableRefTipos?: string[];
   onUpdateNotas?: (movimientoId: string, notas: string) => Promise<boolean>;
@@ -97,11 +95,9 @@ export function HistorialDialog({
   movimientos,
   snapshots,
   snapshotDate,
-  snapshotMonth,
   snapshotError,
   snapshotLoading,
   onSnapshotDateChange,
-  onSnapshotMonthChange,
   onClose,
   editableRefTipos = [],
   onUpdateNotas,
@@ -309,36 +305,12 @@ export function HistorialDialog({
                     className="w-48 rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
                   />
                 </div>
-                <div className="flex flex-col gap-1">
-                  <label
-                    htmlFor="snapshot-month"
-                    className="text-xs font-semibold uppercase tracking-wide text-muted-foreground"
-                  >
-                    Mes del snapshot
-                  </label>
-                  <input
-                    id="snapshot-month"
-                    type="month"
-                    value={snapshotMonth}
-                    onChange={(event) =>
-                      onSnapshotMonthChange(event.target.value)
-                    }
-                    className="w-48 rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
-                  />
-                </div>
                 {snapshotDate ? (
                   <Button
                     variant="ghost"
                     onClick={() => onSnapshotDateChange("")}
                   >
                     Limpiar fecha
-                  </Button>
-                ) : snapshotMonth ? (
-                  <Button
-                    variant="ghost"
-                    onClick={() => onSnapshotMonthChange("")}
-                  >
-                    Limpiar mes
                   </Button>
                 ) : null}
               </div>
