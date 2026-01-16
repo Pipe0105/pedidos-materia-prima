@@ -7,6 +7,12 @@ import { ConsumoManualSalmueraDialog } from "@/app/inventario/_components/Consum
 import type { MaterialConsumo, Unidad } from "@/app/inventario/types";
 import { PageContainer } from "@/components/PageContainer";
 import { Button } from "@/components/ui/button";
+import type { InventarioActualRow } from "@/app/(dashboard)/_components/_types";
+import {
+  buildNotaConStock,
+  buildStockBultosMap,
+  obtenerStockActual,
+} from "@/lib/inventario-notas";
 import { supabase } from "@/lib/supabase";
 
 const EMPTY_CONSUMO: MaterialConsumo = { id: "", nombre: "", unidad: "bulto" };
@@ -34,6 +40,22 @@ const obtenerRangoSemanaActual = () => {
   };
 };
 
+const obtenerStockMap = async (zonaId: string) => {
+  try {
+    const response = await fetch(`/api/inventario?zonaId=${zonaId}`);
+
+    if (!response.ok) {
+      return new Map();
+    }
+
+    const payload = (await response.json()) as InventarioActualRow[];
+    return buildStockBultosMap(payload);
+  } catch (error) {
+    console.warn("No se pudo obtener el stock actual", error);
+    return new Map();
+  }
+};
+
 type ZonaKey = "desprese" | "desposte";
 
 type ZonaInfo = {
@@ -59,7 +81,7 @@ export default function PconsumoPage() {
   const [showConsumo, setShowConsumo] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [diasSemanaRegistrados, setDiasSemanaRegistrados] = useState<string[]>(
-    []
+    [],
   );
   const cargarDiasRegistradosSemana = useCallback(async (zonaId: string) => {
     const { inicio, fin } = obtenerRangoSemanaActual();
@@ -74,7 +96,7 @@ export default function PconsumoPage() {
     if (error) {
       console.error(
         "❌ Error obteniendo días registrados de consumo manual:",
-        error
+        error,
       );
       return;
     }
@@ -83,8 +105,8 @@ export default function PconsumoPage() {
       new Set(
         (data ?? [])
           .map((registro) => registro.dia_proceso)
-          .filter((dia): dia is string => Boolean(dia))
-      )
+          .filter((dia): dia is string => Boolean(dia)),
+      ),
     );
 
     setDiasSemanaRegistrados(diasRegistrados);
@@ -117,7 +139,7 @@ export default function PconsumoPage() {
         if (materialesError) {
           console.error(
             "❌ Error obteniendo materiales para consumo:",
-            materialesError
+            materialesError,
           );
           continue;
         }
@@ -126,7 +148,7 @@ export default function PconsumoPage() {
           .filter(
             (material) =>
               material.activo !== false &&
-              material.nombre.toLowerCase().includes("salmuera")
+              material.nombre.toLowerCase().includes("salmuera"),
           )
           .map(
             (material) =>
@@ -134,7 +156,7 @@ export default function PconsumoPage() {
                 id: material.id,
                 nombre: material.nombre,
                 unidad: material.unidad_medida as Unidad,
-              } satisfies MaterialConsumo)
+              }) satisfies MaterialConsumo,
           );
 
         relevantes[nombreNormalizado as ZonaKey] = {
@@ -166,7 +188,7 @@ export default function PconsumoPage() {
 
     if (!zona.materiales.length) {
       alert(
-        "No hay materiales activos configurados para registrar consumo en esta zona."
+        "No hay materiales activos configurados para registrar consumo en esta zona.",
       );
       return;
     }
@@ -229,6 +251,21 @@ export default function PconsumoPage() {
       kg = 0;
     }
 
+    const notasBase = `Consumo manual registrado (${cantidad} ${unidad}${
+      cantidad !== 1 ? "s" : ""
+    })`;
+    let notas = notasBase;
+    if (unidad !== "litro") {
+      const stockMap = await obtenerStockMap(zonaSeleccionada.id);
+      const stockActual = obtenerStockActual(stockMap, materialId);
+      notas = buildNotaConStock({
+        base: notasBase,
+        tipo: "salida",
+        cantidad,
+        stockActual,
+      });
+    }
+
     const { error } = await supabase.from("movimientos_inventario").insert({
       zona_id: zonaSeleccionada.id,
       material_id: materialId,
@@ -238,9 +275,7 @@ export default function PconsumoPage() {
       kg,
       ref_tipo: REF_TIPO_CONSUMO_SALMUERA,
       dia_proceso: diaProceso,
-      notas: `Consumo manual registrado (${cantidad} ${unidad}${
-        cantidad !== 1 ? "s" : ""
-      })`,
+      notas,
     });
 
     if (error) {
@@ -251,7 +286,7 @@ export default function PconsumoPage() {
       setDiaProceso("");
       if (diaProceso) {
         setDiasSemanaRegistrados((prev) =>
-          prev.includes(diaProceso) ? prev : [...prev, diaProceso]
+          prev.includes(diaProceso) ? prev : [...prev, diaProceso],
         );
       }
     }

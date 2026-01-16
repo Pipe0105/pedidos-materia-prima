@@ -461,6 +461,17 @@ function InventarioPageContent() {
     }
 
     // 3️⃣ Insertar entrada para revertir el consumo
+    const stockMap = await obtenerStockMap(zonaId);
+    const stockActual = obtenerStockActual(stockMap, materialId);
+    const bultos = mov.bultos === null ? null : Math.abs(mov.bultos);
+    const kg = mov.kg === null ? null : Math.abs(mov.kg);
+    const notasBase = "deshacer consumo manual anterior";
+    const notas = buildNotaConStock({
+      base: notasBase,
+      tipo: "entrada",
+      cantidad: bultos,
+      stockActual,
+    });
     const { error: errUndo } = await supabase
       .from("movimientos_inventario")
       .insert({
@@ -468,11 +479,11 @@ function InventarioPageContent() {
         material_id: materialId,
         fecha: new Date().toISOString(),
         tipo: "entrada",
-        bultos: Math.abs(mov.bultos),
-        kg: Math.abs(mov.kg),
+        bultos,
+        kg,
         ref_tipo: "deshacer_consumo",
         dia_proceso: mov.dia_proceso,
-        notas: "deshacer consumo manual anterior",
+        notas,
       });
 
     if (errUndo) {
@@ -525,6 +536,18 @@ function InventarioPageContent() {
     }
 
     const { id, stockBultos } = materialEditar;
+    const stockMap = await obtenerStockMap(zonaId);
+    const stockActual = obtenerStockActual(stockMap, id);
+    const cantidadAjuste =
+      stockActual !== null ? Math.abs(stockBultos - stockActual) : null;
+    const tipoAjuste =
+      stockActual !== null && stockBultos >= stockActual ? "entrada" : "salida";
+    const notasAjuste = buildNotaConStock({
+      base: "Ajuste manual de inventario",
+      tipo: tipoAjuste,
+      cantidad: cantidadAjuste,
+      stockActual,
+    });
 
     try {
       const { error } = await supabase.rpc("ajustar_stock_absoluto", {
@@ -536,6 +559,39 @@ function InventarioPageContent() {
       if (error) {
         alert("❌ Error guardando ajuste: " + error.message);
         return;
+      }
+      if (
+        cantidadAjuste !== null &&
+        Number.isFinite(cantidadAjuste) &&
+        cantidadAjuste > 0
+      ) {
+        const { data: movimientoReciente, error: movimientoError } =
+          await supabase
+            .from("movimientos_inventario")
+            .select("id")
+            .eq("zona_id", zonaId)
+            .eq("material_id", id)
+            .order("fecha", { ascending: false })
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        if (movimientoError) {
+          console.warn("No se pudo obtener el ajuste recién creado", {
+            movimientoError,
+          });
+        } else if (movimientoReciente) {
+          const { error: updateError } = await supabase
+            .from("movimientos_inventario")
+            .update({ notas: notasAjuste })
+            .eq("id", movimientoReciente.id);
+
+          if (updateError) {
+            console.warn("No se pudo actualizar la nota del ajuste", {
+              updateError,
+            });
+          }
+        }
       }
 
       setShowEditar(false);
