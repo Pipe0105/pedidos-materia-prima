@@ -298,7 +298,18 @@ function InventarioPageContent() {
 
     const { id, unidad } = materialConsumo;
     const notasGenericas = buildNotasGenericas(cantidad, unidad);
-    const notas = notasConsumo.trim() || notasGenericas;
+    const notasBase = notasConsumo.trim() || notasGenericas;
+    let notas = notasBase;
+    if (unidad === "bulto") {
+      const stockMap = await obtenerStockMap(zonaId);
+      const stockActual = obtenerStockActual(stockMap, id);
+      notas = buildNotaConStock({
+        base: notasBase,
+        tipo: "salida",
+        cantidad,
+        stockActual,
+      });
+    }
     let fotoUrl: string | null = null;
 
     const refTipo = (() => {
