@@ -1389,7 +1389,7 @@ function InventarioPageContent() {
         onDayChange={setDiaProceso}
         onNotesChange={(value) => {
           setNotasConsumo(value);
-          setNotasEditadas(true);
+          setNotasEditadas(value.trim().length > 0);
         }}
         notesValue={notasConsumo}
         notesLabel="Notas del consumo"
