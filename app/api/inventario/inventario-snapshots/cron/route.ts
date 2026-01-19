@@ -86,8 +86,6 @@ export async function GET() {
 
       const snapshots = filas.map((item) => ({
         fecha: fechaSnapshot,
-        bultos: item.stock_bultos ?? item.stock ?? null,
-        kg: item.stock_kg ?? null,
         bultos:
           toNumberOrNull(item.stock_bultos) ??
           toNumberOrNull(item.stock) ??
