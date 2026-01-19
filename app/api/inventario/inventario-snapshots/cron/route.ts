@@ -22,6 +22,18 @@ function obtenerFechaSnapshot() {
   }).format(new Date());
 }
 
+const toNumberOrNull = (value: unknown): number | null => {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : null;
+  }
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  const coerced = Number(value);
+  return Number.isFinite(coerced) ? coerced : null;
+};
+
 export async function GET() {
   try {
     const supabaseAdmin = getSupabaseAdmin();
@@ -76,6 +88,11 @@ export async function GET() {
         fecha: fechaSnapshot,
         bultos: item.stock_bultos ?? item.stock ?? null,
         kg: item.stock_kg ?? null,
+        bultos:
+          toNumberOrNull(item.stock_bultos) ??
+          toNumberOrNull(item.stock) ??
+          null,
+        kg: toNumberOrNull(item.stock_kg),
         material_id: item.material_id,
         zona_id: item.zona_id,
       }));
