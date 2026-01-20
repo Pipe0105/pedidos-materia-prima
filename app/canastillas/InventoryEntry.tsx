@@ -106,20 +106,30 @@ export const InventoryEntry: React.FC<Props> = ({
             <label className="block text-sm font-semibold text-slate-700 mb-1">
               Proveedores
             </label>
-            <div className="flex gap-2">
-              {Object.values(CrateStatus).map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setStatus(s)}
-                  className={`flex-1 py-2 px-1 rounded-lg border text-xs font-bold transition-all ${
-                    status === s
-                      ? "bg-blue-50 border-blue-500 text-blue-700 ring-2 ring-blue-100"
-                      : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
-                  }`}
-                >
-                  {s}
-                </button>
-              ))}
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                {Object.values(CrateStatus).map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => setStatus(s)}
+                    className={`flex-1 py-2 px-1 rounded-lg border text-xs font-bold transition-all ${
+                      status === s
+                        ? "bg-blue-50 border-blue-500 text-blue-700 ring-2 ring-blue-100"
+                        : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+              <a
+                href="/canastillas/proveedores"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 text-xs font-semibold text-blue-600 hover:text-blue-800"
+              >
+                Crear proveedor en ventana aparte
+              </a>
             </div>
           </div>
 
