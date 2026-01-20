@@ -4,7 +4,6 @@ import { RotateCcw, Check, PenTool } from "lucide-react";
 interface Props {
   onSave: (dataUrl: string) => Promise<void> | void;
   onBack: () => void;
-  onFinish: () => void;
   isSaving: boolean;
   errorMessage?: string | null;
 }
