@@ -189,6 +189,8 @@ export default function CrateFlowPage() {
               <SuccessView
                 items={items}
                 signature={signature}
+                formValues={formValues}
+                notes={notes}
                 onReset={handleReset}
               />
             )}

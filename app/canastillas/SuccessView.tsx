@@ -5,10 +5,24 @@ import { CheckCircle, Share2, RefreshCw, Download } from "lucide-react";
 interface Props {
   items: InventoryItem[];
   signature: string;
+  formValues: {
+    fecha: string;
+    fechaDevolucion: string;
+    placaVH: string;
+    nombreCliente: string;
+    nombreAutoriza: string;
+  };
+  notes: string;
   onReset: () => void;
 }
 
-export const SuccessView: React.FC<Props> = ({ items, signature, onReset }) => {
+export const SuccessView: React.FC<Props> = ({
+  items,
+  signature,
+  formValues,
+  notes,
+  onReset,
+}) => {
   const totalCrates = items.reduce((acc, curr) => acc + curr.quantity, 0);
   const now = new Date().toLocaleString("es-ES", {
     day: "2-digit",
@@ -25,6 +39,23 @@ export const SuccessView: React.FC<Props> = ({ items, signature, onReset }) => {
     return `data:image/png;base64,${signature}`;
   }, [signature]);
 
+  const detailRows = [
+    { label: "Fecha", value: formValues.fecha },
+    {
+      label: "Fecha de devolución",
+      value: formValues.fechaDevolucion || "No registrada",
+    },
+    { label: "Placa VH", value: formValues.placaVH || "No registrada" },
+    {
+      label: "Nombre cliente",
+      value: formValues.nombreCliente || "No registrado",
+    },
+    {
+      label: "Nombre quien autoriza",
+      value: formValues.nombreAutoriza || "No registrado",
+    },
+  ];
+
   return (
     <div className="space-y-8 text-center animate-in zoom-in-95 duration-500">
       <div className="flex flex-col items-center">
@@ -39,10 +70,10 @@ export const SuccessView: React.FC<Props> = ({ items, signature, onReset }) => {
         </p>
       </div>
 
-      <div className="bg-white p-8 rounded-3xl shadow-xl shadow-slate-200 border border-slate-100 text-left relative overflow-hidden">
+      <div className="bg-white p-8 rounded-3xl shadow-xl shadow-slate-200 border border-slate-100 text-left relative overflow-hidden print:shadow-none print:border-slate-200 print:rounded-none">
+        {" "}
         {/* Confetti-like accent */}
-        <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 -translate-y-16 translate-x-16 rounded-full -z-10 opacity-50"></div>
-
+        <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 -translate-y-16 translate-x-16 rounded-full -z-10 opacity-50 print:hidden"></div>{" "}
         <div className="flex justify-between items-start mb-6">
           <div>
             <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest">
@@ -54,8 +85,27 @@ export const SuccessView: React.FC<Props> = ({ items, signature, onReset }) => {
             Completado
           </div>
         </div>
-
         <div className="space-y-4 mb-8">
+          <div className="space-y-3">
+            <h4 className="text-xs font-bold text-slate-400 uppercase">
+              Datos del ingreso
+            </h4>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {detailRows.map((row) => (
+                <div
+                  key={row.label}
+                  className="rounded-2xl border border-slate-100 bg-slate-50 p-3"
+                >
+                  <p className="text-[11px] font-bold uppercase text-slate-400">
+                    {row.label}
+                  </p>
+                  <p className="text-sm font-semibold text-slate-800">
+                    {row.value}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
           <div className="flex justify-between items-center py-2 border-b border-slate-50">
             <span className="text-slate-600">Total Unidades</span>
             <span className="text-xl font-black text-slate-900">
@@ -75,8 +125,15 @@ export const SuccessView: React.FC<Props> = ({ items, signature, onReset }) => {
             ))}
           </div>
         </div>
-
-        <div>
+        <div className="space-y-4">
+          <div>
+            <h4 className="text-xs font-bold text-slate-400 uppercase mb-3">
+              Observaciones
+            </h4>
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+              {notes.trim() || "Sin observaciones."}
+            </div>
+          </div>
           <h4 className="text-xs font-bold text-slate-400 uppercase mb-3">
             Firma Digital
           </h4>
@@ -90,7 +147,7 @@ export const SuccessView: React.FC<Props> = ({ items, signature, onReset }) => {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-3 print:hidden">
         <button
           onClick={() => window.print()}
           className="py-4 bg-slate-900 text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-slate-800 transition-all active:scale-95"
