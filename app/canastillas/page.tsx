@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-import { Header } from "@/app/canastillas/Header";
 import { InventoryEntry } from "@/app/canastillas/InventoryEntry";
 import { InventoryOverview } from "@/app/canastillas/InventoryOverview";
 import { SignaturePad } from "@/app/canastillas/SignaturePad";
@@ -100,8 +99,6 @@ export default function CrateFlowPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100">
-      <Header />
-
       <div className="container mx-auto px-4 py-8 max-w-2xl">
         <div className="mb-6 flex justify-end">
           <button
