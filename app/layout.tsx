@@ -28,6 +28,7 @@ export default function RootLayout({
     { href: "/pedidos", label: "Pedidos" },
     { href: "/inventario", label: "Inventario" },
     { href: "/historial", label: "Historial" },
+    { href: "/canastillas", label: "Canastillas" },
   ];
 
   async function handleLogout() {
