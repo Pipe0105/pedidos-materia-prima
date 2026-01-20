@@ -1,9 +1,16 @@
 import React, { useState } from "react";
-import { CrateType, CrateStatus, InventoryItem } from "../canastillas/types";
+import {
+  CanastillaFormValues,
+  CrateType,
+  CrateProvider,
+  InventoryItem,
+} from "../canastillas/types";
 import { Plus, Trash2, Box } from "lucide-react";
 
 interface Props {
   items: InventoryItem[];
+  formValues: CanastillaFormValues;
+  onFormChange: (values: CanastillaFormValues) => void;
   onAddItem: (item: InventoryItem) => void;
   onRemoveItem: (id: string) => void;
   onNext: () => void;
@@ -11,23 +18,17 @@ interface Props {
 
 export const InventoryEntry: React.FC<Props> = ({
   items,
+  formValues,
+  onFormChange,
   onAddItem,
   onRemoveItem,
   onNext,
 }) => {
   const [type, setType] = useState<CrateType>(CrateType.STANDARD);
-  const [status, setStatus] = useState<CrateStatus>(CrateStatus.MACPOLLO);
+  const [provider, setProvider] = useState<CrateProvider>(
+    CrateProvider.MACPOLLO,
+  );
   const [quantity, setQuantity] = useState<number>(1);
-  const [placaVH, setPlacaVH] = useState<string>("");
-  const [autoriza, setAutoriza] = useState<string>("");
-  const [observaciones, setObservaciones] = useState<string>("");
-  const [fechaDevolucion, setFechaDevolucion] = useState<string>("");
-
-  const fechaActual = new Date().toLocaleDateString("es-CO", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
 
   const handleAdd = () => {
     if (quantity <= 0) return;
@@ -35,12 +36,15 @@ export const InventoryEntry: React.FC<Props> = ({
     onAddItem({
       id: Math.random().toString(36).substr(2, 9),
       type,
-      status,
+      provider,
       quantity,
     });
     setQuantity(1);
   };
 
+  const updateForm = (patch: Partial<CanastillaFormValues>) => {
+    onFormChange({ ...formValues, ...patch });
+  };
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">

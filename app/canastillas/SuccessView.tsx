@@ -59,7 +59,7 @@ export const SuccessView: React.FC<Props> = ({ items, signature, onReset }) => {
             {items.map((item) => (
               <div key={item.id} className="flex justify-between text-sm">
                 <span className="text-slate-500">
-                  {item.type} ({item.status})
+                  {item.type} ({item.provider})
                 </span>
                 <span className="font-bold text-slate-800">
                   x{item.quantity}

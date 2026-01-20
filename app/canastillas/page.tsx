@@ -6,8 +6,9 @@ import { InventoryEntry } from "@/app/canastillas/InventoryEntry";
 import { SignaturePad } from "@/app/canastillas/SignaturePad";
 import { SuccessView } from "@/app/canastillas/SuccessView";
 import { Summary } from "@/app/canastillas/Summary";
-import { InventoryItem } from "@/app/canastillas/types";
+import { CanastillaFormValues, InventoryItem } from "@/app/canastillas/types";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 enum Step {
   ENTRY = 0,
@@ -16,11 +17,23 @@ enum Step {
   SUCCESS = 3,
 }
 
+const getTodayDate = () => new Date().toISOString().slice(0, 10);
+
 export default function CrateFlowPage() {
   const [currentStep, setCurrentStep] = useState<Step>(Step.ENTRY);
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [notes, setNotes] = useState<string>("");
   const [signature, setSignature] = useState<string>("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [formValues, setFormValues] = useState<CanastillaFormValues>({
+    fecha: getTodayDate(),
+    fechaDevolucion: "",
+    placaVH: "",
+    nombreCliente: "",
+    nombreAutoriza: "",
+    observaciones: "",
+  });
 
   const handleAddItem = (item: InventoryItem) => {
     setItems([...items, item]);
@@ -35,9 +48,56 @@ export default function CrateFlowPage() {
     setItems([]);
     setNotes("");
     setSignature("");
+    setFormValues({
+      fecha: getTodayDate(),
+      fechaDevolucion: "",
+      placaVH: "",
+      nombreCliente: "",
+      nombreAutoriza: "",
+      observaciones: "",
+    });
+    setSaveError(null);
+    setIsSaving(false);
   };
 
   const canProceedFromEntry = items.length > 0;
+
+  const handleSaveSignature = async (dataUrl: string) => {
+    if (isSaving) return;
+    setIsSaving(true);
+    setSaveError(null);
+
+    const observaciones = [formValues.observaciones, notes]
+      .map((value) => value.trim())
+      .filter(Boolean)
+      .join("\n\n");
+
+    const payload = items.map((item) => ({
+      fecha: formValues.fecha,
+      placa_vh: formValues.placaVH,
+      tipo_canastilla: item.type,
+      nombre_cliente: formValues.nombreCliente,
+      proveedor: item.provider,
+      fecha_devolucion: formValues.fechaDevolucion || null,
+      cantidad: item.quantity,
+      nombre_autoriza: formValues.nombreAutoriza,
+      observaciones: observaciones || null,
+      firma: dataUrl,
+    }));
+
+    const { error } = await supabase.from("canastillas").insert(payload);
+    if (error) {
+      setSaveError(
+        "No se pudo guardar el registro. Verifica la conexión y vuelve a intentar.",
+      );
+      setIsSaving(false);
+      return;
+    }
+
+    setSignature(dataUrl);
+    setCurrentStep(Step.SUCCESS);
+    setIsSaving(false);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100">
@@ -84,6 +144,8 @@ export default function CrateFlowPage() {
         {currentStep === Step.ENTRY && (
           <InventoryEntry
             items={items}
+            formValues={formValues}
+            onFormChange={setFormValues}
             onAddItem={handleAddItem}
             onRemoveItem={handleRemoveItem}
             onNext={() => setCurrentStep(Step.SUMMARY)}
@@ -102,9 +164,10 @@ export default function CrateFlowPage() {
 
         {currentStep === Step.SIGNATURE && (
           <SignaturePad
-            onSave={setSignature}
+            onSave={handleSaveSignature}
             onBack={() => setCurrentStep(Step.SUMMARY)}
-            onFinish={() => setCurrentStep(Step.SUCCESS)}
+            isSaving={isSaving}
+            errorMessage={saveError}
           />
         )}
 

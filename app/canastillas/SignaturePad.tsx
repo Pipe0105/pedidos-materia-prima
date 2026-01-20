@@ -2,12 +2,19 @@ import React, { useRef, useEffect, useState } from "react";
 import { RotateCcw, Check, PenTool } from "lucide-react";
 
 interface Props {
-  onSave: (dataUrl: string) => void;
+  onSave: (dataUrl: string) => Promise<void> | void;
   onBack: () => void;
   onFinish: () => void;
+  isSaving: boolean;
+  errorMessage?: string | null;
 }
 
-export const SignaturePad: React.FC<Props> = ({ onSave, onBack, onFinish }) => {
+export const SignaturePad: React.FC<Props> = ({
+  onSave,
+  onBack,
+  isSaving,
+  errorMessage,
+}) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [isEmpty, setIsEmpty] = useState(true);
@@ -94,13 +101,12 @@ export const SignaturePad: React.FC<Props> = ({ onSave, onBack, onFinish }) => {
     setIsEmpty(true);
   };
 
-  const handleFinish = () => {
-    if (isEmpty) return;
+  const handleFinish = async () => {
+    if (isEmpty || isSaving) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const dataUrl = canvas.toDataURL("image/png");
-    onSave(dataUrl);
-    onFinish();
+    await onSave(dataUrl);
   };
 
   return (
@@ -140,15 +146,21 @@ export const SignaturePad: React.FC<Props> = ({ onSave, onBack, onFinish }) => {
       <div className="grid gap-3">
         <button
           onClick={handleFinish}
-          disabled={isEmpty}
+          disabled={isEmpty || isSaving}
           className={`w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 ${
-            isEmpty
+            isEmpty || isSaving
               ? "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
               : "bg-blue-600 text-white shadow-blue-200 hover:bg-blue-700"
           }`}
         >
-          <Check size={20} /> Finalizar y Guardar
+          <Check size={20} />
+          {isSaving ? "Guardando..." : "Finalizar y Guardar"}
         </button>
+        {errorMessage ? (
+          <p className="text-sm text-red-600 text-center font-semibold">
+            {errorMessage}
+          </p>
+        ) : null}
         <button
           onClick={onBack}
           className="w-full py-3 text-slate-500 font-semibold hover:text-slate-700"

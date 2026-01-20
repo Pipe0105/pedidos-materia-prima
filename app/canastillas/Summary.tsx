@@ -41,7 +41,7 @@ export const Summary: React.FC<Props> = ({
             {items.map((item) => (
               <div key={item.id} className="flex justify-between text-sm py-1">
                 <span className="text-slate-700 font-medium">
-                  {item.type} ({item.status})
+                  {item.type} ({item.provider})
                 </span>
                 <span className="font-bold text-slate-900">
                   x{item.quantity}
