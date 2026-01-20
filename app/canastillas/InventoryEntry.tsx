@@ -21,6 +21,7 @@ export const InventoryEntry: React.FC<Props> = ({
   const [placaVH, setPlacaVH] = useState<string>("");
   const [autoriza, setAutoriza] = useState<string>("");
   const [observaciones, setObservaciones] = useState<string>("");
+  const [fechaDevolucion, setFechaDevolucion] = useState<string>("");
 
   const fechaActual = new Date().toLocaleDateString("es-CO", {
     year: "numeric",
@@ -45,7 +46,7 @@ export const InventoryEntry: React.FC<Props> = ({
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
         <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
           <Plus size={20} className="text-blue-600" />
-          Agregar Canastillas
+          Ingresar Canastillas
         </h2>
 
         <div className="grid grid-cols-1 gap-4">
@@ -58,6 +59,17 @@ export const InventoryEntry: React.FC<Props> = ({
               value={fechaActual}
               readOnly
               className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-600"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1">
+              Fecha de devolución
+            </label>
+            <input
+              type="date"
+              value={fechaDevolucion}
+              onChange={(e) => setFechaDevolucion(e.target.value)}
+              className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
             />
           </div>
 
