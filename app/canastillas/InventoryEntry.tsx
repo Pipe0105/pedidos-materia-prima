@@ -29,6 +29,8 @@ export const InventoryEntry: React.FC<Props> = ({
     CrateProvider.MACPOLLO,
   );
   const [quantity, setQuantity] = useState<number>(1);
+  const { fecha, fechaDevolucion, placaVH, nombreAutoriza, observaciones } =
+    formValues;
 
   const handleAdd = () => {
     if (quantity <= 0) return;
@@ -60,7 +62,7 @@ export const InventoryEntry: React.FC<Props> = ({
             </label>
             <input
               type="text"
-              value={fechaActual}
+              value={fecha}
               readOnly
               className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-600"
             />
@@ -72,7 +74,7 @@ export const InventoryEntry: React.FC<Props> = ({
             <input
               type="date"
               value={fechaDevolucion}
-              onChange={(e) => setFechaDevolucion(e.target.value)}
+              onChange={(e) => updateForm({ fechaDevolucion: e.target.value })}
               className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
             />
           </div>
@@ -84,7 +86,7 @@ export const InventoryEntry: React.FC<Props> = ({
             <input
               type="text"
               value={placaVH}
-              onChange={(e) => setPlacaVH(e.target.value)}
+              onChange={(e) => updateForm({ placaVH: e.target.value })}
               placeholder="Ingresa la placa VH"
               className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
             />
@@ -112,17 +114,17 @@ export const InventoryEntry: React.FC<Props> = ({
             </label>
             <div className="space-y-2">
               <div className="flex gap-2">
-                {Object.values(CrateStatus).map((s) => (
+                {Object.values(CrateProvider).map((value) => (
                   <button
-                    key={s}
-                    onClick={() => setStatus(s)}
+                    key={value}
+                    onClick={() => setProvider(value)}
                     className={`flex-1 py-2 px-1 rounded-lg border text-xs font-bold transition-all ${
-                      status === s
+                      provider === value
                         ? "bg-blue-50 border-blue-500 text-blue-700 ring-2 ring-blue-100"
                         : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
                     }`}
                   >
-                    {s}
+                    {value}
                   </button>
                 ))}
               </div>
@@ -168,8 +170,8 @@ export const InventoryEntry: React.FC<Props> = ({
             </label>
             <input
               type="text"
-              value={autoriza}
-              onChange={(e) => setAutoriza(e.target.value)}
+              value={nombreAutoriza}
+              onChange={(e) => updateForm({ nombreAutoriza: e.target.value })}
               placeholder="Nombre completo"
               className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
             />
@@ -181,7 +183,7 @@ export const InventoryEntry: React.FC<Props> = ({
             </label>
             <textarea
               value={observaciones}
-              onChange={(e) => setObservaciones(e.target.value)}
+              onChange={(e) => updateForm({ observaciones: e.target.value })}
               placeholder="Agrega observaciones relevantes"
               rows={3}
               className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all resize-none"
@@ -221,14 +223,14 @@ export const InventoryEntry: React.FC<Props> = ({
                     <h4 className="font-bold text-slate-800">{item.type}</h4>
                     <span
                       className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
-                        item.status === CrateStatus.MACPOLLO
+                        item.provider === CrateProvider.MACPOLLO
                           ? "bg-green-100 text-green-700"
-                          : item.status === CrateStatus.DON_POLLO
+                          : item.provider === CrateProvider.DON_POLLO
                             ? "bg-red-100 text-red-700"
                             : "bg-orange-100 text-orange-700"
                       }`}
                     >
-                      {item.status}
+                      {item.provider}
                     </span>
                   </div>
                 </div>
