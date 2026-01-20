@@ -43,16 +43,16 @@ export const SuccessView: React.FC<Props> = ({
     { label: "Fecha", value: formValues.fecha },
     {
       label: "Fecha de devolución",
-      value: formValues.fechaDevolucion || "No registrada",
+      value: formValues.fechaDevolucion,
     },
-    { label: "Placa VH", value: formValues.placaVH || "No registrada" },
+    { label: "Placa VH", value: formValues.placaVH },
     {
       label: "Nombre cliente",
-      value: formValues.nombreCliente || "No registrado",
+      value: formValues.nombreCliente,
     },
     {
       label: "Nombre quien autoriza",
-      value: formValues.nombreAutoriza || "No registrado",
+      value: formValues.nombreAutoriza,
     },
   ];
 

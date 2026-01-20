@@ -29,13 +29,18 @@ export const InventoryEntry: React.FC<Props> = ({
     CrateProvider.MACPOLLO,
   );
   const [quantity, setQuantity] = useState<number>(1);
-  const { fecha, fechaDevolucion, placaVH, nombreAutoriza } = formValues;
+  const { fecha, fechaDevolucion, placaVH, nombreCliente, nombreAutoriza } =
+    formValues;
   const placaLength = placaVH.trim().length;
   const isPlacaValid = placaLength === 6;
+  const isEntryComplete =
+    fechaDevolucion.trim().length > 0 &&
+    isPlacaValid &&
+    nombreCliente.trim().length > 0 &&
+    nombreAutoriza.trim().length > 0;
 
   const handleAdd = () => {
-    if (quantity <= 0) return;
-
+    if (quantity <= 0 || !isEntryComplete) return;
     onAddItem({
       id: Math.random().toString(36).substr(2, 9),
       type,
@@ -80,6 +85,7 @@ export const InventoryEntry: React.FC<Props> = ({
               type="date"
               value={fechaDevolucion}
               onChange={(e) => updateForm({ fechaDevolucion: e.target.value })}
+              required
               className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
             />
           </div>
@@ -95,6 +101,7 @@ export const InventoryEntry: React.FC<Props> = ({
               placeholder="Ingresa la placa VH"
               maxLength={6}
               minLength={6}
+              required
               className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
             />
             <p
@@ -182,6 +189,19 @@ export const InventoryEntry: React.FC<Props> = ({
           </div>
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-1">
+              Nombre cliente
+            </label>
+            <input
+              type="text"
+              value={nombreCliente}
+              onChange={(e) => updateForm({ nombreCliente: e.target.value })}
+              placeholder="Nombre completo"
+              required
+              className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1">
               Nombre quien autoriza
             </label>
             <input
@@ -189,13 +209,19 @@ export const InventoryEntry: React.FC<Props> = ({
               value={nombreAutoriza}
               onChange={(e) => updateForm({ nombreAutoriza: e.target.value })}
               placeholder="Nombre completo"
+              required
               className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
             />
           </div>
 
           <button
             onClick={handleAdd}
-            className="w-full mt-2 py-4 bg-slate-900 text-white font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-slate-800 transition-all active:scale-95"
+            disabled={!isEntryComplete}
+            className={`w-full mt-2 py-4 font-bold rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95 ${
+              isEntryComplete
+                ? "bg-slate-900 text-white hover:bg-slate-800"
+                : "bg-slate-200 text-slate-400 cursor-not-allowed"
+            }`}
           >
             <Plus size={20} /> Añadir al Inventario
           </button>

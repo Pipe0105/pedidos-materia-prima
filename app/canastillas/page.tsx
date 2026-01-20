@@ -60,8 +60,12 @@ export default function CrateFlowPage() {
     setIsSaving(false);
   };
 
-  const canProceedFromEntry =
-    items.length > 0 && formValues.placaVH.trim().length === 6;
+  const isEntryFormComplete =
+    formValues.fechaDevolucion.trim().length > 0 &&
+    formValues.placaVH.trim().length === 6 &&
+    formValues.nombreCliente.trim().length > 0 &&
+    formValues.nombreAutoriza.trim().length > 0;
+  const canProceedFromEntry = items.length > 0 && isEntryFormComplete;
 
   const handleSaveSignature = async (dataUrl: string) => {
     if (isSaving) return;
@@ -98,8 +102,8 @@ export default function CrateFlowPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100">
-      <div className="container mx-auto px-4 py-8 max-w-2xl">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 print:min-h-0 print:bg-white">
+      <div className="container mx-auto px-4 py-8 max-w-2xl print:px-0 print:py-0">
         <div className="mb-6 flex justify-end print:hidden">
           <button
             type="button"
