@@ -1,7 +1,6 @@
-
-import React from 'react';
-import { InventoryItem } from '../types';
-import { FileText, MessageSquare } from 'lucide-react';
+import React from "react";
+import { InventoryItem } from "@/app/canastillas/types";
+import { FileText, MessageSquare } from "lucide-react";
 
 interface Props {
   items: InventoryItem[];
@@ -11,7 +10,13 @@ interface Props {
   onNext: () => void;
 }
 
-export const Summary: React.FC<Props> = ({ items, notes, onNotesChange, onBack, onNext }) => {
+export const Summary: React.FC<Props> = ({
+  items,
+  notes,
+  onNotesChange,
+  onBack,
+  onNext,
+}) => {
   const totalCrates = items.reduce((acc, curr) => acc + curr.quantity, 0);
 
   return (
@@ -24,15 +29,23 @@ export const Summary: React.FC<Props> = ({ items, notes, onNotesChange, onBack, 
 
         <div className="space-y-4">
           <div className="flex justify-between items-end border-b border-slate-100 pb-2">
-            <span className="text-slate-500 font-medium">Total de Canastillas</span>
-            <span className="text-3xl font-black text-slate-900">{totalCrates}</span>
+            <span className="text-slate-500 font-medium">
+              Total de Canastillas
+            </span>
+            <span className="text-3xl font-black text-slate-900">
+              {totalCrates}
+            </span>
           </div>
 
           <div className="grid gap-2">
-            {items.map(item => (
+            {items.map((item) => (
               <div key={item.id} className="flex justify-between text-sm py-1">
-                <span className="text-slate-700 font-medium">{item.type} ({item.status})</span>
-                <span className="font-bold text-slate-900">x{item.quantity}</span>
+                <span className="text-slate-700 font-medium">
+                  {item.type} ({item.status})
+                </span>
+                <span className="font-bold text-slate-900">
+                  x{item.quantity}
+                </span>
               </div>
             ))}
           </div>
@@ -42,7 +55,7 @@ export const Summary: React.FC<Props> = ({ items, notes, onNotesChange, onBack, 
           <label className="text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">
             <MessageSquare size={16} /> Observaciones Adicionales
           </label>
-          <textarea 
+          <textarea
             value={notes}
             onChange={(e) => onNotesChange(e.target.value)}
             placeholder="Escriba aquí cualquier detalle relevante..."
@@ -53,7 +66,8 @@ export const Summary: React.FC<Props> = ({ items, notes, onNotesChange, onBack, 
 
       <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl">
         <p className="text-blue-800 text-sm">
-          <strong>Aviso:</strong> Al proceder al siguiente paso, certifica que los datos ingresados son correctos y están listos para ser firmados.
+          <strong>Aviso:</strong> Al proceder al siguiente paso, certifica que
+          los datos ingresados son correctos y están listos para ser firmados.
         </p>
       </div>
     </div>
