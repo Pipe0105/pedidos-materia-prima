@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { Header } from "@/app/canastillas/Header";
 import { InventoryEntry } from "@/app/canastillas/InventoryEntry";
+import { InventoryOverview } from "@/app/canastillas/InventoryOverview";
 import { SignaturePad } from "@/app/canastillas/SignaturePad";
 import { SuccessView } from "@/app/canastillas/SuccessView";
 import { Summary } from "@/app/canastillas/Summary";
@@ -26,6 +27,7 @@ export default function CrateFlowPage() {
   const [signature, setSignature] = useState<string>("");
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
   const [formValues, setFormValues] = useState<CanastillaFormValues>({
     fecha: getTodayDate(),
     fechaDevolucion: "",
@@ -91,6 +93,7 @@ export default function CrateFlowPage() {
     setSignature(dataUrl);
     setCurrentStep(Step.SUCCESS);
     setIsSaving(false);
+    setHistoryRefreshKey((prev) => prev + 1);
   };
 
   return (
@@ -208,6 +211,7 @@ export default function CrateFlowPage() {
             )}
           </div>
         )}
+        <InventoryOverview refreshKey={historyRefreshKey} />
       </div>
     </div>
   );

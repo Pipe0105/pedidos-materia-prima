@@ -18,6 +18,13 @@ export const SuccessView: React.FC<Props> = ({ items, signature, onReset }) => {
     minute: "2-digit",
   });
 
+  const normalizedSignature = React.useMemo(() => {
+    if (!signature) return "";
+    if (signature.startsWith("data:")) return signature;
+    if (signature.startsWith("image/")) return `data:${signature}`;
+    return `data:image/png;base64,${signature}`;
+  }, [signature]);
+
   return (
     <div className="space-y-8 text-center animate-in zoom-in-95 duration-500">
       <div className="flex flex-col items-center">
@@ -75,7 +82,7 @@ export const SuccessView: React.FC<Props> = ({ items, signature, onReset }) => {
           </h4>
           <div className="bg-slate-50 rounded-2xl border border-slate-200 p-4 h-32 flex items-center justify-center">
             <img
-              src={signature}
+              src={normalizedSignature}
               alt="Firma"
               className="max-h-full max-w-full grayscale contrast-125"
             />
