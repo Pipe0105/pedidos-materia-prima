@@ -20,7 +20,7 @@ export default function RootLayout({
   const router = useRouter();
   const esLogin = pathname.startsWith("/auth/login");
   const esPconsumo = pathname.toLowerCase().startsWith("/pconsumo");
-
+  const esCanastillas = pathname.startsWith("/canastillas");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navLinks = [
@@ -47,6 +47,10 @@ export default function RootLayout({
                   <span className="font-semibold text-slate-900 text-base">
                     Pedidos MP
                   </span>
+                ) : esCanastillas ? (
+                  <span className="font-semibold text-slate-900 text-base">
+                    Canastillas
+                  </span>
                 ) : (
                   <Link
                     href="/"
@@ -55,7 +59,7 @@ export default function RootLayout({
                     Pedidos MP
                   </Link>
                 )}
-                {!esPconsumo && (
+                {!esPconsumo && !esCanastillas && (
                   <div className="flex items-center gap-2 sm:gap-4">
                     <div className="hidden items-center gap-4 text-sm sm:flex">
                       {navLinks.map((link) => (
@@ -86,7 +90,7 @@ export default function RootLayout({
                   </div>
                 )}
               </nav>
-              {!esPconsumo && (
+              {!esPconsumo && !esCanastillas && (
                 <div
                   className="mx-auto w-full max-w-6xl px-4 pb-4 sm:hidden"
                   hidden={!mobileMenuOpen}
