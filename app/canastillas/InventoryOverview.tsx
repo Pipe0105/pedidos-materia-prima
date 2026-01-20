@@ -12,6 +12,7 @@ interface CrateHistoryEntry {
   placa_vh: string | null;
   cantidad: number;
   tipo_canastilla: string;
+  firma: string | null;
 }
 
 interface Props {
@@ -22,6 +23,9 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
   const [history, setHistory] = useState<CrateHistoryEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [selectedEntry, setSelectedEntry] = useState<CrateHistoryEntry | null>(
+    null,
+  );
 
   const loadHistory = useCallback(async () => {
     setIsLoading(true);
@@ -30,7 +34,7 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
     const { data, error } = await supabase
       .from("canastillas")
       .select(
-        "fecha, fecha_devolucion, proveedor, nombre_autoriza, placa_vh, cantidad, tipo_canastilla",
+        "fecha, fecha_devolucion, proveedor, nombre_autoriza, placa_vh, cantidad, tipo_canastilla, firma",
       )
       .order("fecha", { ascending: false });
 
@@ -55,6 +59,13 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
     (acc, entry) => acc + (entry.cantidad ?? 0),
     0,
   );
+
+  const getSignatureSrc = useCallback((signature?: string | null) => {
+    if (!signature) return "";
+    if (signature.startsWith("data:")) return signature;
+    if (signature.startsWith("image/")) return `data:${signature}`;
+    return `data:image/png;base64,${signature}`;
+  }, []);
 
   return (
     <section className="mt-10 space-y-6">
@@ -125,6 +136,7 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
                   <th className="py-2 pr-4">Proveedor</th>
                   <th className="py-2 pr-4">Placa VH</th>
                   <th className="py-2">Aceptó</th>
+                  <th className="py-2">Pedido</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -146,6 +158,21 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
                     <td className="py-3 text-slate-600">
                       {entry.nombre_autoriza}
                     </td>
+                    <td className="py-3">
+                      {entry.firma ? (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedEntry(entry)}
+                          className="text-sm font-semibold text-blue-600 hover:text-blue-800"
+                        >
+                          Ver pedido
+                        </button>
+                      ) : (
+                        <span className="text-xs font-semibold text-slate-400">
+                          Sin firma
+                        </span>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -153,6 +180,71 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
           </div>
         )}
       </div>
+
+      {selectedEntry && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
+          <div className="w-full max-w-xl rounded-2xl bg-white p-6 shadow-xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase text-slate-400">
+                  Pedido con firma
+                </p>
+                <h3 className="text-lg font-bold text-slate-800">
+                  {selectedEntry.cantidad} {selectedEntry.tipo_canastilla}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedEntry(null)}
+                className="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+              >
+                Cerrar
+              </button>
+            </div>
+
+            <div className="mt-4 grid gap-3 text-sm text-slate-600">
+              <div className="grid gap-1">
+                <span className="text-xs font-semibold uppercase text-slate-400">
+                  Detalles
+                </span>
+                <div className="grid gap-1">
+                  <p>
+                    <span className="font-semibold">Proveedor:</span>{" "}
+                    {selectedEntry.proveedor}
+                  </p>
+                  <p>
+                    <span className="font-semibold">Placa VH:</span>{" "}
+                    {selectedEntry.placa_vh || "Sin placa"}
+                  </p>
+                  <p>
+                    <span className="font-semibold">Fecha:</span>{" "}
+                    {selectedEntry.fecha}
+                  </p>
+                  <p>
+                    <span className="font-semibold">Devolución:</span>{" "}
+                    {selectedEntry.fecha_devolucion || "Sin devolución"}
+                  </p>
+                  <p>
+                    <span className="font-semibold">Aceptó:</span>{" "}
+                    {selectedEntry.nombre_autoriza}
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-xs font-semibold uppercase text-slate-400 mb-2">
+                  Firma
+                </p>
+                <img
+                  src={getSignatureSrc(selectedEntry.firma)}
+                  alt={`Firma de ${selectedEntry.nombre_autoriza}`}
+                  className="h-40 w-full rounded-lg border border-slate-200 bg-white object-contain"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 };
