@@ -161,7 +161,7 @@ export const SuccessView: React.FC<Props> = ({
 
       <button
         onClick={onReset}
-        className="w-full py-4 text-blue-600 font-bold flex items-center justify-center gap-2 hover:bg-blue-50 rounded-2xl transition-all"
+        className="w-full py-4 text-blue-600 font-bold flex items-center justify-center gap-2 hover:bg-blue-50 rounded-2xl transition-all print:hidden"
       >
         <RefreshCw size={18} /> Iniciar Nuevo Inventario
       </button>

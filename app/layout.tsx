@@ -36,12 +36,16 @@ export default function RootLayout({
     router.push("/auth/login");
   }
 
+  const headerClassName = esCanastillas
+    ? "border-b bg-white print:hidden"
+    : "border-b bg-white";
+
   return (
     <html lang="es">
       <body>
         <ToastProvider>
           {!esLogin && (
-            <header className="border-b bg-white">
+            <header className={headerClassName}>
               <nav className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
                 {esPconsumo ? (
                   <span className="font-semibold text-slate-900 text-base">
