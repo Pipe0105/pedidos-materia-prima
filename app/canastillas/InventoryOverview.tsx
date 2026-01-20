@@ -9,6 +9,7 @@ interface CrateHistoryEntry {
   fecha_devolucion: string | null;
   proveedor: string;
   nombre_autoriza: string;
+  placa_vh: string | null;
   cantidad: number;
   tipo_canastilla: string;
 }
@@ -29,7 +30,7 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
     const { data, error } = await supabase
       .from("canastillas")
       .select(
-        "fecha, fecha_devolucion, proveedor, nombre_autoriza, cantidad, tipo_canastilla",
+        "fecha, fecha_devolucion, proveedor, nombre_autoriza, placa_vh, cantidad, tipo_canastilla",
       )
       .order("fecha", { ascending: false });
 
@@ -122,6 +123,7 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
                   <th className="py-2 pr-4">Fecha</th>
                   <th className="py-2 pr-4">Devolución</th>
                   <th className="py-2 pr-4">Proveedor</th>
+                  <th className="py-2 pr-4">Placa VH</th>
                   <th className="py-2">Aceptó</th>
                 </tr>
               </thead>
@@ -137,6 +139,9 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
                     </td>
                     <td className="py-3 pr-4 text-slate-600">
                       {entry.proveedor}
+                    </td>
+                    <td className="py-3 pr-4 text-slate-600">
+                      {entry.placa_vh || "Sin placa"}
                     </td>
                     <td className="py-3 text-slate-600">
                       {entry.nombre_autoriza}

@@ -30,6 +30,8 @@ export const InventoryEntry: React.FC<Props> = ({
   );
   const [quantity, setQuantity] = useState<number>(1);
   const { fecha, fechaDevolucion, placaVH, nombreAutoriza } = formValues;
+  const placaLength = placaVH.trim().length;
+  const isPlacaValid = placaLength === 6;
 
   const handleAdd = () => {
     if (quantity <= 0) return;
@@ -45,6 +47,10 @@ export const InventoryEntry: React.FC<Props> = ({
 
   const updateForm = (patch: Partial<CanastillaFormValues>) => {
     onFormChange({ ...formValues, ...patch });
+  };
+  const handlePlacaChange = (value: string) => {
+    const sanitized = value.replace(/[^a-zA-Z0-9]/g, "").slice(0, 6);
+    updateForm({ placaVH: sanitized });
   };
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -85,10 +91,21 @@ export const InventoryEntry: React.FC<Props> = ({
             <input
               type="text"
               value={placaVH}
-              onChange={(e) => updateForm({ placaVH: e.target.value })}
+              onChange={(e) => handlePlacaChange(e.target.value)}
               placeholder="Ingresa la placa VH"
+              maxLength={6}
+              minLength={6}
               className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
             />
+            <p
+              className={`mt-1 text-xs font-medium ${
+                isPlacaValid ? "text-slate-400" : "text-red-500"
+              }`}
+            >
+              {isPlacaValid
+                ? "Debe tener exactamente 6 caracteres."
+                : "La placa VH debe tener 6 caracteres (letras o números)."}
+            </p>
           </div>
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-1">
