@@ -58,7 +58,7 @@ export const SuccessView: React.FC<Props> = ({
 
   return (
     <div className="space-y-8 text-center animate-in zoom-in-95 duration-500">
-      <div className="flex flex-col items-center">
+      <div className="flex flex-col items-center print:hidden">
         <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-4">
           <CheckCircle size={48} />
         </div>
