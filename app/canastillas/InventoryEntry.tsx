@@ -29,8 +29,7 @@ export const InventoryEntry: React.FC<Props> = ({
     CrateProvider.MACPOLLO,
   );
   const [quantity, setQuantity] = useState<number>(1);
-  const { fecha, fechaDevolucion, placaVH, nombreAutoriza, observaciones } =
-    formValues;
+  const { fecha, fechaDevolucion, placaVH, nombreAutoriza } = formValues;
 
   const handleAdd = () => {
     if (quantity <= 0) return;
@@ -174,19 +173,6 @@ export const InventoryEntry: React.FC<Props> = ({
               onChange={(e) => updateForm({ nombreAutoriza: e.target.value })}
               placeholder="Nombre completo"
               className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1">
-              Observaciones
-            </label>
-            <textarea
-              value={observaciones}
-              onChange={(e) => updateForm({ observaciones: e.target.value })}
-              placeholder="Agrega observaciones relevantes"
-              rows={3}
-              className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all resize-none"
             />
           </div>
 

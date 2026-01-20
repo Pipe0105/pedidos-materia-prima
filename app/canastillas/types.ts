@@ -17,7 +17,6 @@ export interface CanastillaFormValues {
   placaVH: string;
   nombreCliente: string;
   nombreAutoriza: string;
-  observaciones: string;
 }
 
 export interface InventoryItem {

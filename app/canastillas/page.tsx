@@ -32,7 +32,6 @@ export default function CrateFlowPage() {
     placaVH: "",
     nombreCliente: "",
     nombreAutoriza: "",
-    observaciones: "",
   });
 
   const handleAddItem = (item: InventoryItem) => {
@@ -54,7 +53,6 @@ export default function CrateFlowPage() {
       placaVH: "",
       nombreCliente: "",
       nombreAutoriza: "",
-      observaciones: "",
     });
     setSaveError(null);
     setIsSaving(false);
@@ -66,11 +64,7 @@ export default function CrateFlowPage() {
     if (isSaving) return;
     setIsSaving(true);
     setSaveError(null);
-
-    const observaciones = [formValues.observaciones, notes]
-      .map((value) => value.trim())
-      .filter(Boolean)
-      .join("\n\n");
+    const observaciones = notes.trim();
 
     const payload = items.map((item) => ({
       fecha: formValues.fecha,
