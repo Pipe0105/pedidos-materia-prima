@@ -1,8 +1,8 @@
 export enum CrateType {
-  STANDARD = "Estándar",
   LARGE = "Grande",
   SMALL = "Pequeña",
-  SPECIALTY = "Especialidad",
+  STANDARD = "Base",
+  SPECIALTY = "Huacal",
 }
 
 export enum CrateStatus {
