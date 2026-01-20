@@ -6,9 +6,9 @@ export enum CrateType {
 }
 
 export enum CrateStatus {
-  GOOD = "Bueno",
-  DAMAGED = "Dañado",
-  REPAIR = "Reparar",
+  MACPOLLO = "Macpollo",
+  DON_POLLO = "Don Pollo",
+  GALPON = "Galpon",
 }
 
 export interface InventoryItem {

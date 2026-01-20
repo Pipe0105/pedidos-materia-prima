@@ -16,8 +16,17 @@ export const InventoryEntry: React.FC<Props> = ({
   onNext,
 }) => {
   const [type, setType] = useState<CrateType>(CrateType.STANDARD);
-  const [status, setStatus] = useState<CrateStatus>(CrateStatus.GOOD);
+  const [status, setStatus] = useState<CrateStatus>(CrateStatus.MACPOLLO);
   const [quantity, setQuantity] = useState<number>(1);
+  const [placaVH, setPlacaVH] = useState<string>("");
+  const [autoriza, setAutoriza] = useState<string>("");
+  const [observaciones, setObservaciones] = useState<string>("");
+
+  const fechaActual = new Date().toLocaleDateString("es-CO", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
 
   const handleAdd = () => {
     if (quantity <= 0) return;
@@ -42,6 +51,30 @@ export const InventoryEntry: React.FC<Props> = ({
         <div className="grid grid-cols-1 gap-4">
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-1">
+              Fecha
+            </label>
+            <input
+              type="text"
+              value={fechaActual}
+              readOnly
+              className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-600"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1">
+              Placa VH
+            </label>
+            <input
+              type="text"
+              value={placaVH}
+              onChange={(e) => setPlacaVH(e.target.value)}
+              placeholder="Ingresa la placa VH"
+              className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1">
               Tipo de Canastilla
             </label>
             <select
@@ -59,7 +92,7 @@ export const InventoryEntry: React.FC<Props> = ({
 
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-1">
-              Estado
+              Proveedores
             </label>
             <div className="flex gap-2">
               {Object.values(CrateStatus).map((s) => (
@@ -103,6 +136,31 @@ export const InventoryEntry: React.FC<Props> = ({
               </button>
             </div>
           </div>
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1">
+              Nombre quien autoriza
+            </label>
+            <input
+              type="text"
+              value={autoriza}
+              onChange={(e) => setAutoriza(e.target.value)}
+              placeholder="Nombre completo"
+              className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1">
+              Observaciones
+            </label>
+            <textarea
+              value={observaciones}
+              onChange={(e) => setObservaciones(e.target.value)}
+              placeholder="Agrega observaciones relevantes"
+              rows={3}
+              className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all resize-none"
+            />
+          </div>
 
           <button
             onClick={handleAdd}
@@ -137,9 +195,9 @@ export const InventoryEntry: React.FC<Props> = ({
                     <h4 className="font-bold text-slate-800">{item.type}</h4>
                     <span
                       className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
-                        item.status === CrateStatus.GOOD
+                        item.status === CrateStatus.MACPOLLO
                           ? "bg-green-100 text-green-700"
-                          : item.status === CrateStatus.DAMAGED
+                          : item.status === CrateStatus.DON_POLLO
                             ? "bg-red-100 text-red-700"
                             : "bg-orange-100 text-orange-700"
                       }`}
