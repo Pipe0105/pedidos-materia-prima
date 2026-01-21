@@ -194,7 +194,7 @@ export default function CrateFlowPage() {
                       Devolución de canastillas
                     </h2>
                     <p className="text-sm text-slate-500 mt-1">
-                      Registra la entrega de canastillas que regresan.
+                      Registra la entrega de canastillas que se devuelven.
                     </p>
                   </div>
                   <ChevronRight className="text-blue-600" />
@@ -214,7 +214,7 @@ export default function CrateFlowPage() {
                       Préstamo de canastillas
                     </h2>
                     <p className="text-sm text-slate-500 mt-1">
-                      Registra las canastillas que salen en préstamo.
+                      Registra las canastillas que entran en forma de préstamo.
                     </p>
                   </div>
                   <ChevronRight className="text-blue-600" />
