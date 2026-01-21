@@ -2,7 +2,6 @@
 
 import React, { useState } from "react";
 import { InventoryEntry } from "@/app/canastillas/InventoryEntry";
-import { InventoryOverview } from "@/app/canastillas/InventoryOverview";
 import { SignaturePad } from "@/app/canastillas/SignaturePad";
 import { SuccessView } from "@/app/canastillas/SuccessView";
 import { CanastillaFormValues, InventoryItem } from "@/app/canastillas/types";
@@ -24,8 +23,6 @@ export default function CrateFlowPage() {
   const [signature, setSignature] = useState<string>("");
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
-  const [showInventory, setShowInventory] = useState(false);
   const [formValues, setFormValues] = useState<CanastillaFormValues>({
     fecha: getTodayDate(),
     fechaDevolucion: "",
@@ -106,16 +103,11 @@ export default function CrateFlowPage() {
     setSignature(dataUrl);
     setCurrentStep(Step.SUCCESS);
     setIsSaving(false);
-    setHistoryRefreshKey((prev) => prev + 1);
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 print:min-h-0 print:bg-white">
-      <div
-        className={`container mx-auto px-4 py-8 print:px-0 print:py-0 ${
-          showInventory ? "max-w-6xl" : "max-w-2xl"
-        }`}
-      >
+      <div className="container mx-auto max-w-2xl px-4 py-8 print:px-0 print:py-0">
         <div className="mb-6 flex flex-wrap justify-end gap-2 print:hidden">
           <a
             href="/canastillas/proveedores"
@@ -123,103 +115,96 @@ export default function CrateFlowPage() {
           >
             Gestionar proveedores
           </a>
-          <button
-            type="button"
-            onClick={() => setShowInventory((prev) => !prev)}
+          <a
+            href="/canastillas/inventario"
             className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-white px-4 py-2 text-sm font-semibold text-blue-700 shadow-sm transition-colors hover:bg-blue-50"
           >
-            {showInventory ? "Volver al registro" : "Ver inventario"}
-          </button>
+            Ver inventario
+          </a>
         </div>
-        {showInventory ? (
-          <InventoryOverview refreshKey={historyRefreshKey} />
-        ) : (
-          <>
-            {/* Progress Indicator */}
-            <div className="mb-8 print:hidden">
-              <div className="flex items-center justify-between mb-3">
-                {["Registro", "Firma", "Completado"].map((label, idx) => (
-                  <div key={idx} className="flex flex-col items-center flex-1">
-                    <div
-                      className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all ${
-                        idx === currentStep
-                          ? "bg-blue-600 text-white scale-110 shadow-lg shadow-blue-200"
-                          : idx < currentStep
-                            ? "bg-green-500 text-white"
-                            : "bg-slate-200 text-slate-400"
-                      }`}
-                    >
-                      {idx < currentStep ? "✓" : idx + 1}
-                    </div>
-                    <span
-                      className={`text-xs mt-2 font-semibold ${
-                        idx === currentStep ? "text-blue-600" : "text-slate-400"
-                      }`}
-                    >
-                      {label}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
+        {/* Progress Indicator */}
+        <div className="mb-8 print:hidden">
+          <div className="flex items-center justify-between mb-3">
+            {["Registro", "Firma", "Completado"].map((label, idx) => (
+              <div key={idx} className="flex flex-col items-center flex-1">
                 <div
-                  className="h-full bg-blue-600 transition-all duration-500 ease-out"
-                  style={{ width: `${(currentStep / 2) * 100}%` }}
-                />
+                  className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all ${
+                    idx === currentStep
+                      ? "bg-blue-600 text-white scale-110 shadow-lg shadow-blue-200"
+                      : idx < currentStep
+                        ? "bg-green-500 text-white"
+                        : "bg-slate-200 text-slate-400"
+                  }`}
+                >
+                  {idx < currentStep ? "✓" : idx + 1}
+                </div>
+                <span
+                  className={`text-xs mt-2 font-semibold ${
+                    idx === currentStep ? "text-blue-600" : "text-slate-400"
+                  }`}
+                >
+                  {label}
+                </span>
               </div>
-            </div>
+            ))}
+          </div>
+          <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-blue-600 transition-all duration-500 ease-out"
+              style={{ width: `${(currentStep / 2) * 100}%` }}
+            />
+          </div>
+        </div>
 
-            {/* Step Content */}
+        {/* Step Content */}
+        {currentStep === Step.ENTRY && (
+          <InventoryEntry
+            items={items}
+            formValues={formValues}
+            notes={notes}
+            onNotesChange={setNotes}
+            onFormChange={setFormValues}
+            onAddItem={handleAddItem}
+            onRemoveItem={handleRemoveItem}
+          />
+        )}
+
+        {currentStep === Step.SIGNATURE && (
+          <SignaturePad
+            onSave={handleSaveSignature}
+            onBack={() => setCurrentStep(Step.ENTRY)}
+            isSaving={isSaving}
+            errorMessage={saveError}
+          />
+        )}
+
+        {currentStep === Step.SUCCESS && (
+          <SuccessView
+            items={items}
+            signature={signature}
+            formValues={formValues}
+            notes={notes}
+            onReset={handleReset}
+          />
+        )}
+
+        {/* Navigation Buttons (except for signature and success steps) */}
+        {currentStep !== Step.SIGNATURE && currentStep !== Step.SUCCESS && (
+          <div className="mt-8 grid gap-3">
             {currentStep === Step.ENTRY && (
-              <InventoryEntry
-                items={items}
-                formValues={formValues}
-                notes={notes}
-                onNotesChange={setNotes}
-                onFormChange={setFormValues}
-                onAddItem={handleAddItem}
-                onRemoveItem={handleRemoveItem}
-              />
+              <button
+                onClick={() => setCurrentStep(Step.SIGNATURE)}
+                disabled={!canProceedFromEntry}
+                className={`w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all active:scale-95 ${
+                  canProceedFromEntry
+                    ? "bg-blue-600 text-white shadow-lg shadow-blue-200 hover:bg-blue-700"
+                    : "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
+                }`}
+              >
+                Continuar a Firma <ChevronRight size={20} />
+              </button>
             )}
-
-            {currentStep === Step.SIGNATURE && (
-              <SignaturePad
-                onSave={handleSaveSignature}
-                onBack={() => setCurrentStep(Step.ENTRY)}
-                isSaving={isSaving}
-                errorMessage={saveError}
-              />
-            )}
-
-            {currentStep === Step.SUCCESS && (
-              <SuccessView
-                items={items}
-                signature={signature}
-                formValues={formValues}
-                notes={notes}
-                onReset={handleReset}
-              />
-            )}
-
-            {/* Navigation Buttons (except for signature and success steps) */}
-            {currentStep !== Step.SIGNATURE && currentStep !== Step.SUCCESS && (
-              <div className="mt-8 grid gap-3">
-                {currentStep === Step.ENTRY && (
-                  <button
-                    onClick={() => setCurrentStep(Step.SIGNATURE)}
-                    disabled={!canProceedFromEntry}
-                    className={`w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all active:scale-95 ${
-                      canProceedFromEntry
-                        ? "bg-blue-600 text-white shadow-lg shadow-blue-200 hover:bg-blue-700"
-                        : "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
-                    }`}
-                  >
-                    Continuar a Firma <ChevronRight size={20} />
-                  </button>
-                )}
-              </div>
-            )}
-          </>
+          </div>
         )}
       </div>
     </div>
