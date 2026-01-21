@@ -74,10 +74,24 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
     void loadHistory();
   }, [loadHistory, refreshKey]);
 
-  const totalCrates = history.reduce((acc, entry) => {
+  const ingresoHistory = useMemo(
+    () => history.filter((entry) => !entry.fecha_devolucion),
+    [history],
+  );
+  const devolucionHistory = useMemo(
+    () => history.filter((entry) => entry.fecha_devolucion),
+    [history],
+  );
+
+  const totalIngresos = ingresoHistory.reduce((acc, entry) => {
     if (entry.anulado) return acc;
     return acc + (entry.cantidad ?? 0);
   }, 0);
+  const totalDevoluciones = devolucionHistory.reduce((acc, entry) => {
+    if (entry.anulado) return acc;
+    return acc + (entry.cantidad ?? 0);
+  }, 0);
+  const totalCrates = totalIngresos - totalDevoluciones;
 
   const providerOptions = useMemo(() => {
     const values = new Set<string>();
@@ -86,42 +100,76 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
     });
     return Array.from(values).sort((a, b) => a.localeCompare(b));
   }, [history]);
-  const totalPendingCrates = history.reduce((acc, entry) => {
-    if (entry.anulado || entry.fecha_devolucion) return acc;
-    return acc + (entry.cantidad ?? 0);
-  }, 0);
+  const totalPendingCrates = Math.max(totalCrates, 0);
   const totalCanceled = history.filter((entry) => entry.anulado).length;
 
-  const filteredHistory = useMemo(() => {
-    const term = searchTerm.trim().toLowerCase();
-    return history.filter((entry) => {
-      if (providerFilter !== "todos" && entry.proveedor !== providerFilter) {
-        return false;
-      }
-      if (statusFilter === "activos" && entry.anulado) {
-        return false;
-      }
-      if (statusFilter === "anulados" && !entry.anulado) {
-        return false;
-      }
-      if (dateFrom && entry.fecha < dateFrom) return false;
-      if (dateTo && entry.fecha > dateTo) return false;
-      if (term.length === 0) return true;
+  const getEntryDate = useCallback(
+    (entry: CrateHistoryEntry, mode: "ingreso" | "devolucion") =>
+      mode === "devolucion"
+        ? entry.fecha_devolucion || entry.fecha
+        : entry.fecha,
+    [],
+  );
 
-      const haystack = [
-        entry.consecutivo,
-        entry.proveedor,
-        entry.placa_vh,
-        entry.nombre_autoriza,
-        entry.nombre_cliente,
-        entry.tipo_canastilla,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-      return haystack.includes(term);
-    });
-  }, [history, providerFilter, dateFrom, dateTo, searchTerm]);
+  const filterEntries = useCallback(
+    (entries: CrateHistoryEntry[], mode: "ingreso" | "devolucion") => {
+      const term = searchTerm.trim().toLowerCase();
+      return entries.filter((entry) => {
+        if (providerFilter !== "todos" && entry.proveedor !== providerFilter) {
+          return false;
+        }
+        if (statusFilter === "activos" && entry.anulado) {
+          return false;
+        }
+        if (statusFilter === "anulados" && !entry.anulado) {
+          return false;
+        }
+
+        const entryDate = getEntryDate(entry, mode);
+        if (dateFrom && entryDate < dateFrom) return false;
+        if (dateTo && entryDate > dateTo) return false;
+        if (term.length === 0) return true;
+
+        const haystack = [
+          entry.consecutivo,
+          entry.proveedor,
+          entry.placa_vh,
+          entry.nombre_autoriza,
+          entry.nombre_cliente,
+          entry.tipo_canastilla,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        return haystack.includes(term);
+      });
+    },
+    [dateFrom, dateTo, getEntryDate, providerFilter, searchTerm, statusFilter],
+  );
+
+  const filteredIngresos = useMemo(
+    () => filterEntries(ingresoHistory, "ingreso"),
+    [filterEntries, ingresoHistory],
+  );
+  const filteredDevoluciones = useMemo(
+    () => filterEntries(devolucionHistory, "devolucion"),
+    [filterEntries, devolucionHistory],
+  );
+
+  const getEmptyMessage = useCallback(
+    (
+      baseEntries: CrateHistoryEntry[],
+      filteredEntries: CrateHistoryEntry[],
+      label: string,
+    ) => {
+      if (filteredEntries.length > 0) return "";
+      if (baseEntries.length === 0) {
+        return `Aún no hay ${label} registrados en el historial.`;
+      }
+      return "No hay resultados para los filtros seleccionados.";
+    },
+    [],
+  );
 
   const getSignatureSrc = useCallback((signature?: string | null) => {
     if (!signature) return "";
@@ -188,6 +236,127 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
     setIsCancelling(false);
   };
 
+  const renderHistoryTable = (
+    entries: CrateHistoryEntry[],
+    baseEntries: CrateHistoryEntry[],
+    mode: "ingreso" | "devolucion",
+    title: string,
+  ) => {
+    const emptyMessage = getEmptyMessage(
+      baseEntries,
+      entries,
+      mode === "devolucion" ? "devoluciones" : "ingresos",
+    );
+    const dateLabel = mode === "devolucion" ? "Fecha devolución" : "Fecha";
+
+    return (
+      <div className="space-y-3">
+        <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider">
+          {title}
+        </h3>
+        {entries.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-sm text-slate-500">
+            {emptyMessage}
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-left text-xs uppercase tracking-wide text-slate-400">
+                <tr>
+                  <th className="py-2 pr-4">Canastillas</th>
+                  <th className="py-2 pr-4">Consecutivo</th>
+                  <th className="py-2 pr-4">{dateLabel}</th>
+                  <th className="py-2 pr-4">Proveedor</th>
+                  <th className="py-2 pr-4">Placa VH</th>
+                  <th className="py-2">Aceptó</th>
+                  <th className="py-2">Estado</th>
+                  <th className="py-2 text-right">Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {entries.map((entry) => (
+                  <tr key={entry.id}>
+                    <td
+                      className={`py-3 pr-4 font-semibold ${
+                        entry.anulado
+                          ? "text-slate-400 line-through"
+                          : "text-slate-700"
+                      }`}
+                    >
+                      {entry.cantidad} {entry.tipo_canastilla}
+                    </td>
+                    <td className="py-3 pr-4 text-slate-600">
+                      {entry.consecutivo || "Sin consecutivo"}
+                    </td>
+                    <td className="py-3 pr-4 text-slate-600">
+                      {getEntryDate(entry, mode)}
+                    </td>
+                    <td className="py-3 pr-4 text-slate-600">
+                      {entry.proveedor}
+                    </td>
+                    <td className="py-3 pr-4 text-slate-600">
+                      {entry.placa_vh || "Sin placa"}
+                    </td>
+                    <td className="py-3 text-slate-600">
+                      {entry.nombre_autoriza}
+                    </td>
+                    <td className="py-3 text-slate-600">
+                      {entry.anulado ? (
+                        <span className="rounded-full bg-amber-100 px-2 py-1 text-[10px] font-semibold uppercase text-amber-700">
+                          Anulado
+                        </span>
+                      ) : (
+                        <span className="rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-semibold uppercase text-emerald-700">
+                          Activo
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-3">
+                      <div className="flex flex-col items-end gap-2 text-right sm:flex-row sm:justify-end">
+                        {entry.firma ? (
+                          <button
+                            type="button"
+                            onClick={() => setSelectedEntry(entry)}
+                            className="text-xs font-semibold text-blue-600 hover:text-blue-800"
+                          >
+                            Ver firma
+                          </button>
+                        ) : (
+                          <span className="text-[10px] font-semibold text-slate-400">
+                            Sin firma
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCancelEntry(entry);
+                            setCancelReason("");
+                          }}
+                          className="text-xs font-semibold text-amber-600 hover:text-amber-800 disabled:cursor-not-allowed disabled:text-slate-300"
+                          disabled={entry.anulado ?? false}
+                        >
+                          Anular
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditEntry({ ...entry })}
+                          className="text-xs font-semibold text-slate-600 hover:text-slate-800 disabled:cursor-not-allowed disabled:text-slate-300"
+                          disabled={entry.anulado ?? false}
+                        >
+                          Editar
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <section className="mt-10 space-y-6">
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
@@ -252,7 +421,7 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
           </div>
         ) : history.length === 0 && !isLoading ? (
           <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-sm text-slate-500">
-            Aún no hay ingresos registrados en el historial.
+            Aún no hay registros en el historial.
           </div>
         ) : (
           <div className="space-y-4">
@@ -324,108 +493,17 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
               </div>
             </div>
 
-            {filteredHistory.length === 0 && !isLoading ? (
-              <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-sm text-slate-500">
-                No hay resultados para los filtros seleccionados.
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="text-left text-xs uppercase tracking-wide text-slate-400">
-                    <tr>
-                      <th className="py-2 pr-4">Canastillas</th>
-                      <th className="py-2 pr-4">Consecutivo</th>
-                      <th className="py-2 pr-4">Fecha</th>
-                      <th className="py-2 pr-4">Devolución</th>
-                      <th className="py-2 pr-4">Proveedor</th>
-                      <th className="py-2 pr-4">Placa VH</th>
-                      <th className="py-2">Aceptó</th>
-                      <th className="py-2">Estado</th>
-                      <th className="py-2 text-right">Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {filteredHistory.map((entry, index) => (
-                      <tr key={`${entry.fecha}-${entry.proveedor}-${index}`}>
-                        <td
-                          className={`py-3 pr-4 font-semibold ${
-                            entry.anulado
-                              ? "text-slate-400 line-through"
-                              : "text-slate-700"
-                          }`}
-                        >
-                          {entry.cantidad} {entry.tipo_canastilla}
-                        </td>
-                        <td className="py-3 pr-4 text-slate-600">
-                          {entry.consecutivo || "Sin consecutivo"}
-                        </td>
-                        <td className="py-3 pr-4 text-slate-600">
-                          {entry.fecha}
-                        </td>
-                        <td className="py-3 pr-4 text-slate-600">
-                          {entry.fecha_devolucion || "Sin devolución"}
-                        </td>
-                        <td className="py-3 pr-4 text-slate-600">
-                          {entry.proveedor}
-                        </td>
-                        <td className="py-3 pr-4 text-slate-600">
-                          {entry.placa_vh || "Sin placa"}
-                        </td>
-                        <td className="py-3 text-slate-600">
-                          {entry.nombre_autoriza}
-                        </td>
-                        <td className="py-3 text-slate-600">
-                          {entry.anulado ? (
-                            <span className="rounded-full bg-amber-100 px-2 py-1 text-[10px] font-semibold uppercase text-amber-700">
-                              Anulado
-                            </span>
-                          ) : (
-                            <span className="rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-semibold uppercase text-emerald-700">
-                              Activo
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-3">
-                          <div className="flex flex-col items-end gap-2 text-right sm:flex-row sm:justify-end">
-                            {entry.firma ? (
-                              <button
-                                type="button"
-                                onClick={() => setSelectedEntry(entry)}
-                                className="text-xs font-semibold text-blue-600 hover:text-blue-800"
-                              >
-                                Ver firma
-                              </button>
-                            ) : (
-                              <span className="text-[10px] font-semibold text-slate-400">
-                                Sin firma
-                              </span>
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setCancelEntry(entry);
-                                setCancelReason("");
-                              }}
-                              className="text-xs font-semibold text-amber-600 hover:text-amber-800 disabled:cursor-not-allowed disabled:text-slate-300"
-                              disabled={entry.anulado ?? false}
-                            >
-                              Anular
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setEditEntry({ ...entry })}
-                              className="text-xs font-semibold text-slate-600 hover:text-slate-800 disabled:cursor-not-allowed disabled:text-slate-300"
-                              disabled={entry.anulado ?? false}
-                            >
-                              Editar
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+            {renderHistoryTable(
+              filteredIngresos,
+              ingresoHistory,
+              "ingreso",
+              "Historial de ingresos",
+            )}
+            {renderHistoryTable(
+              filteredDevoluciones,
+              devolucionHistory,
+              "devolucion",
+              "Historial de devoluciones",
             )}
           </div>
         )}
