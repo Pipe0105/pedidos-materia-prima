@@ -72,6 +72,9 @@ export default function CrateFlowPage() {
     setIsSaving(true);
     setSaveError(null);
     const observaciones = notes.trim();
+    const normalizedSignature = dataUrl.includes(",")
+      ? dataUrl.split(",")[1]
+      : dataUrl;
 
     const payload = items.map((item) => ({
       fecha: formValues.fecha,
@@ -84,15 +87,18 @@ export default function CrateFlowPage() {
       cantidad: item.quantity,
       nombre_autoriza: formValues.nombreAutoriza,
       observaciones: observaciones || null,
-      firma: dataUrl,
+      firma: normalizedSignature,
       devuelta: false,
       anulado: false,
     }));
 
     const { error } = await supabase.from("canastillas").insert(payload);
     if (error) {
+      const detail = error.message?.trim();
       setSaveError(
-        "No se pudo guardar el registro. Verifica la conexión y vuelve a intentar.",
+        detail
+          ? `No se pudo guardar el registro: ${detail}`
+          : "No se pudo guardar el registro. Verifica la conexión y vuelve a intentar.",
       );
       setIsSaving(false);
       return;
