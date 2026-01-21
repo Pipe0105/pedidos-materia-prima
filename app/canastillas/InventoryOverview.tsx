@@ -397,7 +397,7 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
                                 setCancelReason("");
                               }}
                               className="text-xs font-semibold text-amber-600 hover:text-amber-800 disabled:cursor-not-allowed disabled:text-slate-300"
-                              disabled={entry.anulado}
+                              disabled={entry.anulado ?? false}
                             >
                               Anular
                             </button>
@@ -405,7 +405,7 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
                               type="button"
                               onClick={() => setEditEntry({ ...entry })}
                               className="text-xs font-semibold text-slate-600 hover:text-slate-800 disabled:cursor-not-allowed disabled:text-slate-300"
-                              disabled={entry.anulado}
+                              disabled={entry.anulado ?? false}
                             >
                               Editar
                             </button>
