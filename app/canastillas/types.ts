@@ -2,12 +2,11 @@ export enum CrateType {
   LARGE = "Grande",
   SMALL = "Pequeña",
   STANDARD = "Base",
-  SPECIALTY = "Huacal",
 }
 
 export interface CanastillaFormValues {
   fecha: string;
-  fechaDevolucion: string;
+  consecutivo: string;
   placaVH: string;
   nombreCliente: string;
   nombreAutoriza: string;

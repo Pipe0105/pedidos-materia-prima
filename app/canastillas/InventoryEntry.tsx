@@ -26,20 +26,18 @@ export const InventoryEntry: React.FC<Props> = ({
   onAddItem,
   onRemoveItem,
 }) => {
-  const [type, setType] = useState<CrateType>(CrateType.STANDARD);
+  const [type, setType] = useState<CrateType>(CrateType.LARGE);
   const [provider, setProvider] = useState<string>("");
   const [quantity, setQuantity] = useState<number>(1);
   const [providers, setProviders] = useState<string[]>([]);
   const [providerError, setProviderError] = useState<string | null>(null);
-  const { fecha, fechaDevolucion, placaVH, nombreCliente, nombreAutoriza } =
+  const { fecha, consecutivo, placaVH, nombreCliente, nombreAutoriza } =
     formValues;
   const placaLength = placaVH.trim().length;
   const isPlacaValid = placaLength === 6;
   const isProviderSelected = provider.trim().length > 0;
-  const isReturnDateValid =
-    fechaDevolucion.trim().length === 0 || fechaDevolucion >= fecha;
   const isEntryComplete =
-    isReturnDateValid &&
+    consecutivo.trim().length > 0 &&
     isPlacaValid &&
     isProviderSelected &&
     nombreCliente.trim().length > 0 &&
@@ -149,20 +147,16 @@ export const InventoryEntry: React.FC<Props> = ({
           </div>
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-1">
-              Fecha de devolución
+              Consecutivo manual
             </label>
             <input
-              type="date"
-              value={fechaDevolucion}
-              onChange={(e) => updateForm({ fechaDevolucion: e.target.value })}
-              min={fecha}
+              type="text"
+              value={consecutivo}
+              onChange={(e) => updateForm({ consecutivo: e.target.value })}
+              placeholder="Ingresa el consecutivo"
+              required
               className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
             />
-            {!isReturnDateValid && (
-              <p className="mt-1 text-xs font-medium text-red-500">
-                La fecha de devolución no puede ser anterior a la fecha actual.
-              </p>
-            )}
           </div>
 
           <div>

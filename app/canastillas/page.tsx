@@ -25,7 +25,7 @@ export default function CrateFlowPage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [formValues, setFormValues] = useState<CanastillaFormValues>({
     fecha: getTodayDate(),
-    fechaDevolucion: "",
+    consecutivo: "",
     placaVH: "",
     nombreCliente: "",
     nombreAutoriza: "",
@@ -46,7 +46,7 @@ export default function CrateFlowPage() {
     setSignature("");
     setFormValues({
       fecha: getTodayDate(),
-      fechaDevolucion: "",
+      consecutivo: "",
       placaVH: "",
       nombreCliente: "",
       nombreAutoriza: "",
@@ -55,12 +55,8 @@ export default function CrateFlowPage() {
     setIsSaving(false);
   };
 
-  const isReturnDateValid =
-    formValues.fechaDevolucion.trim().length === 0 ||
-    formValues.fechaDevolucion >= formValues.fecha;
-
   const isEntryFormComplete =
-    isReturnDateValid &&
+    formValues.consecutivo.trim().length > 0 &&
     formValues.placaVH.trim().length === 6 &&
     formValues.nombreCliente.trim().length > 0 &&
     formValues.nombreAutoriza.trim().length > 0;
@@ -76,12 +72,12 @@ export default function CrateFlowPage() {
       : dataUrl;
 
     const payload = items.map((item) => ({
+      consecutivo: formValues.consecutivo,
       fecha: formValues.fecha,
       placa_vh: formValues.placaVH,
       tipo_canastilla: item.type,
       nombre_cliente: formValues.nombreCliente,
       proveedor: item.provider,
-      fecha_devolucion: formValues.fechaDevolucion || null,
       cantidad: item.quantity,
       nombre_autoriza: formValues.nombreAutoriza,
       observaciones: observaciones || null,

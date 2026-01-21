@@ -7,7 +7,7 @@ interface Props {
   signature: string;
   formValues: {
     fecha: string;
-    fechaDevolucion: string;
+    consecutivo: string;
     placaVH: string;
     nombreCliente: string;
     nombreAutoriza: string;
@@ -42,8 +42,8 @@ export const SuccessView: React.FC<Props> = ({
   const detailRows = [
     { label: "Fecha", value: formValues.fecha },
     {
-      label: "Fecha de devolución",
-      value: formValues.fechaDevolucion,
+      label: "Consecutivo",
+      value: formValues.consecutivo,
     },
     { label: "Placa VH", value: formValues.placaVH },
     {
