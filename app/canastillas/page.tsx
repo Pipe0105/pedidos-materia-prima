@@ -88,8 +88,6 @@ export default function CrateFlowPage() {
       nombre_autoriza: formValues.nombreAutoriza,
       observaciones: observaciones || null,
       firma: normalizedSignature,
-      devuelta: false,
-      anulado: false,
     }));
 
     const { error } = await supabase.from("canastillas").insert(payload);

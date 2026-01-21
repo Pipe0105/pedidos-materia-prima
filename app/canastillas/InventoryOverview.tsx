@@ -17,7 +17,6 @@ interface CrateHistoryEntry {
   tipo_canastilla: string;
   firma: string | null;
   observaciones?: string | null;
-  devuelta?: boolean | null;
   anulado?: boolean | null;
 }
 
@@ -47,7 +46,7 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
     const { data, error } = await supabase
       .from("canastillas")
       .select(
-        "id, fecha, fecha_devolucion, fecha_devolucion_real, proveedor, nombre_cliente, nombre_autoriza, placa_vh, cantidad, tipo_canastilla, firma, observaciones, devuelta, anulado",
+        "id, fecha, fecha_devolucion, fecha_devolucion_real, proveedor, nombre_cliente, nombre_autoriza, placa_vh, cantidad, tipo_canastilla, firma, observaciones",
       )
       .order("fecha", { ascending: false });
 
@@ -89,8 +88,9 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
       }
       if (statusFilter !== "anulados" && entry.anulado) return false;
       if (statusFilter === "anulados" && !entry.anulado) return false;
-      if (statusFilter === "pendientes" && entry.devuelta) return false;
-      if (statusFilter === "devueltas" && !entry.devuelta) return false;
+      const isReturned = Boolean(entry.fecha_devolucion_real);
+      if (statusFilter === "pendientes" && isReturned) return false;
+      if (statusFilter === "devueltas" && !isReturned) return false;
       if (dateFrom && entry.fecha < dateFrom) return false;
       if (dateTo && entry.fecha > dateTo) return false;
       if (term.length === 0) return true;
@@ -110,7 +110,7 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
   }, [history, providerFilter, statusFilter, dateFrom, dateTo, searchTerm]);
 
   const pendingReturns = history.filter(
-    (entry) => !entry.anulado && !entry.devuelta,
+    (entry) => !entry.anulado && !entry.fecha_devolucion_real,
   ).length;
   const annulledCount = history.filter((entry) => entry.anulado).length;
 
@@ -125,12 +125,9 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
     if (!entry.id || entry.anulado) return;
     setIsUpdating(true);
     setErrorMessage(null);
-    const updates = entry.devuelta
-      ? { devuelta: false, fecha_devolucion_real: null }
-      : {
-          devuelta: true,
-          fecha_devolucion_real: new Date().toISOString().slice(0, 10),
-        };
+    const updates = entry.fecha_devolucion_real
+      ? { fecha_devolucion_real: null }
+      : { fecha_devolucion_real: new Date().toISOString().slice(0, 10) };
 
     const { error } = await supabase
       .from("canastillas")
@@ -353,7 +350,7 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
                   <tbody className="divide-y divide-slate-100">
                     {filteredHistory.map((entry, index) => {
                       const isAnnulled = Boolean(entry.anulado);
-                      const isReturned = Boolean(entry.devuelta);
+                      const isReturned = Boolean(entry.fecha_devolucion_real);
 
                       return (
                         <tr key={`${entry.fecha}-${entry.proveedor}-${index}`}>
