@@ -6,6 +6,7 @@ import { ClipboardList, RefreshCw, Warehouse } from "lucide-react";
 
 interface CrateHistoryEntry {
   id: string;
+  consecutivo?: string | null;
   fecha: string;
   fecha_devolucion: string | null;
   proveedor: string;
@@ -52,7 +53,7 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
     const { data, error } = await supabase
       .from("canastillas")
       .select(
-        "id, fecha, fecha_devolucion, proveedor, nombre_cliente, nombre_autoriza, placa_vh, cantidad, tipo_canastilla, firma, observaciones, anulado, fecha_anulacion, motivo_anulacion",
+        "id, consecutivo, fecha, fecha_devolucion, proveedor, nombre_cliente, nombre_autoriza, placa_vh, cantidad, tipo_canastilla, firma, observaciones, anulado, fecha_anulacion, motivo_anulacion",
       )
       .order("fecha", { ascending: false });
 
@@ -108,6 +109,7 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
       if (term.length === 0) return true;
 
       const haystack = [
+        entry.consecutivo,
         entry.proveedor,
         entry.placa_vh,
         entry.nombre_autoriza,
@@ -136,6 +138,7 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
     const { error } = await supabase
       .from("canastillas")
       .update({
+        consecutivo: editEntry.consecutivo || null,
         proveedor: editEntry.proveedor,
         tipo_canastilla: editEntry.tipo_canastilla,
         cantidad: editEntry.cantidad,
@@ -331,6 +334,7 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
                   <thead className="text-left text-xs uppercase tracking-wide text-slate-400">
                     <tr>
                       <th className="py-2 pr-4">Canastillas</th>
+                      <th className="py-2 pr-4">Consecutivo</th>
                       <th className="py-2 pr-4">Fecha</th>
                       <th className="py-2 pr-4">Devolución</th>
                       <th className="py-2 pr-4">Proveedor</th>
@@ -351,6 +355,9 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
                           }`}
                         >
                           {entry.cantidad} {entry.tipo_canastilla}
+                        </td>
+                        <td className="py-3 pr-4 text-slate-600">
+                          {entry.consecutivo || "Sin consecutivo"}
                         </td>
                         <td className="py-3 pr-4 text-slate-600">
                           {entry.fecha}
@@ -452,6 +459,10 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
                 </span>
                 <div className="grid gap-1">
                   <p>
+                    <span className="font-semibold">Consecutivo:</span>{" "}
+                    {selectedEntry.consecutivo || "Sin consecutivo"}
+                  </p>
+                  <p>
                     <span className="font-semibold">Proveedor:</span>{" "}
                     {selectedEntry.proveedor}
                   </p>
@@ -535,6 +546,22 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
             </div>
 
             <div className="mt-4 grid gap-4 text-sm text-slate-600 sm:grid-cols-2">
+              <label className="grid gap-1">
+                <span className="text-xs font-semibold uppercase text-slate-400">
+                  Consecutivo
+                </span>
+                <input
+                  type="text"
+                  value={editEntry.consecutivo ?? ""}
+                  onChange={(event) =>
+                    setEditEntry({
+                      ...editEntry,
+                      consecutivo: event.target.value.replace(/\D/g, ""),
+                    })
+                  }
+                  className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                />
+              </label>
               <label className="grid gap-1">
                 <span className="text-xs font-semibold uppercase text-slate-400">
                   Proveedor
