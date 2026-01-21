@@ -144,7 +144,7 @@ export const InventoryEntry: React.FC<Props> = ({
           <Plus size={20} className="text-blue-600" />
           {entryMode === "devolucion"
             ? "Registrar Devolución"
-            : "Ingresar Canastillas"}
+            : "Registrar Préstamo"}
         </h2>
 
         <div className="grid grid-cols-1 gap-4">
@@ -324,7 +324,7 @@ export const InventoryEntry: React.FC<Props> = ({
             <Plus size={20} />{" "}
             {entryMode === "devolucion"
               ? "Añadir a la devolución"
-              : "Añadir al Inventario"}
+              : "Añadir al préstamo"}
           </button>
         </div>
       </div>

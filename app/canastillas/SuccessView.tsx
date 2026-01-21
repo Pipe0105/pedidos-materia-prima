@@ -68,7 +68,7 @@ export const SuccessView: React.FC<Props> = ({
         <h2 className="text-2xl font-black text-slate-900">
           {entryMode === "devolucion"
             ? "¡Devolución Guardada!"
-            : "¡Inventario Guardado!"}
+            : "¡Préstamo Guardado!"}
         </h2>
         <p className="text-slate-500 mt-1">
           El registro ha sido procesado exitosamente.
@@ -82,7 +82,7 @@ export const SuccessView: React.FC<Props> = ({
         <div className="flex justify-between items-start mb-6">
           <div>
             <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest">
-              Reporte #{entryMode === "devolucion" ? "DEV" : "INV"}-
+              Reporte #{entryMode === "devolucion" ? "DEV" : "PRE"}-
               {Math.floor(Math.random() * 90000 + 10000)}
             </h3>
             <p className="text-xs font-medium text-slate-400">{now}</p>
@@ -96,7 +96,7 @@ export const SuccessView: React.FC<Props> = ({
             <h4 className="text-xs font-bold text-slate-400 uppercase">
               {entryMode === "devolucion"
                 ? "Datos de la devolución"
-                : "Datos del ingreso"}
+                : "Datos del préstamo"}
             </h4>
             <div className="grid gap-3 sm:grid-cols-2">
               {detailRows.map((row) => (
@@ -175,10 +175,7 @@ export const SuccessView: React.FC<Props> = ({
         onClick={onReset}
         className="w-full py-4 text-blue-600 font-bold flex items-center justify-center gap-2 hover:bg-blue-50 rounded-2xl transition-all print:hidden"
       >
-        <RefreshCw size={18} />{" "}
-        {entryMode === "devolucion"
-          ? "Iniciar Nueva Devolución"
-          : "Iniciar Nuevo Inventario"}
+        <RefreshCw size={18} /> Volver al menú
       </button>
     </div>
   );

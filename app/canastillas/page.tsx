@@ -13,15 +13,16 @@ import { ChevronRight } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 enum Step {
-  ENTRY = 0,
-  SIGNATURE = 1,
-  SUCCESS = 2,
+  MENU = 0,
+  ENTRY = 1,
+  SIGNATURE = 2,
+  SUCCESS = 3,
 }
 
 const getTodayDate = () => new Date().toISOString().slice(0, 10);
 
 export default function CrateFlowPage() {
-  const [currentStep, setCurrentStep] = useState<Step>(Step.ENTRY);
+  const [currentStep, setCurrentStep] = useState<Step>(Step.MENU);
   const [entryMode, setEntryMode] = useState<EntryMode>("ingreso");
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [notes, setNotes] = useState<string>("");
@@ -53,6 +54,22 @@ export default function CrateFlowPage() {
     setEntryMode(mode);
   };
 
+  const returnToMenu = () => {
+    setCurrentStep(Step.MENU);
+    setItems([]);
+    setNotes("");
+    setSignature("");
+    setFormValues({
+      fecha: getTodayDate(),
+      consecutivo: "",
+      placaVH: "",
+      nombreCliente: "",
+      nombreAutoriza: "",
+    });
+    setSaveError(null);
+    setIsSaving(false);
+  };
+
   const handleAddItem = (item: InventoryItem) => {
     setItems([...items, item]);
   };
@@ -62,7 +79,7 @@ export default function CrateFlowPage() {
   };
 
   const handleReset = () => {
-    resetFlow(entryMode);
+    returnToMenu();
   };
 
   const isEntryFormComplete =
@@ -112,29 +129,19 @@ export default function CrateFlowPage() {
     setIsSaving(false);
   };
 
+  const progressStepIndex =
+    currentStep === Step.ENTRY
+      ? 0
+      : currentStep === Step.SIGNATURE
+        ? 1
+        : currentStep === Step.SUCCESS
+          ? 2
+          : 0;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 print:min-h-0 print:bg-white">
       <div className="container mx-auto max-w-2xl px-4 py-8 print:px-0 print:py-0">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3 print:hidden">
-          <div className="flex rounded-full border border-slate-200 bg-white p-1 shadow-sm">
-            {[
-              { value: "ingreso", label: "Ingreso" },
-              { value: "devolucion", label: "Devolución" },
-            ].map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() => resetFlow(option.value as EntryMode)}
-                className={`rounded-full px-4 py-2 text-sm font-semibold transition-all ${
-                  entryMode === option.value
-                    ? "bg-blue-600 text-white shadow-sm"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
           <a
             href="/canastillas/proveedores"
             className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
@@ -148,39 +155,98 @@ export default function CrateFlowPage() {
             Ver inventario
           </a>
         </div>
-        {/* Progress Indicator */}
-        <div className="mb-8 print:hidden">
-          <div className="flex items-center justify-between mb-3">
-            {["Registro", "Firma", "Completado"].map((label, idx) => (
-              <div key={idx} className="flex flex-col items-center flex-1">
-                <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all ${
-                    idx === currentStep
-                      ? "bg-blue-600 text-white scale-110 shadow-lg shadow-blue-200"
-                      : idx < currentStep
-                        ? "bg-green-500 text-white"
-                        : "bg-slate-200 text-slate-400"
-                  }`}
-                >
-                  {idx < currentStep ? "✓" : idx + 1}
+
+        {currentStep === Step.MENU && (
+          <div className="space-y-6">
+            <div className="text-center">
+              <h1 className="text-2xl font-black text-slate-900">
+                ¿Qué deseas registrar?
+              </h1>
+              <p className="text-slate-500 mt-1">
+                Elige el tipo de movimiento para continuar con el formulario.
+              </p>
+            </div>
+            <div className="grid gap-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setEntryMode("devolucion");
+                  resetFlow("devolucion");
+                }}
+                className="w-full rounded-3xl border border-slate-200 bg-white p-6 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-lg font-bold text-slate-900">
+                      Devolución de canastillas
+                    </h2>
+                    <p className="text-sm text-slate-500 mt-1">
+                      Registra la entrega de canastillas que regresan.
+                    </p>
+                  </div>
+                  <ChevronRight className="text-blue-600" />
                 </div>
-                <span
-                  className={`text-xs mt-2 font-semibold ${
-                    idx === currentStep ? "text-blue-600" : "text-slate-400"
-                  }`}
-                >
-                  {label}
-                </span>
-              </div>
-            ))}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setEntryMode("ingreso");
+                  resetFlow("ingreso");
+                }}
+                className="w-full rounded-3xl border border-slate-200 bg-white p-6 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-lg font-bold text-slate-900">
+                      Préstamo de canastillas
+                    </h2>
+                    <p className="text-sm text-slate-500 mt-1">
+                      Registra las canastillas que salen en préstamo.
+                    </p>
+                  </div>
+                  <ChevronRight className="text-blue-600" />
+                </div>
+              </button>
+            </div>
           </div>
-          <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-blue-600 transition-all duration-500 ease-out"
-              style={{ width: `${(currentStep / 2) * 100}%` }}
-            />
+        )}
+        {/* Progress Indicator */}
+        {currentStep !== Step.MENU && (
+          <div className="mb-8 print:hidden">
+            <div className="flex items-center justify-between mb-3">
+              {["Registro", "Firma", "Completado"].map((label, idx) => (
+                <div key={idx} className="flex flex-col items-center flex-1">
+                  <div
+                    className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all ${
+                      idx === progressStepIndex
+                        ? "bg-blue-600 text-white scale-110 shadow-lg shadow-blue-200"
+                        : idx < progressStepIndex
+                          ? "bg-green-500 text-white"
+                          : "bg-slate-200 text-slate-400"
+                    }`}
+                  >
+                    {idx < progressStepIndex ? "✓" : idx + 1}
+                  </div>
+                  <span
+                    className={`text-xs mt-2 font-semibold ${
+                      idx === progressStepIndex
+                        ? "text-blue-600"
+                        : "text-slate-400"
+                    }`}
+                  >
+                    {label}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-blue-600 transition-all duration-500 ease-out"
+                style={{ width: `${(progressStepIndex / 2) * 100}%` }}
+              />
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Step Content */}
         {currentStep === Step.ENTRY && (
@@ -217,23 +283,25 @@ export default function CrateFlowPage() {
         )}
 
         {/* Navigation Buttons (except for signature and success steps) */}
-        {currentStep !== Step.SIGNATURE && currentStep !== Step.SUCCESS && (
-          <div className="mt-8 grid gap-3">
-            {currentStep === Step.ENTRY && (
-              <button
-                onClick={() => setCurrentStep(Step.SIGNATURE)}
-                disabled={!canProceedFromEntry}
-                className={`w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all active:scale-95 ${
-                  canProceedFromEntry
-                    ? "bg-blue-600 text-white shadow-lg shadow-blue-200 hover:bg-blue-700"
-                    : "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
-                }`}
-              >
-                Continuar a Firma <ChevronRight size={20} />
-              </button>
-            )}
-          </div>
-        )}
+        {currentStep !== Step.MENU &&
+          currentStep !== Step.SIGNATURE &&
+          currentStep !== Step.SUCCESS && (
+            <div className="mt-8 grid gap-3">
+              {currentStep === Step.ENTRY && (
+                <button
+                  onClick={() => setCurrentStep(Step.SIGNATURE)}
+                  disabled={!canProceedFromEntry}
+                  className={`w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all active:scale-95 ${
+                    canProceedFromEntry
+                      ? "bg-blue-600 text-white shadow-lg shadow-blue-200 hover:bg-blue-700"
+                      : "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
+                  }`}
+                >
+                  Continuar a Firma <ChevronRight size={20} />
+                </button>
+              )}
+            </div>
+          )}
       </div>
     </div>
   );
