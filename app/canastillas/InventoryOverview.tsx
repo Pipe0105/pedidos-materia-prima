@@ -351,88 +351,93 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {filteredHistory.map((entry, index) => (
-                      <tr key={`${entry.fecha}-${entry.proveedor}-${index}`}>
-                        <td className="py-3 pr-4 font-semibold text-slate-700">
-                          {entry.cantidad} {entry.tipo_canastilla}
-                        </td>
-                        <td className="py-3 pr-4 text-slate-600">
-                          {entry.fecha}
-                        </td>
-                        <td className="py-3 pr-4 text-slate-600">
-                          {entry.fecha_devolucion_real ||
-                            entry.fecha_devolucion ||
-                            "Sin devolución"}
-                        </td>
-                        <td className="py-3 pr-4 text-slate-600">
-                          {entry.proveedor}
-                        </td>
-                        <td className="py-3 pr-4 text-slate-600">
-                          {entry.placa_vh || "Sin placa"}
-                        </td>
-                        <td className="py-3 text-slate-600">
-                          {entry.nombre_autoriza}
-                        </td>
-                        <td className="py-3">
-                          {entry.anulado ? (
-                            <span className="text-xs font-semibold text-red-500">
-                              Anulado
-                            </span>
-                          ) : entry.devuelta ? (
-                            <span className="text-xs font-semibold text-green-600">
-                              Devuelta
-                            </span>
-                          ) : (
-                            <span className="text-xs font-semibold text-amber-600">
-                              Pendiente
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-3">
-                          <div className="flex flex-col items-end gap-2 text-right sm:flex-row sm:justify-end">
-                            {entry.firma ? (
-                              <button
-                                type="button"
-                                onClick={() => setSelectedEntry(entry)}
-                                className="text-xs font-semibold text-blue-600 hover:text-blue-800"
-                              >
-                                Ver pedido
-                              </button>
+                    {filteredHistory.map((entry, index) => {
+                      const isAnnulled = Boolean(entry.anulado);
+                      const isReturned = Boolean(entry.devuelta);
+
+                      return (
+                        <tr key={`${entry.fecha}-${entry.proveedor}-${index}`}>
+                          <td className="py-3 pr-4 font-semibold text-slate-700">
+                            {entry.cantidad} {entry.tipo_canastilla}
+                          </td>
+                          <td className="py-3 pr-4 text-slate-600">
+                            {entry.fecha}
+                          </td>
+                          <td className="py-3 pr-4 text-slate-600">
+                            {entry.fecha_devolucion_real ||
+                              entry.fecha_devolucion ||
+                              "Sin devolución"}
+                          </td>
+                          <td className="py-3 pr-4 text-slate-600">
+                            {entry.proveedor}
+                          </td>
+                          <td className="py-3 pr-4 text-slate-600">
+                            {entry.placa_vh || "Sin placa"}
+                          </td>
+                          <td className="py-3 text-slate-600">
+                            {entry.nombre_autoriza}
+                          </td>
+                          <td className="py-3">
+                            {isAnnulled ? (
+                              <span className="text-xs font-semibold text-red-500">
+                                Anulado
+                              </span>
+                            ) : isReturned ? (
+                              <span className="text-xs font-semibold text-green-600">
+                                Devuelta
+                              </span>
                             ) : (
-                              <span className="text-[10px] font-semibold text-slate-400">
-                                Sin firma
+                              <span className="text-xs font-semibold text-amber-600">
+                                Pendiente
                               </span>
                             )}
-                            <button
-                              type="button"
-                              onClick={() => setEditEntry({ ...entry })}
-                              className="text-xs font-semibold text-slate-600 hover:text-slate-800"
-                              disabled={entry.anulado}
-                            >
-                              Editar
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => void handleReturnToggle(entry)}
-                              className="text-xs font-semibold text-emerald-600 hover:text-emerald-800"
-                              disabled={entry.anulado || isUpdating}
-                            >
-                              {entry.devuelta
-                                ? "Revertir devolución"
-                                : "Marcar devolución"}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => void handleAnnul(entry)}
-                              className="text-xs font-semibold text-red-500 hover:text-red-700"
-                              disabled={entry.anulado || isUpdating}
-                            >
-                              Anular
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+                          <td className="py-3">
+                            <div className="flex flex-col items-end gap-2 text-right sm:flex-row sm:justify-end">
+                              {entry.firma ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedEntry(entry)}
+                                  className="text-xs font-semibold text-blue-600 hover:text-blue-800"
+                                >
+                                  Ver pedido
+                                </button>
+                              ) : (
+                                <span className="text-[10px] font-semibold text-slate-400">
+                                  Sin firma
+                                </span>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => setEditEntry({ ...entry })}
+                                className="text-xs font-semibold text-slate-600 hover:text-slate-800"
+                                disabled={isAnnulled}
+                              >
+                                Editar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => void handleReturnToggle(entry)}
+                                className="text-xs font-semibold text-emerald-600 hover:text-emerald-800"
+                                disabled={isAnnulled || isUpdating}
+                              >
+                                {isReturned
+                                  ? "Revertir devolución"
+                                  : "Marcar devolución"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => void handleAnnul(entry)}
+                                className="text-xs font-semibold text-red-500 hover:text-red-700"
+                                disabled={isAnnulled || isUpdating}
+                              >
+                                Anular
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
