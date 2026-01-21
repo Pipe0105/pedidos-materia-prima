@@ -85,7 +85,10 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
     });
     return Array.from(values).sort((a, b) => a.localeCompare(b));
   }, [history]);
-  const totalRecords = history.filter((entry) => !entry.anulado).length;
+  const totalPendingCrates = history.reduce((acc, entry) => {
+    if (entry.anulado || entry.fecha_devolucion) return acc;
+    return acc + (entry.cantidad ?? 0);
+  }, 0);
   const totalCanceled = history.filter((entry) => entry.anulado).length;
 
   const filteredHistory = useMemo(() => {
@@ -213,7 +216,7 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
               Pendientes de devolución
             </p>
             <p className="text-3xl font-black text-slate-900 mt-2">
-              {totalRecords}
+              {totalPendingCrates}
             </p>
           </div>
           <div className="rounded-xl border border-amber-100 bg-amber-50 p-4">
