@@ -1,22 +1,22 @@
 import React from "react";
-import { InventoryItem } from "@/app/canastillas/types";
+import {
+  CanastillaFormValues,
+  EntryMode,
+  InventoryItem,
+} from "@/app/canastillas/types";
 import { CheckCircle, Share2, RefreshCw, Download } from "lucide-react";
 
 interface Props {
+  entryMode: EntryMode;
   items: InventoryItem[];
   signature: string;
-  formValues: {
-    fecha: string;
-    consecutivo: string;
-    placaVH: string;
-    nombreCliente: string;
-    nombreAutoriza: string;
-  };
+  formValues: CanastillaFormValues;
   notes: string;
   onReset: () => void;
 }
 
 export const SuccessView: React.FC<Props> = ({
+  entryMode,
   items,
   signature,
   formValues,
@@ -40,7 +40,10 @@ export const SuccessView: React.FC<Props> = ({
   }, [signature]);
 
   const detailRows = [
-    { label: "Fecha", value: formValues.fecha },
+    {
+      label: entryMode === "devolucion" ? "Fecha de devolución" : "Fecha",
+      value: formValues.fecha,
+    },
     {
       label: "Consecutivo",
       value: formValues.consecutivo,
@@ -63,7 +66,9 @@ export const SuccessView: React.FC<Props> = ({
           <CheckCircle size={48} />
         </div>
         <h2 className="text-2xl font-black text-slate-900">
-          ¡Inventario Guardado!
+          {entryMode === "devolucion"
+            ? "¡Devolución Guardada!"
+            : "¡Inventario Guardado!"}
         </h2>
         <p className="text-slate-500 mt-1">
           El registro ha sido procesado exitosamente.
@@ -77,7 +82,8 @@ export const SuccessView: React.FC<Props> = ({
         <div className="flex justify-between items-start mb-6">
           <div>
             <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest">
-              Reporte #INV-{Math.floor(Math.random() * 90000 + 10000)}
+              Reporte #{entryMode === "devolucion" ? "DEV" : "INV"}-
+              {Math.floor(Math.random() * 90000 + 10000)}
             </h3>
             <p className="text-xs font-medium text-slate-400">{now}</p>
           </div>
@@ -88,7 +94,9 @@ export const SuccessView: React.FC<Props> = ({
         <div className="space-y-4 mb-8">
           <div className="space-y-3">
             <h4 className="text-xs font-bold text-slate-400 uppercase">
-              Datos del ingreso
+              {entryMode === "devolucion"
+                ? "Datos de la devolución"
+                : "Datos del ingreso"}
             </h4>
             <div className="grid gap-3 sm:grid-cols-2">
               {detailRows.map((row) => (
@@ -108,7 +116,9 @@ export const SuccessView: React.FC<Props> = ({
           </div>
           <div className="flex justify-between items-center py-2 border-b border-slate-50">
             <span className="text-slate-600">
-              Quedaron en calidad de préstamo
+              {entryMode === "devolucion"
+                ? "Se devolvieron"
+                : "Quedaron en calidad de préstamo"}
             </span>
             <span className="text-xl font-black text-slate-900">
               {totalCrates} canastillas
@@ -165,7 +175,10 @@ export const SuccessView: React.FC<Props> = ({
         onClick={onReset}
         className="w-full py-4 text-blue-600 font-bold flex items-center justify-center gap-2 hover:bg-blue-50 rounded-2xl transition-all print:hidden"
       >
-        <RefreshCw size={18} /> Iniciar Nuevo Inventario
+        <RefreshCw size={18} />{" "}
+        {entryMode === "devolucion"
+          ? "Iniciar Nueva Devolución"
+          : "Iniciar Nuevo Inventario"}
       </button>
     </div>
   );

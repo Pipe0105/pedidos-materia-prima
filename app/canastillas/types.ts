@@ -11,7 +11,7 @@ export interface CanastillaFormValues {
   nombreCliente: string;
   nombreAutoriza: string;
 }
-
+export type EntryMode = "ingreso" | "devolucion";
 export interface InventoryItem {
   id: string;
   type: CrateType;

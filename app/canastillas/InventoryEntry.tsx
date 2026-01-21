@@ -2,12 +2,14 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   CanastillaFormValues,
   CrateType,
+  EntryMode,
   InventoryItem,
 } from "../canastillas/types";
 import { Plus, Trash2, Box } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 interface Props {
+  entryMode: EntryMode;
   items: InventoryItem[];
   formValues: CanastillaFormValues;
   notes: string;
@@ -18,6 +20,7 @@ interface Props {
 }
 
 export const InventoryEntry: React.FC<Props> = ({
+  entryMode,
   items,
   formValues,
   notes,
@@ -135,13 +138,15 @@ export const InventoryEntry: React.FC<Props> = ({
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
         <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
           <Plus size={20} className="text-blue-600" />
-          Ingresar Canastillas
+          {entryMode === "devolucion"
+            ? "Registrar Devolución"
+            : "Ingresar Canastillas"}
         </h2>
 
         <div className="grid grid-cols-1 gap-4">
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-1">
-              Fecha
+              {entryMode === "devolucion" ? "Fecha de devolución" : "Fecha"}
             </label>
             <input
               type="text"
@@ -307,7 +312,10 @@ export const InventoryEntry: React.FC<Props> = ({
                 : "bg-slate-200 text-slate-400 cursor-not-allowed"
             }`}
           >
-            <Plus size={20} /> Añadir al Inventario
+            <Plus size={20} />{" "}
+            {entryMode === "devolucion"
+              ? "Añadir a la devolución"
+              : "Añadir al Inventario"}
           </button>
         </div>
       </div>

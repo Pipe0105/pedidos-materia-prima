@@ -4,7 +4,11 @@ import React, { useState } from "react";
 import { InventoryEntry } from "@/app/canastillas/InventoryEntry";
 import { SignaturePad } from "@/app/canastillas/SignaturePad";
 import { SuccessView } from "@/app/canastillas/SuccessView";
-import { CanastillaFormValues, InventoryItem } from "@/app/canastillas/types";
+import {
+  CanastillaFormValues,
+  EntryMode,
+  InventoryItem,
+} from "@/app/canastillas/types";
 import { ChevronRight } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
@@ -18,6 +22,7 @@ const getTodayDate = () => new Date().toISOString().slice(0, 10);
 
 export default function CrateFlowPage() {
   const [currentStep, setCurrentStep] = useState<Step>(Step.ENTRY);
+  const [entryMode, setEntryMode] = useState<EntryMode>("ingreso");
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [notes, setNotes] = useState<string>("");
   const [signature, setSignature] = useState<string>("");
@@ -31,15 +36,7 @@ export default function CrateFlowPage() {
     nombreAutoriza: "",
   });
 
-  const handleAddItem = (item: InventoryItem) => {
-    setItems([...items, item]);
-  };
-
-  const handleRemoveItem = (id: string) => {
-    setItems(items.filter((item) => item.id !== id));
-  };
-
-  const handleReset = () => {
+  const resetFlow = (mode: EntryMode = entryMode) => {
     setCurrentStep(Step.ENTRY);
     setItems([]);
     setNotes("");
@@ -53,6 +50,19 @@ export default function CrateFlowPage() {
     });
     setSaveError(null);
     setIsSaving(false);
+    setEntryMode(mode);
+  };
+
+  const handleAddItem = (item: InventoryItem) => {
+    setItems([...items, item]);
+  };
+
+  const handleRemoveItem = (id: string) => {
+    setItems(items.filter((item) => item.id !== id));
+  };
+
+  const handleReset = () => {
+    resetFlow(entryMode);
   };
 
   const isEntryFormComplete =
@@ -74,6 +84,7 @@ export default function CrateFlowPage() {
     const payload = items.map((item) => ({
       consecutivo: formValues.consecutivo,
       fecha: formValues.fecha,
+      fecha_devolucion: entryMode === "devolucion" ? formValues.fecha : null,
       placa_vh: formValues.placaVH,
       tipo_canastilla: item.type,
       nombre_cliente: formValues.nombreCliente,
@@ -104,7 +115,26 @@ export default function CrateFlowPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 print:min-h-0 print:bg-white">
       <div className="container mx-auto max-w-2xl px-4 py-8 print:px-0 print:py-0">
-        <div className="mb-6 flex flex-wrap justify-end gap-2 print:hidden">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 print:hidden">
+          <div className="flex rounded-full border border-slate-200 bg-white p-1 shadow-sm">
+            {[
+              { value: "ingreso", label: "Ingreso" },
+              { value: "devolucion", label: "Devolución" },
+            ].map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => resetFlow(option.value as EntryMode)}
+                className={`rounded-full px-4 py-2 text-sm font-semibold transition-all ${
+                  entryMode === option.value
+                    ? "bg-blue-600 text-white shadow-sm"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
           <a
             href="/canastillas/proveedores"
             className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
@@ -155,6 +185,7 @@ export default function CrateFlowPage() {
         {/* Step Content */}
         {currentStep === Step.ENTRY && (
           <InventoryEntry
+            entryMode={entryMode}
             items={items}
             formValues={formValues}
             notes={notes}
@@ -176,6 +207,7 @@ export default function CrateFlowPage() {
 
         {currentStep === Step.SUCCESS && (
           <SuccessView
+            entryMode={entryMode}
             items={items}
             signature={signature}
             formValues={formValues}
