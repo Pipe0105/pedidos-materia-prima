@@ -84,16 +84,17 @@ export default function CrateSuppliersPage() {
       activo,
     };
 
-    const { error } = editingId
-      ? await supabase
-          .from("canastillas_proveedores")
-          .update(payload)
-          .eq("id", editingId)
-      : await supabase.from("canastillas_proveedores").insert(payload);
+    const response = await fetch("/api/canastillas/proveedores", {
+      method: editingId ? "PUT" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...payload, id: editingId }),
+    });
 
-    if (error) {
+    if (!response.ok) {
+      const result = (await response.json()) as { error?: string };
       setErrorMessage(
-        "No se pudo guardar el proveedor. Verifica la conexión e intenta de nuevo.",
+        result.error ??
+          "No se pudo guardar el proveedor. Verifica la conexión e intenta de nuevo.",
       );
       setIsSaving(false);
       return;
@@ -122,53 +123,27 @@ export default function CrateSuppliersPage() {
     setIsSaving(true);
     setErrorMessage(null);
 
-    const deactivateProvider = async (providerId: string) => {
-      return supabase
-        .from("canastillas_proveedores")
-        .update({ activo: false })
-        .eq("id", providerId)
-        .select("id");
+    const response = await fetch("/api/canastillas/proveedores", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: provider.id }),
+    });
+
+    const result = (await response.json()) as {
+      error?: string;
+      fallback?: boolean;
     };
 
-    const { data, error } = await supabase
-      .from("canastillas_proveedores")
-      .delete()
-      .eq("id", provider.id)
-      .select("id");
-
-    if (error) {
-      const { error: deactivateError } = await deactivateProvider(provider.id);
-
-      if (deactivateError) {
-        setErrorMessage(
-          "El proveedor no se pudo eliminar porque está en uso. Se marcó como inactivo.",
-        );
-
-        if (editingId === provider.id) {
-          resetForm();
-        }
-        await loadProviders();
-        setIsSaving(false);
-        return;
-      }
+    if (!response.ok) {
       setErrorMessage(
-        "No se pudo eliminar el proveedor. Verifica la conexión e intenta de nuevo.",
+        result.error ??
+          "No se pudo eliminar el proveedor. Verifica la conexión e intenta de nuevo.",
       );
       setIsSaving(false);
       return;
     }
 
-    if (!data || data.length === 0) {
-      const { error: deactivateError } = await deactivateProvider(provider.id);
-
-      if (deactivateError) {
-        setErrorMessage(
-          "No se pudo eliminar el proveedor. Verifica la conexión e intenta de nuevo.",
-        );
-        setIsSaving(false);
-        return;
-      }
-
+    if (result.fallback) {
       setErrorMessage(
         "El proveedor no se pudo eliminar porque está en uso. Se marcó como inactivo.",
       );
