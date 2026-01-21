@@ -141,20 +141,31 @@ export default function CrateFlowPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 print:min-h-0 print:bg-white">
       <div className="container mx-auto max-w-2xl px-4 py-8 print:px-0 print:py-0">
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 print:hidden">
-          <a
-            href="/canastillas/proveedores"
-            className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
-          >
-            Gestionar proveedores
-          </a>
-          <a
-            href="/canastillas/inventario"
-            className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-white px-4 py-2 text-sm font-semibold text-blue-700 shadow-sm transition-colors hover:bg-blue-50"
-          >
-            Ver inventario
-          </a>
-        </div>
+        {currentStep !== Step.MENU && (
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-3 print:hidden">
+            <button
+              type="button"
+              onClick={returnToMenu}
+              className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
+            >
+              Volver al menú
+            </button>
+            <div className="flex flex-wrap items-center gap-3">
+              <a
+                href="/canastillas/proveedores"
+                className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
+              >
+                Gestionar proveedores
+              </a>
+              <a
+                href="/canastillas/inventario"
+                className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-white px-4 py-2 text-sm font-semibold text-blue-700 shadow-sm transition-colors hover:bg-blue-50"
+              >
+                Ver inventario
+              </a>
+            </div>
+          </div>
+        )}
 
         {currentStep === Step.MENU && (
           <div className="space-y-6">
@@ -207,6 +218,20 @@ export default function CrateFlowPage() {
                   <ChevronRight className="text-blue-600" />
                 </div>
               </button>
+            </div>
+            <div className="flex flex-wrap items-center justify-center gap-3 print:hidden">
+              <a
+                href="/canastillas/proveedores"
+                className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
+              >
+                Gestionar proveedores
+              </a>
+              <a
+                href="/canastillas/inventario"
+                className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-white px-4 py-2 text-sm font-semibold text-blue-700 shadow-sm transition-colors hover:bg-blue-50"
+              >
+                Ver inventario
+              </a>
             </div>
           </div>
         )}
