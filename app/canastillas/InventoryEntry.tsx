@@ -107,6 +107,11 @@ export const InventoryEntry: React.FC<Props> = ({
     updateForm({ placaVH: sanitized });
   };
 
+  const handleConsecutivoChange = (value: string) => {
+    const sanitized = value.replace(/\D/g, "");
+    updateForm({ consecutivo: sanitized });
+  };
+
   const providerOptions = useMemo(() => {
     if (providers.length > 0) return providers;
     return ["Macpollo", "Don Pollo", "Galpon"];
@@ -152,8 +157,10 @@ export const InventoryEntry: React.FC<Props> = ({
             <input
               type="text"
               value={consecutivo}
-              onChange={(e) => updateForm({ consecutivo: e.target.value })}
+              onChange={(e) => handleConsecutivoChange(e.target.value)}
               placeholder="Ingresa el consecutivo"
+              inputMode="numeric"
+              pattern="[0-9]*"
               required
               className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
             />
