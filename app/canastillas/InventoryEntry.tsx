@@ -115,6 +115,10 @@ export const InventoryEntry: React.FC<Props> = ({
     updateForm({ consecutivo: sanitized });
   };
 
+  const handleFechaChange = (value: string) => {
+    updateForm({ fecha: value });
+  };
+
   const providerOptions = useMemo(() => {
     if (providers.length > 0) return providers;
     return ["Macpollo", "Don Pollo", "Galpon"];
@@ -149,9 +153,14 @@ export const InventoryEntry: React.FC<Props> = ({
               {entryMode === "devolucion" ? "Fecha de devolución" : "Fecha"}
             </label>
             <input
-              type="text"
+              type="date"
               value={fecha}
-              readOnly
+              onChange={
+                entryMode === "devolucion"
+                  ? (event) => handleFechaChange(event.target.value)
+                  : undefined
+              }
+              readOnly={entryMode !== "devolucion"}
               className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-600"
             />
           </div>
