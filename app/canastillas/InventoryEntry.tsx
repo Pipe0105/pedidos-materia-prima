@@ -10,19 +10,21 @@ import { supabase } from "@/lib/supabase";
 interface Props {
   items: InventoryItem[];
   formValues: CanastillaFormValues;
+  notes: string;
+  onNotesChange: (val: string) => void;
   onFormChange: (values: CanastillaFormValues) => void;
   onAddItem: (item: InventoryItem) => void;
   onRemoveItem: (id: string) => void;
-  onNext: () => void;
 }
 
 export const InventoryEntry: React.FC<Props> = ({
   items,
   formValues,
+  notes,
+  onNotesChange,
   onFormChange,
   onAddItem,
   onRemoveItem,
-  onNext,
 }) => {
   const [type, setType] = useState<CrateType>(CrateType.STANDARD);
   const [provider, setProvider] = useState<string>("");
@@ -34,8 +36,10 @@ export const InventoryEntry: React.FC<Props> = ({
   const placaLength = placaVH.trim().length;
   const isPlacaValid = placaLength === 6;
   const isProviderSelected = provider.trim().length > 0;
+  const isReturnDateValid =
+    fechaDevolucion.trim().length === 0 || fechaDevolucion >= fecha;
   const isEntryComplete =
-    fechaDevolucion.trim().length > 0 &&
+    isReturnDateValid &&
     isPlacaValid &&
     isProviderSelected &&
     nombreCliente.trim().length > 0 &&
@@ -151,9 +155,14 @@ export const InventoryEntry: React.FC<Props> = ({
               type="date"
               value={fechaDevolucion}
               onChange={(e) => updateForm({ fechaDevolucion: e.target.value })}
-              required
+              min={fecha}
               className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
             />
+            {!isReturnDateValid && (
+              <p className="mt-1 text-xs font-medium text-red-500">
+                La fecha de devolución no puede ser anterior a la fecha actual.
+              </p>
+            )}
           </div>
 
           <div>
@@ -332,6 +341,24 @@ export const InventoryEntry: React.FC<Props> = ({
             ))}
           </div>
         )}
+      </div>
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+        <label className="text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">
+          Observaciones adicionales
+        </label>
+        <textarea
+          value={notes}
+          onChange={(e) => onNotesChange(e.target.value)}
+          placeholder="Escriba aquí cualquier detalle relevante..."
+          className="w-full p-4 rounded-xl bg-slate-50 border border-slate-200 h-32 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all resize-none"
+        />
+      </div>
+
+      <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl">
+        <p className="text-blue-800 text-sm">
+          <strong>Aviso:</strong> Al proceder al siguiente paso, certifica que
+          los datos ingresados son correctos y están listos para ser firmados.
+        </p>
       </div>
     </div>
   );
