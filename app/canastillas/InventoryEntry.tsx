@@ -61,6 +61,10 @@ export const InventoryEntry: React.FC<Props> = ({
         .order("nombre", { ascending: true });
 
       if (error) {
+        if (error.status === 404) {
+          setProviders([]);
+          return;
+        }
         setProviderError(
           "No se pudieron cargar los proveedores. Usa la lista por defecto o intenta más tarde.",
         );
