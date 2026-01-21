@@ -285,6 +285,17 @@ export const InventoryEntry: React.FC<Props> = ({
               className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
             />
           </div>
+          <div>
+            <label className="text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">
+              Observaciones adicionales
+            </label>
+            <textarea
+              value={notes}
+              onChange={(e) => onNotesChange(e.target.value)}
+              placeholder="Escriba aquí cualquier detalle relevante..."
+              className="w-full p-4 rounded-xl bg-slate-50 border border-slate-200 h-32 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all resize-none"
+            />
+          </div>
 
           <button
             onClick={handleAdd}
@@ -341,17 +352,6 @@ export const InventoryEntry: React.FC<Props> = ({
             ))}
           </div>
         )}
-      </div>
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-        <label className="text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">
-          Observaciones adicionales
-        </label>
-        <textarea
-          value={notes}
-          onChange={(e) => onNotesChange(e.target.value)}
-          placeholder="Escriba aquí cualquier detalle relevante..."
-          className="w-full p-4 rounded-xl bg-slate-50 border border-slate-200 h-32 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all resize-none"
-        />
       </div>
 
       <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl">
