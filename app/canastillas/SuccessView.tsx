@@ -107,9 +107,11 @@ export const SuccessView: React.FC<Props> = ({
             </div>
           </div>
           <div className="flex justify-between items-center py-2 border-b border-slate-50">
-            <span className="text-slate-600">Total Unidades</span>
+            <span className="text-slate-600">
+              Quedaron en calidad de préstamo
+            </span>
             <span className="text-xl font-black text-slate-900">
-              {totalCrates}
+              {totalCrates} canastillas
             </span>
           </div>
           <div className="grid gap-2">

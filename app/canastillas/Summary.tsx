@@ -30,10 +30,10 @@ export const Summary: React.FC<Props> = ({
         <div className="space-y-4">
           <div className="flex justify-between items-end border-b border-slate-100 pb-2">
             <span className="text-slate-500 font-medium">
-              Total de Canastillas
+              Quedaron en calidad de préstamo
             </span>
             <span className="text-3xl font-black text-slate-900">
-              {totalCrates}
+              {totalCrates} canastillas
             </span>
           </div>
 
