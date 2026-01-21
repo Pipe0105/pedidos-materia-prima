@@ -41,6 +41,18 @@ export const InventoryEntry: React.FC<Props> = ({
     nombreCliente.trim().length > 0 &&
     nombreAutoriza.trim().length > 0;
 
+  const getErrorStatus = (supabaseError: unknown) => {
+    if (
+      typeof supabaseError === "object" &&
+      supabaseError !== null &&
+      "status" in supabaseError
+    ) {
+      const statusValue = (supabaseError as { status?: number }).status;
+      return typeof statusValue === "number" ? statusValue : undefined;
+    }
+    return undefined;
+  };
+
   const handleAdd = () => {
     if (quantity <= 0 || !isEntryComplete) return;
     onAddItem({
@@ -61,7 +73,7 @@ export const InventoryEntry: React.FC<Props> = ({
         .order("nombre", { ascending: true });
 
       if (error) {
-        if (error.status === 404) {
+        if (getErrorStatus(error) === 404) {
           setProviders([]);
           return;
         }
