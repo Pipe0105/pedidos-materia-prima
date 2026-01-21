@@ -16,6 +16,9 @@ interface CrateHistoryEntry {
   tipo_canastilla: string;
   firma: string | null;
   observaciones?: string | null;
+  anulado?: boolean | null;
+  fecha_anulacion?: string | null;
+  motivo_anulacion?: string | null;
 }
 
 interface Props {
@@ -32,9 +35,15 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
   const [editEntry, setEditEntry] = useState<CrateHistoryEntry | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [providerFilter, setProviderFilter] = useState("todos");
+  const [statusFilter, setStatusFilter] = useState("activos");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
+  const [cancelEntry, setCancelEntry] = useState<CrateHistoryEntry | null>(
+    null,
+  );
+  const [cancelReason, setCancelReason] = useState("");
+  const [isCancelling, setIsCancelling] = useState(false);
 
   const loadHistory = useCallback(async () => {
     setIsLoading(true);
@@ -43,7 +52,7 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
     const { data, error } = await supabase
       .from("canastillas")
       .select(
-        "id, fecha, fecha_devolucion, proveedor, nombre_cliente, nombre_autoriza, placa_vh, cantidad, tipo_canastilla, firma, observaciones",
+        "id, fecha, fecha_devolucion, proveedor, nombre_cliente, nombre_autoriza, placa_vh, cantidad, tipo_canastilla, firma, observaciones, anulado, fecha_anulacion, motivo_anulacion",
       )
       .order("fecha", { ascending: false });
 
@@ -65,6 +74,7 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
   }, [loadHistory, refreshKey]);
 
   const totalCrates = history.reduce((acc, entry) => {
+    if (entry.anulado) return acc;
     return acc + (entry.cantidad ?? 0);
   }, 0);
 
@@ -75,13 +85,19 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
     });
     return Array.from(values).sort((a, b) => a.localeCompare(b));
   }, [history]);
-  const totalRecords = history.length;
-  const totalProviders = providerOptions.length;
+  const totalRecords = history.filter((entry) => !entry.anulado).length;
+  const totalCanceled = history.filter((entry) => entry.anulado).length;
 
   const filteredHistory = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
     return history.filter((entry) => {
       if (providerFilter !== "todos" && entry.proveedor !== providerFilter) {
+        return false;
+      }
+      if (statusFilter === "activos" && entry.anulado) {
+        return false;
+      }
+      if (statusFilter === "anulados" && !entry.anulado) {
         return false;
       }
       if (dateFrom && entry.fecha < dateFrom) return false;
@@ -137,6 +153,35 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
     setIsUpdating(false);
   };
 
+  const handleCancelEntry = async () => {
+    if (!cancelEntry?.id) return;
+    const trimmedReason = cancelReason.trim();
+    if (trimmedReason.length < 3) {
+      setErrorMessage("Escribe un motivo de anulación (mínimo 3 caracteres).");
+      return;
+    }
+    setIsCancelling(true);
+    setErrorMessage(null);
+
+    const { error } = await supabase
+      .from("canastillas")
+      .update({
+        anulado: true,
+        fecha_anulacion: new Date().toISOString(),
+        motivo_anulacion: trimmedReason,
+      })
+      .eq("id", cancelEntry.id);
+
+    if (error) {
+      setErrorMessage("No se pudo anular el registro.");
+    } else {
+      setCancelEntry(null);
+      setCancelReason("");
+      await loadHistory();
+    }
+    setIsCancelling(false);
+  };
+
   return (
     <section className="mt-10 space-y-6">
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
@@ -176,7 +221,7 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
               Registros anulados
             </p>
             <p className="text-3xl font-black text-amber-900 mt-2">
-              {totalProviders}
+              {totalCanceled}
             </p>
           </div>
         </div>
@@ -217,6 +262,20 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
                   placeholder="Proveedor, placa, cliente, autoriza..."
                   className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-slate-500 uppercase">
+                  Estado
+                </label>
+                <select
+                  value={statusFilter}
+                  onChange={(event) => setStatusFilter(event.target.value)}
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="activos">Activos</option>
+                  <option value="anulados">Anulados</option>
+                  <option value="todos">Todos</option>
+                </select>
               </div>
               <div>
                 <label className="text-xs font-semibold text-slate-500 uppercase">
@@ -274,13 +333,20 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
                       <th className="py-2 pr-4">Proveedor</th>
                       <th className="py-2 pr-4">Placa VH</th>
                       <th className="py-2">Aceptó</th>
+                      <th className="py-2">Estado</th>
                       <th className="py-2 text-right">Acciones</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {filteredHistory.map((entry, index) => (
                       <tr key={`${entry.fecha}-${entry.proveedor}-${index}`}>
-                        <td className="py-3 pr-4 font-semibold text-slate-700">
+                        <td
+                          className={`py-3 pr-4 font-semibold ${
+                            entry.anulado
+                              ? "text-slate-400 line-through"
+                              : "text-slate-700"
+                          }`}
+                        >
                           {entry.cantidad} {entry.tipo_canastilla}
                         </td>
                         <td className="py-3 pr-4 text-slate-600">
@@ -298,6 +364,17 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
                         <td className="py-3 text-slate-600">
                           {entry.nombre_autoriza}
                         </td>
+                        <td className="py-3 text-slate-600">
+                          {entry.anulado ? (
+                            <span className="rounded-full bg-amber-100 px-2 py-1 text-[10px] font-semibold uppercase text-amber-700">
+                              Anulado
+                            </span>
+                          ) : (
+                            <span className="rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-semibold uppercase text-emerald-700">
+                              Activo
+                            </span>
+                          )}
+                        </td>
                         <td className="py-3">
                           <div className="flex flex-col items-end gap-2 text-right sm:flex-row sm:justify-end">
                             {entry.firma ? (
@@ -306,7 +383,7 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
                                 onClick={() => setSelectedEntry(entry)}
                                 className="text-xs font-semibold text-blue-600 hover:text-blue-800"
                               >
-                                Anular
+                                Ver firma
                               </button>
                             ) : (
                               <span className="text-[10px] font-semibold text-slate-400">
@@ -315,8 +392,20 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
                             )}
                             <button
                               type="button"
+                              onClick={() => {
+                                setCancelEntry(entry);
+                                setCancelReason("");
+                              }}
+                              className="text-xs font-semibold text-amber-600 hover:text-amber-800 disabled:cursor-not-allowed disabled:text-slate-300"
+                              disabled={entry.anulado}
+                            >
+                              Anular
+                            </button>
+                            <button
+                              type="button"
                               onClick={() => setEditEntry({ ...entry })}
-                              className="text-xs font-semibold text-slate-600 hover:text-slate-800"
+                              className="text-xs font-semibold text-slate-600 hover:text-slate-800 disabled:cursor-not-allowed disabled:text-slate-300"
+                              disabled={entry.anulado}
                             >
                               Editar
                             </button>
@@ -387,6 +476,22 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
                     <span className="font-semibold">Observaciones:</span>{" "}
                     {selectedEntry.observaciones?.trim() || "Sin observaciones"}
                   </p>
+                  <p>
+                    <span className="font-semibold">Estado:</span>{" "}
+                    {selectedEntry.anulado ? "Anulado" : "Activo"}
+                  </p>
+                  {selectedEntry.anulado && (
+                    <>
+                      <p>
+                        <span className="font-semibold">Fecha anulación:</span>{" "}
+                        {selectedEntry.fecha_anulacion || "Sin fecha"}
+                      </p>
+                      <p>
+                        <span className="font-semibold">Motivo anulación:</span>{" "}
+                        {selectedEntry.motivo_anulacion || "Sin motivo"}
+                      </p>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -574,6 +679,71 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
                 disabled={isUpdating}
               >
                 Guardar cambios
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {cancelEntry && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase text-slate-400">
+                  Anular registro
+                </p>
+                <h3 className="text-lg font-bold text-slate-800">
+                  {cancelEntry.cantidad} {cancelEntry.tipo_canastilla}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCancelEntry(null)}
+                className="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                disabled={isCancelling}
+              >
+                Cerrar
+              </button>
+            </div>
+
+            <div className="mt-4 grid gap-2 text-sm text-slate-600">
+              <p>
+                <span className="font-semibold">Proveedor:</span>{" "}
+                {cancelEntry.proveedor}
+              </p>
+              <p>
+                <span className="font-semibold">Fecha:</span>{" "}
+                {cancelEntry.fecha}
+              </p>
+              <label className="mt-2 grid gap-1">
+                <span className="text-xs font-semibold uppercase text-slate-400">
+                  Motivo de anulación
+                </span>
+                <textarea
+                  value={cancelReason}
+                  onChange={(event) => setCancelReason(event.target.value)}
+                  rows={3}
+                  className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                />
+              </label>
+            </div>
+
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setCancelEntry(null)}
+                className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+                disabled={isCancelling}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleCancelEntry()}
+                className="rounded-xl bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700"
+                disabled={isCancelling}
+              >
+                Confirmar anulación
               </button>
             </div>
           </div>
