@@ -1,11 +1,11 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   CanastillaFormValues,
   CrateType,
-  CrateProvider,
   InventoryItem,
 } from "../canastillas/types";
 import { Plus, Trash2, Box } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 interface Props {
   items: InventoryItem[];
@@ -25,17 +25,19 @@ export const InventoryEntry: React.FC<Props> = ({
   onNext,
 }) => {
   const [type, setType] = useState<CrateType>(CrateType.STANDARD);
-  const [provider, setProvider] = useState<CrateProvider>(
-    CrateProvider.MACPOLLO,
-  );
+  const [provider, setProvider] = useState<string>("");
   const [quantity, setQuantity] = useState<number>(1);
+  const [providers, setProviders] = useState<string[]>([]);
+  const [providerError, setProviderError] = useState<string | null>(null);
   const { fecha, fechaDevolucion, placaVH, nombreCliente, nombreAutoriza } =
     formValues;
   const placaLength = placaVH.trim().length;
   const isPlacaValid = placaLength === 6;
+  const isProviderSelected = provider.trim().length > 0;
   const isEntryComplete =
     fechaDevolucion.trim().length > 0 &&
     isPlacaValid &&
+    isProviderSelected &&
     nombreCliente.trim().length > 0 &&
     nombreAutoriza.trim().length > 0;
 
@@ -50,6 +52,34 @@ export const InventoryEntry: React.FC<Props> = ({
     setQuantity(1);
   };
 
+  useEffect(() => {
+    const loadProviders = async () => {
+      setProviderError(null);
+      const { data, error } = await supabase
+        .from("canastillas_proveedores")
+        .select("nombre")
+        .order("nombre", { ascending: true });
+
+      if (error) {
+        setProviderError(
+          "No se pudieron cargar los proveedores. Usa la lista por defecto o intenta más tarde.",
+        );
+        return;
+      }
+
+      const loadedProviders = (data ?? [])
+        .map((item) => item.nombre?.trim())
+        .filter((value): value is string => Boolean(value));
+
+      setProviders(loadedProviders);
+      if (!provider && loadedProviders.length > 0) {
+        setProvider(loadedProviders[0]);
+      }
+    };
+
+    void loadProviders();
+  }, []);
+
   const updateForm = (patch: Partial<CanastillaFormValues>) => {
     onFormChange({ ...formValues, ...patch });
   };
@@ -57,6 +87,25 @@ export const InventoryEntry: React.FC<Props> = ({
     const sanitized = value.replace(/[^a-zA-Z0-9]/g, "").slice(0, 6);
     updateForm({ placaVH: sanitized });
   };
+
+  const providerOptions = useMemo(() => {
+    if (providers.length > 0) return providers;
+    return ["Macpollo", "Don Pollo", "Galpon"];
+  }, [providers]);
+
+  useEffect(() => {
+    if (!provider && providerOptions.length > 0) {
+      setProvider(providerOptions[0]);
+    }
+  }, [provider, providerOptions]);
+
+  const getProviderBadgeClasses = (value: string) => {
+    const normalized = value.toLowerCase();
+    if (normalized.includes("mac")) return "bg-green-100 text-green-700";
+    if (normalized.includes("don")) return "bg-red-100 text-red-700";
+    return "bg-orange-100 text-orange-700";
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
@@ -137,7 +186,7 @@ export const InventoryEntry: React.FC<Props> = ({
             </label>
             <div className="space-y-2">
               <div className="flex gap-2">
-                {Object.values(CrateProvider).map((value) => (
+                {providerOptions.map((value) => (
                   <button
                     key={value}
                     onClick={() => setProvider(value)}
@@ -151,6 +200,11 @@ export const InventoryEntry: React.FC<Props> = ({
                   </button>
                 ))}
               </div>
+              {providerError && (
+                <p className="text-xs font-semibold text-amber-600">
+                  {providerError}
+                </p>
+              )}
               <a
                 href="/canastillas/proveedores"
                 target="_blank"
@@ -251,13 +305,9 @@ export const InventoryEntry: React.FC<Props> = ({
                   <div>
                     <h4 className="font-bold text-slate-800">{item.type}</h4>
                     <span
-                      className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
-                        item.provider === CrateProvider.MACPOLLO
-                          ? "bg-green-100 text-green-700"
-                          : item.provider === CrateProvider.DON_POLLO
-                            ? "bg-red-100 text-red-700"
-                            : "bg-orange-100 text-orange-700"
-                      }`}
+                      className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${getProviderBadgeClasses(
+                        item.provider,
+                      )}`}
                     >
                       {item.provider}
                     </span>

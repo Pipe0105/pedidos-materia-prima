@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { ArrowLeft, CheckCircle2, Truck } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 export default function CrateSuppliersPage() {
   const [nombre, setNombre] = useState("");
@@ -9,6 +10,8 @@ export default function CrateSuppliersPage() {
   const [telefono, setTelefono] = useState("");
   const [notas, setNotas] = useState("");
   const [guardado, setGuardado] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const resetForm = () => {
     setNombre("");
@@ -16,11 +19,34 @@ export default function CrateSuppliersPage() {
     setTelefono("");
     setNotas("");
     setGuardado(false);
+    setIsSaving(false);
+    setErrorMessage(null);
   };
 
-  const handleSubmit = (event: React.FormEvent) => {
+  const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (!nombre.trim()) return;
+    setIsSaving(true);
+    setErrorMessage(null);
+
+    const { error } = await supabase.from("canastillas_proveedores").insert({
+      nombre: nombre.trim(),
+      contacto: contacto.trim() || null,
+      telefono: telefono.trim() || null,
+      notas: notas.trim() || null,
+      activo: true,
+    });
+
+    if (error) {
+      setErrorMessage(
+        "No se pudo guardar el proveedor. Verifica la conexión e intenta de nuevo.",
+      );
+      setIsSaving(false);
+      return;
+    }
+
     setGuardado(true);
+    setIsSaving(false);
   };
 
   return (
@@ -131,9 +157,10 @@ export default function CrateSuppliersPage() {
               <div className="flex flex-col sm:flex-row gap-3">
                 <button
                   type="submit"
+                  disabled={isSaving}
                   className="flex-1 py-3 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700 transition-all"
                 >
-                  Guardar proveedor
+                  {isSaving ? "Guardando..." : "Guardar proveedor"}
                 </button>
                 <button
                   type="button"
@@ -143,6 +170,11 @@ export default function CrateSuppliersPage() {
                   Limpiar formulario
                 </button>
               </div>
+              {errorMessage && (
+                <p className="text-sm font-semibold text-red-600">
+                  {errorMessage}
+                </p>
+              )}
             </form>
           )}
         </div>

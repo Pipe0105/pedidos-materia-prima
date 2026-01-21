@@ -5,12 +5,6 @@ export enum CrateType {
   SPECIALTY = "Huacal",
 }
 
-export enum CrateProvider {
-  MACPOLLO = "Macpollo",
-  DON_POLLO = "Don Pollo",
-  GALPON = "Galpon",
-}
-
 export interface CanastillaFormValues {
   fecha: string;
   fechaDevolucion: string;
@@ -22,6 +16,6 @@ export interface CanastillaFormValues {
 export interface InventoryItem {
   id: string;
   type: CrateType;
-  provider: CrateProvider;
+  provider: string;
   quantity: number;
 }

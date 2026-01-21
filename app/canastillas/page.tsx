@@ -80,10 +80,13 @@ export default function CrateFlowPage() {
       nombre_cliente: formValues.nombreCliente,
       proveedor: item.provider,
       fecha_devolucion: formValues.fechaDevolucion || null,
+      fecha_devolucion_real: null,
       cantidad: item.quantity,
       nombre_autoriza: formValues.nombreAutoriza,
       observaciones: observaciones || null,
       firma: dataUrl,
+      devuelta: false,
+      anulado: false,
     }));
 
     const { error } = await supabase.from("canastillas").insert(payload);
