@@ -8,7 +8,6 @@ interface CrateHistoryEntry {
   id: string;
   fecha: string;
   fecha_devolucion: string | null;
-  fecha_devolucion_real?: string | null;
   proveedor: string;
   nombre_cliente?: string | null;
   nombre_autoriza: string;
@@ -17,7 +16,6 @@ interface CrateHistoryEntry {
   tipo_canastilla: string;
   firma: string | null;
   observaciones?: string | null;
-  anulado?: boolean | null;
 }
 
 interface Props {
@@ -34,7 +32,6 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
   const [editEntry, setEditEntry] = useState<CrateHistoryEntry | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [providerFilter, setProviderFilter] = useState("todos");
-  const [statusFilter, setStatusFilter] = useState("activos");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
@@ -46,7 +43,7 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
     const { data, error } = await supabase
       .from("canastillas")
       .select(
-        "id, fecha, fecha_devolucion, fecha_devolucion_real, proveedor, nombre_cliente, nombre_autoriza, placa_vh, cantidad, tipo_canastilla, firma, observaciones",
+        "id, fecha, fecha_devolucion, proveedor, nombre_cliente, nombre_autoriza, placa_vh, cantidad, tipo_canastilla, firma, observaciones",
       )
       .order("fecha", { ascending: false });
 
@@ -68,7 +65,6 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
   }, [loadHistory, refreshKey]);
 
   const totalCrates = history.reduce((acc, entry) => {
-    if (entry.anulado) return acc;
     return acc + (entry.cantidad ?? 0);
   }, 0);
 
@@ -79,6 +75,8 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
     });
     return Array.from(values).sort((a, b) => a.localeCompare(b));
   }, [history]);
+  const totalRecords = history.length;
+  const totalProviders = providerOptions.length;
 
   const filteredHistory = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
@@ -86,11 +84,6 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
       if (providerFilter !== "todos" && entry.proveedor !== providerFilter) {
         return false;
       }
-      if (statusFilter !== "anulados" && entry.anulado) return false;
-      if (statusFilter === "anulados" && !entry.anulado) return false;
-      const isReturned = Boolean(entry.fecha_devolucion_real);
-      if (statusFilter === "pendientes" && isReturned) return false;
-      if (statusFilter === "devueltas" && !isReturned) return false;
       if (dateFrom && entry.fecha < dateFrom) return false;
       if (dateTo && entry.fecha > dateTo) return false;
       if (term.length === 0) return true;
@@ -107,12 +100,7 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
         .toLowerCase();
       return haystack.includes(term);
     });
-  }, [history, providerFilter, statusFilter, dateFrom, dateTo, searchTerm]);
-
-  const pendingReturns = history.filter(
-    (entry) => !entry.anulado && !entry.fecha_devolucion_real,
-  ).length;
-  const annulledCount = history.filter((entry) => entry.anulado).length;
+  }, [history, providerFilter, dateFrom, dateTo, searchTerm]);
 
   const getSignatureSrc = useCallback((signature?: string | null) => {
     if (!signature) return "";
@@ -120,48 +108,6 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
     if (signature.startsWith("image/")) return `data:${signature}`;
     return `data:image/png;base64,${signature}`;
   }, []);
-
-  const handleReturnToggle = async (entry: CrateHistoryEntry) => {
-    if (!entry.id || entry.anulado) return;
-    setIsUpdating(true);
-    setErrorMessage(null);
-    const updates = entry.fecha_devolucion_real
-      ? { fecha_devolucion_real: null }
-      : { fecha_devolucion_real: new Date().toISOString().slice(0, 10) };
-
-    const { error } = await supabase
-      .from("canastillas")
-      .update(updates)
-      .eq("id", entry.id);
-
-    if (error) {
-      setErrorMessage("No se pudo actualizar la devolución.");
-    } else {
-      await loadHistory();
-    }
-    setIsUpdating(false);
-  };
-
-  const handleAnnul = async (entry: CrateHistoryEntry) => {
-    if (!entry.id || entry.anulado) return;
-    const confirmed = window.confirm(
-      "¿Deseas anular este registro? Esta acción no elimina el historial.",
-    );
-    if (!confirmed) return;
-    setIsUpdating(true);
-    setErrorMessage(null);
-    const { error } = await supabase
-      .from("canastillas")
-      .update({ anulado: true })
-      .eq("id", entry.id);
-
-    if (error) {
-      setErrorMessage("No se pudo anular el registro.");
-    } else {
-      await loadHistory();
-    }
-    setIsUpdating(false);
-  };
 
   const handleSaveEdit = async () => {
     if (!editEntry?.id) return;
@@ -222,7 +168,7 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
               Pendientes de devolución
             </p>
             <p className="text-3xl font-black text-slate-900 mt-2">
-              {pendingReturns}
+              {totalRecords}
             </p>
           </div>
           <div className="rounded-xl border border-amber-100 bg-amber-50 p-4">
@@ -230,7 +176,7 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
               Registros anulados
             </p>
             <p className="text-3xl font-black text-amber-900 mt-2">
-              {annulledCount}
+              {totalProviders}
             </p>
           </div>
         </div>
@@ -259,7 +205,7 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <div className="sm:col-span-2">
                 <label className="text-xs font-semibold text-slate-500 uppercase">
                   Buscar
@@ -287,21 +233,6 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
                       {provider}
                     </option>
                   ))}
-                </select>
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-slate-500 uppercase">
-                  Estado
-                </label>
-                <select
-                  value={statusFilter}
-                  onChange={(event) => setStatusFilter(event.target.value)}
-                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="activos">Activos</option>
-                  <option value="pendientes">Pendientes devolución</option>
-                  <option value="devueltas">Devueltas</option>
-                  <option value="anulados">Anulados</option>
                 </select>
               </div>
               <div>
@@ -343,98 +274,56 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
                       <th className="py-2 pr-4">Proveedor</th>
                       <th className="py-2 pr-4">Placa VH</th>
                       <th className="py-2">Aceptó</th>
-                      <th className="py-2">Estado</th>
                       <th className="py-2 text-right">Acciones</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {filteredHistory.map((entry, index) => {
-                      const isAnnulled = Boolean(entry.anulado);
-                      const isReturned = Boolean(entry.fecha_devolucion_real);
-
-                      return (
-                        <tr key={`${entry.fecha}-${entry.proveedor}-${index}`}>
-                          <td className="py-3 pr-4 font-semibold text-slate-700">
-                            {entry.cantidad} {entry.tipo_canastilla}
-                          </td>
-                          <td className="py-3 pr-4 text-slate-600">
-                            {entry.fecha}
-                          </td>
-                          <td className="py-3 pr-4 text-slate-600">
-                            {entry.fecha_devolucion_real ||
-                              entry.fecha_devolucion ||
-                              "Sin devolución"}
-                          </td>
-                          <td className="py-3 pr-4 text-slate-600">
-                            {entry.proveedor}
-                          </td>
-                          <td className="py-3 pr-4 text-slate-600">
-                            {entry.placa_vh || "Sin placa"}
-                          </td>
-                          <td className="py-3 text-slate-600">
-                            {entry.nombre_autoriza}
-                          </td>
-                          <td className="py-3">
-                            {isAnnulled ? (
-                              <span className="text-xs font-semibold text-red-500">
-                                Anulado
-                              </span>
-                            ) : isReturned ? (
-                              <span className="text-xs font-semibold text-green-600">
-                                Devuelta
-                              </span>
-                            ) : (
-                              <span className="text-xs font-semibold text-amber-600">
-                                Pendiente
-                              </span>
-                            )}
-                          </td>
-                          <td className="py-3">
-                            <div className="flex flex-col items-end gap-2 text-right sm:flex-row sm:justify-end">
-                              {entry.firma ? (
-                                <button
-                                  type="button"
-                                  onClick={() => setSelectedEntry(entry)}
-                                  className="text-xs font-semibold text-blue-600 hover:text-blue-800"
-                                >
-                                  Ver pedido
-                                </button>
-                              ) : (
-                                <span className="text-[10px] font-semibold text-slate-400">
-                                  Sin firma
-                                </span>
-                              )}
+                    {filteredHistory.map((entry, index) => (
+                      <tr key={`${entry.fecha}-${entry.proveedor}-${index}`}>
+                        <td className="py-3 pr-4 font-semibold text-slate-700">
+                          {entry.cantidad} {entry.tipo_canastilla}
+                        </td>
+                        <td className="py-3 pr-4 text-slate-600">
+                          {entry.fecha}
+                        </td>
+                        <td className="py-3 pr-4 text-slate-600">
+                          {entry.fecha_devolucion || "Sin devolución"}
+                        </td>
+                        <td className="py-3 pr-4 text-slate-600">
+                          {entry.proveedor}
+                        </td>
+                        <td className="py-3 pr-4 text-slate-600">
+                          {entry.placa_vh || "Sin placa"}
+                        </td>
+                        <td className="py-3 text-slate-600">
+                          {entry.nombre_autoriza}
+                        </td>
+                        <td className="py-3">
+                          <div className="flex flex-col items-end gap-2 text-right sm:flex-row sm:justify-end">
+                            {entry.firma ? (
                               <button
                                 type="button"
-                                onClick={() => setEditEntry({ ...entry })}
-                                className="text-xs font-semibold text-slate-600 hover:text-slate-800"
-                                disabled={isAnnulled}
-                              >
-                                Editar
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => void handleReturnToggle(entry)}
-                                className="text-xs font-semibold text-emerald-600 hover:text-emerald-800"
-                                disabled={isAnnulled || isUpdating}
-                              >
-                                {isReturned
-                                  ? "Revertir devolución"
-                                  : "Marcar devolución"}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => void handleAnnul(entry)}
-                                className="text-xs font-semibold text-red-500 hover:text-red-700"
-                                disabled={isAnnulled || isUpdating}
+                                onClick={() => setSelectedEntry(entry)}
+                                className="text-xs font-semibold text-blue-600 hover:text-blue-800"
                               >
                                 Anular
                               </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
+                            ) : (
+                              <span className="text-[10px] font-semibold text-slate-400">
+                                Sin firma
+                              </span>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => setEditEntry({ ...entry })}
+                              className="text-xs font-semibold text-slate-600 hover:text-slate-800"
+                            >
+                              Editar
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
@@ -488,9 +377,7 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
                   </p>
                   <p>
                     <span className="font-semibold">Devolución:</span>{" "}
-                    {selectedEntry.fecha_devolucion_real ||
-                      selectedEntry.fecha_devolucion ||
-                      "Sin devolución"}
+                    {selectedEntry.fecha_devolucion || "Sin devolución"}
                   </p>
                   <p>
                     <span className="font-semibold">Aceptó:</span>{" "}
