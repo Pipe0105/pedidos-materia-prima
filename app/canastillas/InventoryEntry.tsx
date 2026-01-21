@@ -69,7 +69,7 @@ export const InventoryEntry: React.FC<Props> = ({
       setProviderError(null);
       const { data, error } = await supabase
         .from("canastillas_proveedores")
-        .select("nombre")
+        .select("nombre, activo")
         .order("nombre", { ascending: true });
 
       if (error) {
@@ -84,6 +84,7 @@ export const InventoryEntry: React.FC<Props> = ({
       }
 
       const loadedProviders = (data ?? [])
+        .filter((item) => item.activo !== false)
         .map((item) => item.nombre?.trim())
         .filter((value): value is string => Boolean(value));
 
