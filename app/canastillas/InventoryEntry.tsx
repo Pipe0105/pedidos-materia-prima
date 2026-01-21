@@ -221,14 +221,6 @@ export const InventoryEntry: React.FC<Props> = ({
                   {providerError}
                 </p>
               )}
-              <a
-                href="/canastillas/proveedores"
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-2 text-xs font-semibold text-blue-600 hover:text-blue-800"
-              >
-                Crear proveedor en ventana aparte
-              </a>
             </div>
           </div>
 

@@ -107,7 +107,13 @@ export default function CrateFlowPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 print:min-h-0 print:bg-white">
       <div className="container mx-auto px-4 py-8 max-w-2xl print:px-0 print:py-0">
-        <div className="mb-6 flex justify-end print:hidden">
+        <div className="mb-6 flex flex-wrap justify-end gap-2 print:hidden">
+          <a
+            href="/canastillas/proveedores"
+            className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
+          >
+            Gestionar proveedores
+          </a>
           <button
             type="button"
             onClick={() => setShowInventory((prev) => !prev)}
