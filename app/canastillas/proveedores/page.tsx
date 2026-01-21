@@ -122,6 +122,14 @@ export default function CrateSuppliersPage() {
     setIsSaving(true);
     setErrorMessage(null);
 
+    const deactivateProvider = async (providerId: string) => {
+      return supabase
+        .from("canastillas_proveedores")
+        .update({ activo: false })
+        .eq("id", providerId)
+        .select("id");
+    };
+
     const { data, error } = await supabase
       .from("canastillas_proveedores")
       .delete()
@@ -129,6 +137,20 @@ export default function CrateSuppliersPage() {
       .select("id");
 
     if (error) {
+      const { error: deactivateError } = await deactivateProvider(provider.id);
+
+      if (deactivateError) {
+        setErrorMessage(
+          "El proveedor no se pudo eliminar porque está en uso. Se marcó como inactivo.",
+        );
+
+        if (editingId === provider.id) {
+          resetForm();
+        }
+        await loadProviders();
+        setIsSaving(false);
+        return;
+      }
       setErrorMessage(
         "No se pudo eliminar el proveedor. Verifica la conexión e intenta de nuevo.",
       );
@@ -137,11 +159,7 @@ export default function CrateSuppliersPage() {
     }
 
     if (!data || data.length === 0) {
-      const { error: deactivateError } = await supabase
-        .from("canastillas_proveedores")
-        .update({ activo: false })
-        .eq("id", provider.id)
-        .select("id");
+      const { error: deactivateError } = await deactivateProvider(provider.id);
 
       if (deactivateError) {
         setErrorMessage(
