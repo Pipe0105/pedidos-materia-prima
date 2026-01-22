@@ -744,12 +744,16 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
                   <p className="text-xs font-semibold text-red-600">
                     {signatureError}
                   </p>
-                ) : (
+                ) : signatureUrl ? (
                   <img
-                    src={signatureUrl ?? ""}
+                    src={signatureUrl}
                     alt={`Firma de ${selectedEntry.nombre_autoriza}`}
                     className="h-40 w-full rounded-lg border border-slate-200 bg-white object-contain"
                   />
+                ) : (
+                  <p className="text-xs text-slate-400">
+                    Sin firma disponible.
+                  </p>
                 )}
                 {isSignatureLoading && (
                   <p className="mt-2 text-xs text-slate-400">
