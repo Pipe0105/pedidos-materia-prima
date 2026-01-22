@@ -48,6 +48,9 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
   const [signatureUrl, setSignatureUrl] = useState<string | null>(null);
   const [signatureError, setSignatureError] = useState<string | null>(null);
   const [isSignatureLoading, setIsSignatureLoading] = useState(false);
+  const [historyView, setHistoryView] = useState<
+    "prestamos" | "devoluciones" | "comparar"
+  >("prestamos");
 
   const loadHistory = useCallback(async () => {
     setIsLoading(true);
@@ -566,17 +569,71 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
               </div>
             </div>
 
-            {renderHistoryTable(
-              filteredIngresos,
-              ingresoHistory,
-              "ingreso",
-              "Historial de ingresos",
-            )}
-            {renderHistoryTable(
-              filteredDevoluciones,
-              devolucionHistory,
-              "devolucion",
-              "Historial de devoluciones",
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setHistoryView("prestamos")}
+                className={`rounded-full border px-4 py-2 text-xs font-semibold transition ${
+                  historyView === "prestamos"
+                    ? "border-blue-600 bg-blue-50 text-blue-700"
+                    : "border-slate-200 text-slate-500 hover:bg-slate-50"
+                }`}
+              >
+                Solo préstamos
+              </button>
+              <button
+                type="button"
+                onClick={() => setHistoryView("devoluciones")}
+                className={`rounded-full border px-4 py-2 text-xs font-semibold transition ${
+                  historyView === "devoluciones"
+                    ? "border-blue-600 bg-blue-50 text-blue-700"
+                    : "border-slate-200 text-slate-500 hover:bg-slate-50"
+                }`}
+              >
+                Solo devoluciones
+              </button>
+              <button
+                type="button"
+                onClick={() => setHistoryView("comparar")}
+                className={`rounded-full border px-4 py-2 text-xs font-semibold transition ${
+                  historyView === "comparar"
+                    ? "border-blue-600 bg-blue-50 text-blue-700"
+                    : "border-slate-200 text-slate-500 hover:bg-slate-50"
+                }`}
+              >
+                Comparar historiales
+              </button>
+            </div>
+
+            {historyView === "comparar" ? (
+              <div className="grid gap-6 lg:grid-cols-2">
+                {renderHistoryTable(
+                  filteredIngresos,
+                  ingresoHistory,
+                  "ingreso",
+                  "Historial de préstamos",
+                )}
+                {renderHistoryTable(
+                  filteredDevoluciones,
+                  devolucionHistory,
+                  "devolucion",
+                  "Historial de devoluciones",
+                )}
+              </div>
+            ) : historyView === "prestamos" ? (
+              renderHistoryTable(
+                filteredIngresos,
+                ingresoHistory,
+                "ingreso",
+                "Historial de préstamos",
+              )
+            ) : (
+              renderHistoryTable(
+                filteredDevoluciones,
+                devolucionHistory,
+                "devolucion",
+                "Historial de devoluciones",
+              )
             )}
           </div>
         )}
@@ -899,6 +956,9 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
             </div>
 
             <div className="mt-4 grid gap-2 text-sm text-slate-600">
+              <p className="text-sm font-semibold text-slate-700">
+                ¿Deseas anular este registro?
+              </p>
               <p>
                 <span className="font-semibold">Proveedor:</span>{" "}
                 {cancelEntry.proveedor}
@@ -927,7 +987,7 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
                 className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
                 disabled={isCancelling}
               >
-                Cancelar
+                No, volver
               </button>
               <button
                 type="button"
@@ -935,7 +995,7 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
                 className="rounded-xl bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700"
                 disabled={isCancelling}
               >
-                Confirmar anulación
+                Sí, anular
               </button>
             </div>
           </div>
