@@ -2,7 +2,12 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { ClipboardList, RefreshCw, Warehouse } from "lucide-react";
+import {
+  AlertTriangle,
+  ClipboardList,
+  RefreshCw,
+  Warehouse,
+} from "lucide-react";
 
 interface CrateHistoryEntry {
   id: string;
@@ -476,6 +481,20 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
             </p>
           </div>
         </div>
+        {totalCrates < 0 && (
+          <div className="mt-4 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+            <AlertTriangle size={18} className="mt-0.5" />
+            <div>
+              <p className="font-semibold">
+                El total de canastillas es negativo.
+              </p>
+              <p>
+                Verifica si hay devoluciones registradas sin un préstamo
+                correspondiente.
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">

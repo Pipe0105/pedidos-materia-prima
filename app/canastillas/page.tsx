@@ -70,11 +70,61 @@ export default function CrateFlowPage() {
   };
 
   const handleAddItem = (item: InventoryItem) => {
-    setItems([...items, item]);
+    setItems((prevItems) => {
+      const existingIndex = prevItems.findIndex(
+        (existing) =>
+          existing.type === item.type && existing.provider === item.provider,
+      );
+      if (existingIndex === -1) {
+        return [...prevItems, item];
+      }
+      const updatedItems = [...prevItems];
+      const existingItem = updatedItems[existingIndex];
+      updatedItems[existingIndex] = {
+        ...existingItem,
+        quantity: existingItem.quantity + item.quantity,
+      };
+      return updatedItems;
+    });
   };
 
   const handleRemoveItem = (id: string) => {
     setItems(items.filter((item) => item.id !== id));
+  };
+
+  const handleUpdateItem = (id: string, patch: Partial<InventoryItem>) => {
+    setItems((prevItems) => {
+      const itemIndex = prevItems.findIndex((item) => item.id === id);
+      if (itemIndex === -1) return prevItems;
+      const updatedItems = [...prevItems];
+      const updatedItem = {
+        ...updatedItems[itemIndex],
+        ...patch,
+        quantity: Math.max(
+          1,
+          patch.quantity ?? updatedItems[itemIndex].quantity,
+        ),
+      };
+      updatedItems[itemIndex] = updatedItem;
+      const duplicateIndex = updatedItems.findIndex(
+        (item, index) =>
+          index !== itemIndex &&
+          item.type === updatedItem.type &&
+          item.provider === updatedItem.provider,
+      );
+      if (duplicateIndex === -1) return updatedItems;
+      const duplicateItem = updatedItems[duplicateIndex];
+      const mergedItem = {
+        ...duplicateItem,
+        quantity: duplicateItem.quantity + updatedItem.quantity,
+      };
+      const firstIndex = Math.min(itemIndex, duplicateIndex);
+      const nextItems = updatedItems.filter(
+        (_, index) => index !== itemIndex && index !== duplicateIndex,
+      );
+      nextItems.splice(firstIndex, 0, mergedItem);
+      return nextItems;
+    });
   };
 
   const handleReset = () => {
@@ -87,6 +137,22 @@ export default function CrateFlowPage() {
     formValues.nombreCliente.trim().length > 0 &&
     formValues.nombreAutoriza.trim().length > 0;
   const canProceedFromEntry = items.length > 0 && isEntryFormComplete;
+
+  const missingFields = [
+    items.length === 0 ? "agrega al menos una canastilla" : null,
+    formValues.consecutivo.trim().length === 0
+      ? "ingresa el consecutivo"
+      : null,
+    formValues.placaVH.trim().length !== 6
+      ? "completa la placa VH (6 caracteres)"
+      : null,
+    formValues.nombreCliente.trim().length === 0
+      ? "ingresa el nombre del cliente"
+      : null,
+    formValues.nombreAutoriza.trim().length === 0
+      ? "ingresa el nombre de quien autoriza"
+      : null,
+  ].filter((value): value is string => Boolean(value));
 
   const handleSaveSignature = async (dataUrl: string) => {
     if (isSaving) return;
@@ -290,6 +356,7 @@ export default function CrateFlowPage() {
             onFormChange={setFormValues}
             onAddItem={handleAddItem}
             onRemoveItem={handleRemoveItem}
+            onUpdateItem={handleUpdateItem}
           />
         )}
 
@@ -319,17 +386,28 @@ export default function CrateFlowPage() {
           currentStep !== Step.SUCCESS && (
             <div className="mt-8 grid gap-3">
               {currentStep === Step.ENTRY && (
-                <button
-                  onClick={() => setCurrentStep(Step.SIGNATURE)}
-                  disabled={!canProceedFromEntry}
-                  className={`w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all active:scale-95 ${
-                    canProceedFromEntry
-                      ? "bg-blue-600 text-white shadow-lg shadow-blue-200 hover:bg-blue-700"
-                      : "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
-                  }`}
-                >
-                  Continuar a Firma <ChevronRight size={20} />
-                </button>
+                <div className="space-y-2">
+                  <button
+                    onClick={() => setCurrentStep(Step.SIGNATURE)}
+                    disabled={!canProceedFromEntry}
+                    className={`w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all active:scale-95 ${
+                      canProceedFromEntry
+                        ? "bg-blue-600 text-white shadow-lg shadow-blue-200 hover:bg-blue-700"
+                        : "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
+                    }`}
+                  >
+                    Continuar a Firma <ChevronRight size={20} />
+                  </button>
+                  {!canProceedFromEntry && missingFields.length > 0 && (
+                    <p className="text-xs text-slate-500">
+                      Para continuar,{" "}
+                      <span className="font-semibold text-slate-600">
+                        {missingFields.join(", ")}
+                      </span>
+                      .
+                    </p>
+                  )}
+                </div>
               )}
             </div>
           )}

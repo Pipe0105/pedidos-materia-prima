@@ -5,7 +5,7 @@ import {
   EntryMode,
   InventoryItem,
 } from "../canastillas/types";
-import { Plus, Trash2, Box } from "lucide-react";
+import { AlertCircle, Box, Plus, Trash2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 interface Props {
@@ -17,6 +17,7 @@ interface Props {
   onFormChange: (values: CanastillaFormValues) => void;
   onAddItem: (item: InventoryItem) => void;
   onRemoveItem: (id: string) => void;
+  onUpdateItem: (id: string, patch: Partial<InventoryItem>) => void;
 }
 
 export const InventoryEntry: React.FC<Props> = ({
@@ -28,16 +29,21 @@ export const InventoryEntry: React.FC<Props> = ({
   onFormChange,
   onAddItem,
   onRemoveItem,
+  onUpdateItem,
 }) => {
   const [type, setType] = useState<CrateType>(CrateType.LARGE);
   const [provider, setProvider] = useState<string>("");
   const [quantity, setQuantity] = useState<number>(1);
   const [providers, setProviders] = useState<string[]>([]);
   const [providerError, setProviderError] = useState<string | null>(null);
+  const [placaTouched, setPlacaTouched] = useState(false);
+  const [consecutivoTouched, setConsecutivoTouched] = useState(false);
+
   const { fecha, consecutivo, placaVH, nombreCliente, nombreAutoriza } =
     formValues;
   const placaLength = placaVH.trim().length;
   const isPlacaValid = placaLength === 6;
+  const showPlacaError = placaTouched && !isPlacaValid;
   const isProviderSelected = provider.trim().length > 0;
   const isEntryComplete =
     consecutivo.trim().length > 0 &&
@@ -106,7 +112,10 @@ export const InventoryEntry: React.FC<Props> = ({
     onFormChange({ ...formValues, ...patch });
   };
   const handlePlacaChange = (value: string) => {
-    const sanitized = value.replace(/[^a-zA-Z0-9]/g, "").slice(0, 6);
+    const sanitized = value
+      .replace(/[^a-zA-Z0-9]/g, "")
+      .slice(0, 6)
+      .toUpperCase();
     updateForm({ placaVH: sanitized });
   };
 
@@ -172,12 +181,23 @@ export const InventoryEntry: React.FC<Props> = ({
               type="text"
               value={consecutivo}
               onChange={(e) => handleConsecutivoChange(e.target.value)}
+              onBlur={() => setConsecutivoTouched(true)}
               placeholder="Ingresa el consecutivo"
               inputMode="numeric"
               pattern="[0-9]*"
               required
-              className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
+              className={`w-full p-3 rounded-xl bg-slate-50 border focus:ring-2 focus:outline-none transition-all ${
+                !consecutivo && consecutivoTouched
+                  ? "border-red-300 focus:ring-red-200"
+                  : "border-slate-200 focus:ring-blue-500"
+              }`}
             />
+            {!consecutivo && consecutivoTouched && (
+              <p className="mt-1 text-xs font-semibold text-red-600 flex items-center gap-1">
+                <AlertCircle size={14} /> El consecutivo es obligatorio para
+                continuar.
+              </p>
+            )}
           </div>
 
           <div>
@@ -188,20 +208,30 @@ export const InventoryEntry: React.FC<Props> = ({
               type="text"
               value={placaVH}
               onChange={(e) => handlePlacaChange(e.target.value)}
+              onBlur={() => setPlacaTouched(true)}
               placeholder="Ingresa la placa VH"
               maxLength={6}
               minLength={6}
               required
-              className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
+              className={`w-full p-3 rounded-xl bg-slate-50 border focus:ring-2 focus:outline-none transition-all ${
+                showPlacaError
+                  ? "border-red-300 focus:ring-red-200"
+                  : "border-slate-200 focus:ring-blue-500"
+              }`}
             />
             <p
               className={`mt-1 text-xs font-medium ${
-                isPlacaValid ? "text-slate-400" : "text-red-500"
+                showPlacaError ? "text-red-500" : "text-slate-400"
               }`}
             >
-              {isPlacaValid
-                ? "Debe tener exactamente 6 caracteres."
-                : "La placa VH debe tener 6 caracteres (letras o números)."}
+              {showPlacaError ? (
+                <span className="flex items-center gap-1">
+                  <AlertCircle size={14} /> La placa VH debe tener 6 caracteres
+                  (letras o números).
+                </span>
+              ) : (
+                "Debe tener exactamente 6 caracteres."
+              )}
             </p>
           </div>
           <div>
@@ -263,7 +293,15 @@ export const InventoryEntry: React.FC<Props> = ({
               <input
                 type="number"
                 value={quantity}
-                onChange={(e) => setQuantity(parseInt(e.target.value) || 0)}
+                min={1}
+                onChange={(e) => {
+                  const nextValue = Number(e.target.value);
+                  if (Number.isNaN(nextValue)) {
+                    setQuantity(1);
+                    return;
+                  }
+                  setQuantity(Math.max(1, nextValue));
+                }}
                 className="flex-grow text-center p-3 text-lg font-bold rounded-xl bg-slate-50 border border-slate-200"
               />
               <button
@@ -360,12 +398,40 @@ export const InventoryEntry: React.FC<Props> = ({
                     </span>
                   </div>
                 </div>
-                <button
-                  onClick={() => onRemoveItem(item.id)}
-                  className="p-2 text-slate-400 hover:text-red-500 transition-colors"
-                >
-                  <Trash2 size={20} />
-                </button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <select
+                    value={item.provider}
+                    onChange={(event) =>
+                      onUpdateItem(item.id, {
+                        provider: event.target.value,
+                      })
+                    }
+                    className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-600"
+                  >
+                    {providerOptions.map((value) => (
+                      <option key={value} value={value}>
+                        {value}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    type="number"
+                    min={1}
+                    value={item.quantity}
+                    onChange={(event) =>
+                      onUpdateItem(item.id, {
+                        quantity: Math.max(1, Number(event.target.value) || 1),
+                      })
+                    }
+                    className="w-20 rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-600"
+                  />
+                  <button
+                    onClick={() => onRemoveItem(item.id)}
+                    className="p-2 text-slate-400 hover:text-red-500 transition-colors"
+                  >
+                    <Trash2 size={20} />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
