@@ -175,14 +175,14 @@ export const InventoryEntry: React.FC<Props> = ({
           </div>
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-1">
-              Consecutivo manual
+              Consecutivo manual del proveedor
             </label>
             <input
               type="text"
               value={consecutivo}
               onChange={(e) => handleConsecutivoChange(e.target.value)}
               onBlur={() => setConsecutivoTouched(true)}
-              placeholder="Ingresa el consecutivo"
+              placeholder="Ingresa el consecutivo del proveedor"
               inputMode="numeric"
               pattern="[0-9]*"
               required
@@ -202,14 +202,14 @@ export const InventoryEntry: React.FC<Props> = ({
 
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-1">
-              Placa VH
+              Placa Vehiculo
             </label>
             <input
               type="text"
               value={placaVH}
               onChange={(e) => handlePlacaChange(e.target.value)}
               onBlur={() => setPlacaTouched(true)}
-              placeholder="Ingresa la placa VH"
+              placeholder="Ingresa la placa del vehiculo"
               maxLength={6}
               minLength={6}
               required
@@ -314,7 +314,7 @@ export const InventoryEntry: React.FC<Props> = ({
           </div>
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-1">
-              Nombre cliente
+              Responsable Proveedor
             </label>
             <input
               type="text"
@@ -327,7 +327,7 @@ export const InventoryEntry: React.FC<Props> = ({
           </div>
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-1">
-              Nombre quien autoriza
+              Responsable Planta
             </label>
             <input
               type="text"

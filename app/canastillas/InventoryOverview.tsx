@@ -790,7 +790,7 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
             <div className="mt-4 grid gap-4 text-sm text-slate-600 sm:grid-cols-2">
               <label className="grid gap-1">
                 <span className="text-xs font-semibold uppercase text-slate-400">
-                  Consecutivo
+                  Consecutivo manual del proveedor
                 </span>
                 <input
                   type="text"
@@ -887,7 +887,7 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
               </label>
               <label className="grid gap-1">
                 <span className="text-xs font-semibold uppercase text-slate-400">
-                  Nombre cliente
+                  Responsable Proveedor
                 </span>
                 <input
                   type="text"
@@ -903,7 +903,7 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
               </label>
               <label className="grid gap-1 sm:col-span-2">
                 <span className="text-xs font-semibold uppercase text-slate-400">
-                  Nombre quien autoriza
+                  Responsable Planta
                 </span>
                 <input
                   type="text"
