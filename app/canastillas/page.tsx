@@ -10,7 +10,6 @@ import {
   InventoryItem,
 } from "@/app/canastillas/types";
 import { ChevronRight } from "lucide-react";
-import { supabase } from "@/lib/supabase";
 
 enum Step {
   MENU = 0,
@@ -97,24 +96,29 @@ export default function CrateFlowPage() {
     const normalizedSignature = dataUrl.includes(",")
       ? dataUrl.split(",")[1]
       : dataUrl;
+    const response = await fetch("/api/canastillas", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        consecutivo: formValues.consecutivo,
+        fecha: formValues.fecha,
+        placa_vh: formValues.placaVH,
+        nombre_cliente: formValues.nombreCliente,
+        nombre_autoriza: formValues.nombreAutoriza,
+        observaciones: observaciones || null,
+        entryMode,
+        firma: normalizedSignature,
+        items: items.map((item) => ({
+          tipo_canastilla: item.type,
+          proveedor: item.provider,
+          cantidad: item.quantity,
+        })),
+      }),
+    });
 
-    const payload = items.map((item) => ({
-      consecutivo: formValues.consecutivo,
-      fecha: formValues.fecha,
-      fecha_devolucion: entryMode === "devolucion" ? formValues.fecha : null,
-      placa_vh: formValues.placaVH,
-      tipo_canastilla: item.type,
-      nombre_cliente: formValues.nombreCliente,
-      proveedor: item.provider,
-      cantidad: item.quantity,
-      nombre_autoriza: formValues.nombreAutoriza,
-      observaciones: observaciones || null,
-      firma: normalizedSignature,
-    }));
-
-    const { error } = await supabase.from("canastillas").insert(payload);
-    if (error) {
-      const detail = error.message?.trim();
+    if (!response.ok) {
+      const result = (await response.json()) as { error?: string };
+      const detail = result.error?.trim();
       setSaveError(
         detail
           ? `No se pudo guardar el registro: ${detail}`

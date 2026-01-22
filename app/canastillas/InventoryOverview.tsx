@@ -45,6 +45,9 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
   );
   const [cancelReason, setCancelReason] = useState("");
   const [isCancelling, setIsCancelling] = useState(false);
+  const [signatureUrl, setSignatureUrl] = useState<string | null>(null);
+  const [signatureError, setSignatureError] = useState<string | null>(null);
+  const [isSignatureLoading, setIsSignatureLoading] = useState(false);
 
   const loadHistory = useCallback(async () => {
     setIsLoading(true);
@@ -173,10 +176,80 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
 
   const getSignatureSrc = useCallback((signature?: string | null) => {
     if (!signature) return "";
+    if (signature.startsWith("storage:")) return "";
     if (signature.startsWith("data:")) return signature;
     if (signature.startsWith("image/")) return `data:${signature}`;
+    if (signature.startsWith("http")) return signature;
     return `data:image/png;base64,${signature}`;
   }, []);
+
+  const requestSignedUrl = useCallback(async (path: string) => {
+    const response = await fetch("/api/canastillas/firma", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path }),
+    });
+    if (!response.ok) {
+      const result = (await response.json()) as { error?: string };
+      throw new Error(result.error || "No se pudo cargar la firma.");
+    }
+    const result = (await response.json()) as { url?: string };
+    if (!result.url) {
+      throw new Error("No se pudo cargar la firma.");
+    }
+    return result.url;
+  }, []);
+
+  useEffect(() => {
+    let isActive = true;
+
+    const loadSignature = async () => {
+      if (!selectedEntry?.firma) {
+        setSignatureUrl(null);
+        setSignatureError(null);
+        return;
+      }
+
+      if (selectedEntry.firma.startsWith("storage:")) {
+        const storagePath = selectedEntry.firma.replace("storage:", "");
+        setSignatureUrl(null);
+        setIsSignatureLoading(true);
+        setSignatureError(null);
+        try {
+          const url = await requestSignedUrl(storagePath);
+          if (isActive) {
+            setSignatureUrl(url);
+          }
+        } catch (error) {
+          if (isActive) {
+            setSignatureError(
+              error instanceof Error
+                ? error.message
+                : "No se pudo cargar la firma.",
+            );
+            setSignatureUrl(null);
+          }
+        } finally {
+          if (isActive) {
+            setIsSignatureLoading(false);
+          }
+        }
+        return;
+      }
+
+      const fallbackSrc = getSignatureSrc(selectedEntry.firma);
+      if (fallbackSrc) {
+        setSignatureUrl(fallbackSrc);
+        setSignatureError(null);
+      }
+    };
+
+    void loadSignature();
+
+    return () => {
+      isActive = false;
+    };
+  }, [getSignatureSrc, requestSignedUrl, selectedEntry]);
 
   const handleSaveEdit = async () => {
     if (!editEntry?.id) return;
@@ -591,11 +664,22 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
                 <p className="text-xs font-semibold uppercase text-slate-400 mb-2">
                   Firma
                 </p>
-                <img
-                  src={getSignatureSrc(selectedEntry.firma)}
-                  alt={`Firma de ${selectedEntry.nombre_autoriza}`}
-                  className="h-40 w-full rounded-lg border border-slate-200 bg-white object-contain"
-                />
+                {signatureError ? (
+                  <p className="text-xs font-semibold text-red-600">
+                    {signatureError}
+                  </p>
+                ) : (
+                  <img
+                    src={signatureUrl ?? ""}
+                    alt={`Firma de ${selectedEntry.nombre_autoriza}`}
+                    className="h-40 w-full rounded-lg border border-slate-200 bg-white object-contain"
+                  />
+                )}
+                {isSignatureLoading && (
+                  <p className="mt-2 text-xs text-slate-400">
+                    Cargando firma...
+                  </p>
+                )}
               </div>
             </div>
           </div>
