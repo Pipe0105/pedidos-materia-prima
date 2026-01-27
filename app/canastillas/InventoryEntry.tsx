@@ -148,7 +148,7 @@ export const InventoryEntry: React.FC<Props> = ({
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-400">
         <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
           <Plus size={20} className="text-blue-600" />
           {entryMode === "devolucion"
@@ -170,7 +170,7 @@ export const InventoryEntry: React.FC<Props> = ({
                   : undefined
               }
               readOnly={entryMode !== "devolucion"}
-              className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-600"
+              className="w-full p-3 rounded-xl bg-slate-200 border border-slate-400 text-slate-600"
             />
           </div>
           <div>
@@ -186,10 +186,10 @@ export const InventoryEntry: React.FC<Props> = ({
               inputMode="numeric"
               pattern="[0-9]*"
               required
-              className={`w-full p-3 rounded-xl bg-slate-50 border focus:ring-2 focus:outline-none transition-all ${
+              className={`w-full p-3 rounded-xl bg-slate-200 border focus:ring-2 focus:outline-none transition-all ${
                 !consecutivo && consecutivoTouched
                   ? "border-red-300 focus:ring-red-200"
-                  : "border-slate-200 focus:ring-blue-500"
+                  : "border-slate-400 focus:ring-blue-500"
               }`}
             />
             {!consecutivo && consecutivoTouched && (
@@ -213,10 +213,10 @@ export const InventoryEntry: React.FC<Props> = ({
               maxLength={6}
               minLength={6}
               required
-              className={`w-full p-3 rounded-xl bg-slate-50 border focus:ring-2 focus:outline-none transition-all ${
+              className={`w-full p-3 rounded-xl bg-slate-200 border focus:ring-2 focus:outline-none transition-all ${
                 showPlacaError
                   ? "border-red-300 focus:ring-red-200"
-                  : "border-slate-200 focus:ring-blue-500"
+                  : "border-slate-400 focus:ring-blue-500"
               }`}
             />
             <p
@@ -241,7 +241,7 @@ export const InventoryEntry: React.FC<Props> = ({
             <select
               value={type}
               onChange={(e) => setType(e.target.value as CrateType)}
-              className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
+              className="w-full p-3 rounded-xl bg-slate-200 border border-slate-400 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
             >
               {Object.values(CrateType).map((t) => (
                 <option key={t} value={t}>
@@ -264,7 +264,7 @@ export const InventoryEntry: React.FC<Props> = ({
                     className={`flex-1 py-2 px-1 rounded-lg border text-xs font-bold transition-all ${
                       provider === value
                         ? "bg-blue-50 border-blue-500 text-blue-700 ring-2 ring-blue-100"
-                        : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                        : "bg-white border-slate-400 text-slate-600 hover:bg-slate-200"
                     }`}
                   >
                     {value}
@@ -286,7 +286,7 @@ export const InventoryEntry: React.FC<Props> = ({
             <div className="flex items-center gap-4">
               <button
                 onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                className="w-12 h-12 flex items-center justify-center rounded-xl border border-slate-300 text-xl font-bold hover:bg-slate-50"
+                className="w-12 h-12 flex items-center justify-center rounded-xl border border-slate-400 text-xl font-bold hover:bg-slate-200"
               >
                 -
               </button>
@@ -302,11 +302,11 @@ export const InventoryEntry: React.FC<Props> = ({
                   }
                   setQuantity(Math.max(1, nextValue));
                 }}
-                className="flex-grow text-center p-3 text-lg font-bold rounded-xl bg-slate-50 border border-slate-200"
+                className="flex-grow text-center p-3 text-lg font-bold rounded-xl bg-slate-200 border border-slate-400"
               />
               <button
                 onClick={() => setQuantity((q) => q + 1)}
-                className="w-12 h-12 flex items-center justify-center rounded-xl border border-slate-300 text-xl font-bold hover:bg-slate-50"
+                className="w-12 h-12 flex items-center justify-center rounded-xl border border-slate-400 text-xl font-bold hover:bg-slate-200"
               >
                 +
               </button>
@@ -322,7 +322,7 @@ export const InventoryEntry: React.FC<Props> = ({
               onChange={(e) => updateForm({ nombreCliente: e.target.value })}
               placeholder="Nombre completo"
               required
-              className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
+              className="w-full p-3 rounded-xl bg-slate-200 border border-slate-400 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
             />
           </div>
           <div>
@@ -335,7 +335,7 @@ export const InventoryEntry: React.FC<Props> = ({
               onChange={(e) => updateForm({ nombreAutoriza: e.target.value })}
               placeholder="Nombre completo"
               required
-              className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
+              className="w-full p-3 rounded-xl bg-slate-200 border border-slate-400 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
             />
           </div>
           <div>
@@ -346,7 +346,7 @@ export const InventoryEntry: React.FC<Props> = ({
               value={notes}
               onChange={(e) => onNotesChange(e.target.value)}
               placeholder="Escriba aquí cualquier detalle relevante..."
-              className="w-full p-4 rounded-xl bg-slate-50 border border-slate-200 h-32 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all resize-none"
+              className="w-full p-4 rounded-xl bg-slate-200 border border-slate-400 h-32 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all resize-none"
             />
           </div>
 
@@ -372,7 +372,7 @@ export const InventoryEntry: React.FC<Props> = ({
           Lista Actual ({items.length})
         </h3>
         {items.length === 0 ? (
-          <div className="py-12 flex flex-col items-center justify-center text-slate-400 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
+          <div className="py-12 flex flex-col items-center justify-center text-slate-400 bg-slate-200 rounded-2xl border-2 border-dashed border-slate-400">
             <Box size={48} className="mb-2 opacity-20" />
             <p className="font-medium">No hay items registrados</p>
           </div>
@@ -381,7 +381,7 @@ export const InventoryEntry: React.FC<Props> = ({
             {items.map((item) => (
               <div
                 key={item.id}
-                className="bg-white p-4 rounded-xl border border-slate-200 flex items-center justify-between shadow-sm animate-in zoom-in-95 duration-200"
+                className="bg-white p-4 rounded-xl border border-slate-400 flex items-center justify-between shadow-sm animate-in zoom-in-95 duration-200"
               >
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
@@ -406,7 +406,7 @@ export const InventoryEntry: React.FC<Props> = ({
                         provider: event.target.value,
                       })
                     }
-                    className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-600"
+                    className="rounded-lg border border-slate-400 bg-white px-2 py-1 text-xs font-semibold text-slate-600"
                   >
                     {providerOptions.map((value) => (
                       <option key={value} value={value}>
@@ -423,7 +423,7 @@ export const InventoryEntry: React.FC<Props> = ({
                         quantity: Math.max(1, Number(event.target.value) || 1),
                       })
                     }
-                    className="w-20 rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-600"
+                    className="w-20 rounded-lg border border-slate-400 px-2 py-1 text-xs font-semibold text-slate-600"
                   />
                   <button
                     onClick={() => onRemoveItem(item.id)}

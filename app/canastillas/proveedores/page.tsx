@@ -182,7 +182,7 @@ export default function CrateSuppliersPage() {
         </header>
 
         <div className="grid gap-6 lg:grid-cols-[1.1fr_1fr]">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+          <div className="bg-white rounded-2xl border border-slate-400 shadow-sm p-6">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="text-lg font-bold text-slate-800">
@@ -198,7 +198,7 @@ export default function CrateSuppliersPage() {
                 <button
                   type="button"
                   onClick={resetForm}
-                  className="inline-flex items-center gap-1 rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                  className="inline-flex items-center gap-1 rounded-full border border-slate-400 px-3 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-200"
                 >
                   <X size={14} /> Cancelar
                 </button>
@@ -215,7 +215,7 @@ export default function CrateSuppliersPage() {
                   onChange={(event) => setNombre(event.target.value)}
                   required
                   placeholder="Ej. Proveedores del Norte"
-                  className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
+                  className="w-full p-3 rounded-xl bg-slate-200 border border-slate-400 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
                 />
               </div>
               <div>
@@ -227,7 +227,7 @@ export default function CrateSuppliersPage() {
                   value={contacto}
                   onChange={(event) => setContacto(event.target.value)}
                   placeholder="Persona responsable"
-                  className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
+                  className="w-full p-3 rounded-xl bg-slate-200 border border-slate-400 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
                 />
               </div>
               <div>
@@ -239,7 +239,7 @@ export default function CrateSuppliersPage() {
                   value={telefono}
                   onChange={(event) => setTelefono(event.target.value)}
                   placeholder="Número de contacto"
-                  className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
+                  className="w-full p-3 rounded-xl bg-slate-200 border border-slate-400 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
                 />
               </div>
               <div>
@@ -251,7 +251,7 @@ export default function CrateSuppliersPage() {
                   onChange={(event) => setNotas(event.target.value)}
                   rows={4}
                   placeholder="Horarios, condiciones o comentarios relevantes."
-                  className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all resize-none"
+                  className="w-full p-3 rounded-xl bg-slate-200 border border-slate-400 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all resize-none"
                 />
               </div>
               <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
@@ -259,7 +259,7 @@ export default function CrateSuppliersPage() {
                   type="checkbox"
                   checked={activo}
                   onChange={(event) => setActivo(event.target.checked)}
-                  className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  className="h-4 w-4 rounded border-slate-400 text-blue-600 focus:ring-blue-500"
                 />
                 Proveedor activo
               </label>
@@ -281,7 +281,7 @@ export default function CrateSuppliersPage() {
                 <button
                   type="button"
                   onClick={resetForm}
-                  className="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 font-semibold hover:border-slate-300 hover:text-slate-800"
+                  className="flex-1 py-3 rounded-xl border border-slate-400 text-slate-600 font-semibold hover:border-slate-400 hover:text-slate-800"
                 >
                   Limpiar formulario
                 </button>
@@ -294,7 +294,7 @@ export default function CrateSuppliersPage() {
             </form>
           </div>
 
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+          <div className="bg-white rounded-2xl border border-slate-400 shadow-sm p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold text-slate-800">
                 Proveedores registrados
@@ -306,7 +306,7 @@ export default function CrateSuppliersPage() {
             {isLoading ? (
               <p className="text-sm text-slate-500">Cargando proveedores...</p>
             ) : providers.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-sm text-slate-500">
+              <div className="rounded-xl border border-dashed border-slate-400 bg-slate-200 p-6 text-center text-sm text-slate-500">
                 Aún no hay proveedores registrados.
               </div>
             ) : (
@@ -314,7 +314,7 @@ export default function CrateSuppliersPage() {
                 {providers.map((provider) => (
                   <div
                     key={provider.id}
-                    className="rounded-xl border border-slate-200 bg-slate-50 p-4"
+                    className="rounded-xl border border-slate-400 bg-slate-200 p-4"
                   >
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
@@ -344,7 +344,7 @@ export default function CrateSuppliersPage() {
                         <button
                           type="button"
                           onClick={() => handleEdit(provider)}
-                          className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                          className="inline-flex items-center gap-1 rounded-full border border-slate-400 bg-white px-3 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-200"
                         >
                           <Pencil size={14} /> Editar
                         </button>
