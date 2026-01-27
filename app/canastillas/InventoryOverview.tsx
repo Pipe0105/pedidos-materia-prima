@@ -540,12 +540,6 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
                       </p>
                     </div>
                   </div>
-                  {stat.pendientes < 0 && (
-                    <p className="mt-2 text-xs font-semibold text-amber-600">
-                      Hay devoluciones registradas sin préstamo para este
-                      proveedor.
-                    </p>
-                  )}
                 </div>
               ))}
             </div>
