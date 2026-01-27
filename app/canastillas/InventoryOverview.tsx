@@ -94,15 +94,31 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
     [history],
   );
 
-  const totalIngresos = ingresoHistory.reduce((acc, entry) => {
-    if (entry.anulado) return acc;
-    return acc + (entry.cantidad ?? 0);
-  }, 0);
-  const totalDevoluciones = devolucionHistory.reduce((acc, entry) => {
-    if (entry.anulado) return acc;
-    return acc + (entry.cantidad ?? 0);
-  }, 0);
-  const totalCrates = totalIngresos - totalDevoluciones;
+  const providerStats = useMemo(() => {
+    const totals = new Map<
+      string,
+      { ingresos: number; devoluciones: number; pendientes: number }
+    >();
+    history.forEach((entry) => {
+      if (entry.anulado) return;
+      const provider = entry.proveedor?.trim() || "Sin proveedor";
+      const current = totals.get(provider) || {
+        ingresos: 0,
+        devoluciones: 0,
+        pendientes: 0,
+      };
+      if (entry.fecha_devolucion) {
+        current.devoluciones += entry.cantidad ?? 0;
+      } else {
+        current.ingresos += entry.cantidad ?? 0;
+      }
+      current.pendientes = current.ingresos - current.devoluciones;
+      totals.set(provider, current);
+    });
+    return Array.from(totals.entries())
+      .map(([provider, stats]) => ({ provider, ...stats }))
+      .sort((a, b) => a.provider.localeCompare(b.provider));
+  }, [history]);
 
   const providerOptions = useMemo(() => {
     const values = new Set<string>();
@@ -111,7 +127,10 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
     });
     return Array.from(values).sort((a, b) => a.localeCompare(b));
   }, [history]);
-  const totalPendingCrates = Math.max(totalCrates, 0);
+  const totalPendingCrates = providerStats.reduce(
+    (acc, stat) => acc + Math.max(stat.pendientes, 0),
+    0,
+  );
   const totalCanceled = history.filter((entry) => entry.anulado).length;
 
   const getEntryDate = useCallback(
@@ -458,18 +477,13 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
             <p className="text-sm font-semibold text-blue-700">
-              Total de canastillas registradas
+              Total de canastillas
             </p>
             <p className="text-3xl font-black text-blue-900 mt-2">
-              {totalCrates}
-            </p>
-          </div>
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-            <p className="text-sm font-semibold text-slate-600">
-              Pendientes de devolución
-            </p>
-            <p className="text-3xl font-black text-slate-900 mt-2">
               {totalPendingCrates}
+            </p>
+            <p className="mt-1 text-xs font-semibold text-blue-600">
+              Solo suma pendientes positivos por proveedor.
             </p>
           </div>
           <div className="rounded-xl border border-amber-100 bg-amber-50 p-4">
@@ -481,7 +495,63 @@ export const InventoryOverview: React.FC<Props> = ({ refreshKey }) => {
             </p>
           </div>
         </div>
-        {totalCrates < 0 && (
+        {providerStats.length > 0 && (
+          <div className="mt-6">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Totales por proveedor
+            </p>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              {providerStats.map((stat) => (
+                <div
+                  key={stat.provider}
+                  className="rounded-xl border border-slate-200 bg-white p-4"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-bold text-slate-700">
+                      {stat.provider}
+                    </p>
+                    <span
+                      className={`text-lg font-black ${
+                        stat.pendientes < 0
+                          ? "text-amber-600"
+                          : "text-slate-900"
+                      }`}
+                    >
+                      {stat.pendientes}
+                    </span>
+                  </div>
+                  <div className="mt-3 grid grid-cols-3 gap-2 text-xs text-slate-500">
+                    <div className="rounded-lg bg-slate-50 px-2 py-1">
+                      <p className="font-semibold text-slate-600">Préstamos</p>
+                      <p className="text-sm font-bold text-slate-800">
+                        {stat.ingresos}
+                      </p>
+                    </div>
+                    <div className="rounded-lg bg-slate-50 px-2 py-1">
+                      <p className="font-semibold text-slate-600">Devol.</p>
+                      <p className="text-sm font-bold text-slate-800">
+                        {stat.devoluciones}
+                      </p>
+                    </div>
+                    <div className="rounded-lg bg-slate-50 px-2 py-1">
+                      <p className="font-semibold text-slate-600">Pend.</p>
+                      <p className="text-sm font-bold text-slate-800">
+                        {stat.pendientes}
+                      </p>
+                    </div>
+                  </div>
+                  {stat.pendientes < 0 && (
+                    <p className="mt-2 text-xs font-semibold text-amber-600">
+                      Hay devoluciones registradas sin préstamo para este
+                      proveedor.
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {false && (
           <div className="mt-4 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
             <AlertTriangle size={18} className="mt-0.5" />
             <div>
