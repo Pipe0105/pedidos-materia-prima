@@ -1417,7 +1417,7 @@ function InventarioPageContent() {
         snapshotLoading={snapshotLoading}
         onSnapshotDateChange={actualizarFechaSnapshot}
         onClose={() => setShowHistorial(false)}
-        editableRefTipos={[REF_TIPO_CONSUMO_AGUJAS]}
+        editableRefTipos={["*"]}
         onUpdateNotas={actualizarNotasMovimiento}
       />
 

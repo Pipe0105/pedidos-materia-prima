@@ -157,8 +157,13 @@ export function HistorialDialog({
                       const movimientoId =
                         movimiento.id ?? `${movimiento.created_at}-${index}`;
                       const fotos = parseFotoUrls(movimiento.foto_url);
+                      // "*" significa que todos los tipos son editables
+                      const allEditable = editableRefTipos.includes("*");
                       const editable =
-                        editableRefTipos.includes(movimiento.ref_tipo ?? "") &&
+                        (allEditable ||
+                          editableRefTipos.includes(
+                            movimiento.ref_tipo ?? "",
+                          )) &&
                         Boolean(onUpdateNotas) &&
                         Boolean(movimiento.id);
 
