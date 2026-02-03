@@ -2,24 +2,18 @@ import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 
-import type { Zona } from "../types";
-
 type InventarioHeaderProps = {
-  zonaActual: Zona | null;
-  totalMateriales: number | null;
+  totalMateriales: number;
   materialesCriticos: number;
   materialesEstables: number;
-  zonaSeleccionada: string | null;
   loading: boolean;
   onRefresh: () => void;
 };
 
 export function InventarioHeader({
-  zonaActual,
   totalMateriales,
   materialesCriticos,
   materialesEstables,
-  zonaSeleccionada,
   loading,
   onRefresh,
 }: InventarioHeaderProps) {
@@ -31,9 +25,7 @@ export function InventarioHeader({
         </p>
         <h1 className="text-3xl font-semibold">Inventario de materia prima</h1>
         <p className="text-sm text-white/80">
-          {zonaActual
-            ? `Trabajando en la planta ${zonaActual.nombre}`
-            : "Selecciona una planta para consultar el inventario"}
+          Todas las zonas de producción
         </p>
         <div className="grid gap-4 text-xs text-white/70 sm:grid-cols-3">
           <div>
@@ -75,7 +67,7 @@ export function InventarioHeader({
           variant="secondary"
           className="border-none bg-white text-primary hover:bg-white/90 hover:text-primary"
           onClick={onRefresh}
-          disabled={!zonaSeleccionada || loading}
+          disabled={loading}
         >
           {loading ? "Actualizando…" : "Actualizar inventario"}
         </Button>

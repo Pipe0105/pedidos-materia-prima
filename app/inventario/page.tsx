@@ -8,14 +8,6 @@ import type {
   PedidoEstado,
 } from "@/app/(dashboard)/_components/_types";
 import { shouldRetryEstadoRecibido } from "@/lib/pedidos";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -27,8 +19,8 @@ import {
 } from "@/components/ui/dialog";
 import { PageContainer } from "@/components/PageContainer";
 import { InventarioHeader } from "./_components/InventarioHeader";
-import { InventarioTable } from "./_components/InventarioTable";
-import { HistorialDialog } from "./_components/HistorialDialog";
+import { MaterialButton } from "./_components/MaterialButton";
+import { MaterialAccionesDialog } from "./_components/MaterialAccionesDialog";
 import { EditarInventarioDialog } from "./_components/EditarInventarioDialog";
 import { ConsumoManualAgujasDialog } from "./_components/ConsumoManualAgujasDialog";
 import { calcularConsumoDiarioKg } from "@/lib/consumo";
@@ -42,7 +34,6 @@ import {
 import type {
   MaterialConsumo,
   MaterialEditar,
-  InventarioSnapshot,
   MovimientoInventario,
   StockRow,
   Unidad,
@@ -155,18 +146,16 @@ function InventarioPageContent() {
   const [zonas, setZonas] = useState<Zona[]>([]);
   const [zonaId, setZonaId] = useState<string | null>(null);
   const zonaFromQuery = searchParams.get("zonaId");
-  const [rows, setRows] = useState<StockRow[]>([]);
+  const [allZonaRows, setAllZonaRows] = useState<Map<string, StockRow[]>>(
+    new Map(),
+  );
+  const [materialSeleccionado, setMaterialSeleccionado] = useState<{
+    zonaId: string;
+    zonaNombre: string;
+    material: StockRow;
+  } | null>(null);
   const [loading, setLoading] = useState(false);
   const [movimientos, setMovimientos] = useState<MovimientoInventario[]>([]);
-  const [snapshots, setSnapshots] = useState<InventarioSnapshot[]>([]);
-  const [snapshotDate, setSnapshotDate] = useState("");
-  const [snapshotLoading, setSnapshotLoading] = useState(false);
-  const [snapshotError, setSnapshotError] = useState<string | null>(null);
-  const [showHistorial, setShowHistorial] = useState(false);
-  const [materialHistorial, setMaterialHistorial] = useState("");
-  const [materialHistorialId, setMaterialHistorialId] = useState<string | null>(
-    null,
-  );
   const [showEditar, setShowEditar] = useState(false);
   const zonasInicializadas = useRef(false);
   const ultimaZonaQuery = useRef<string | null>(null);
@@ -403,7 +392,7 @@ function InventarioPageContent() {
         setFotosConsumo([]);
         setFotoError(null);
 
-        await cargar();
+        await cargarTodas();
       }
     } finally {
       setGuardandoConsumo(false);
@@ -426,8 +415,9 @@ function InventarioPageContent() {
     }
 
     // 1️⃣ Identificar el ref_tipo según el tipo de material
-    const materialNombre = rows
-      .find((r) => r.material_id === materialId)
+    const allRows = Array.from(allZonaRows.values()).flat();
+    const materialNombre = allRows
+      .find((r: StockRow) => r.material_id === materialId)
       ?.nombre.toLowerCase();
 
     let refTiposValidos: string[] = [];
@@ -516,7 +506,7 @@ function InventarioPageContent() {
     }
 
     alert("Consumo manual deshecho correctamente");
-    await cargar();
+    await cargarTodas();
   };
 
   const abrirEditar = (
@@ -595,84 +585,36 @@ function InventarioPageContent() {
       }
 
       setShowEditar(false);
-      await cargar();
+      await cargarTodas();
     } catch (err) {
       console.error(err);
       alert("❌ Error inesperado al guardar ajuste.");
     }
   };
 
-  const cargarSnapshots = async (
-    materialId: string,
-    zona: string,
-    fecha?: string,
-  ) => {
-    setSnapshotLoading(true);
-    setSnapshotError(null);
-    try {
-      const params = new URLSearchParams({
-        materialId,
-        zonaId: zona,
-      });
-      if (fecha) {
-        params.set("fecha", fecha);
-      }
-
-      const response = await fetch(
-        `/api/inventario/inventario-snapshots?${params}`,
-      );
-      if (!response.ok) {
-        const payload = await parseJsonResponse<{ error?: string }>(response);
-      }
-      const payload =
-        (await parseJsonResponse<InventarioSnapshot[]>(response)) ?? [];
-      setSnapshots(payload ?? []);
-    } catch (err) {
-      console.error("Error cargando snapshots:", err);
-      setSnapshotError(
-        err instanceof Error ? err.message : "No se pudo obtener snapshots.",
-      );
-      setSnapshots([]);
-    } finally {
-      setSnapshotLoading(false);
-    }
-  };
-
-  const verHistorial = async (materialId: string, nombre: string) => {
-    setMaterialHistorial(nombre);
-    setMaterialHistorialId(materialId);
-    if (!zonaId) {
-      alert("Selecciona una zona para ver el historial.");
+  useEffect(() => {
+    if (!materialSeleccionado) {
+      setMovimientos([]);
       return;
     }
-    setSnapshotError(null);
-    setSnapshotLoading(true);
-    const { data: movs, error } = await supabase
-      .from("movimientos_inventario")
-      .select(
-        "id, fecha, tipo, bultos, kg, notas, created_at, dia_proceso, foto_url, ref_tipo",
-      )
-      .eq("material_id", materialId)
-      .eq("zona_id", zonaId)
-      .order("fecha", { ascending: true })
-      .order("created_at", { ascending: true });
+    const { zonaId: zId, material } = materialSeleccionado;
 
-    if (error) {
-      alert("❌ Error obteniendo historial de movimientos.");
-      setSnapshotLoading(false);
-      return;
-    }
+    (async () => {
+      const { data: movs, error } = await supabase
+        .from("movimientos_inventario")
+        .select(
+          "id, fecha, tipo, bultos, kg, notas, created_at, dia_proceso, foto_url, ref_tipo",
+        )
+        .eq("material_id", material.material_id)
+        .eq("zona_id", zId)
+        .order("fecha", { ascending: true })
+        .order("created_at", { ascending: true });
 
-    setMovimientos(movs ?? []);
-    await cargarSnapshots(materialId, zonaId, snapshotDate);
-    setShowHistorial(true);
-  };
-
-  const actualizarFechaSnapshot = async (value: string) => {
-    setSnapshotDate(value);
-    if (!materialHistorialId || !zonaId) return;
-    await cargarSnapshots(materialHistorialId, zonaId, value);
-  };
+      if (!error) {
+        setMovimientos(movs ?? []);
+      }
+    })();
+  }, [materialSeleccionado]);
 
   const actualizarNotasMovimiento = async (
     movimientoId: string,
@@ -702,127 +644,131 @@ function InventarioPageContent() {
     return true;
   };
 
-  const cargar = useCallback(async () => {
-    if (!zonaId) return;
+  const procesarPayload = (payload: InventarioActualRow[]): StockRow[] => {
+    const normalizarNumero = (valor: unknown) => {
+      if (typeof valor === "number") return valor;
+      if (typeof valor === "string") {
+        const numero = Number(valor);
+        return Number.isFinite(numero) ? numero : 0;
+      }
+      return 0;
+    };
+
+    const fechaReferencia = new Date();
+
+    return payload.map((item) => {
+      const unidad = item.unidad_medida as Unidad;
+      const presentacion = item.presentacion_kg_por_bulto;
+      const tasaConsumo = item.tasa_consumo_diaria_kg;
+
+      const stockBase = normalizarNumero(item.stock);
+      const stockKg = normalizarNumero(item.stock_kg);
+      const stockBultos = normalizarNumero(item.stock_bultos);
+
+      const presentacionSegura = presentacion ?? 0;
+
+      const stockBultosDisponibles =
+        unidad === "unidad"
+          ? (stockBultos ?? stockBase)
+          : (stockBultos ??
+            (presentacionSegura > 0 ? stockKg! / presentacionSegura : 0));
+
+      const stockKgDisponibles =
+        unidad === "unidad" ? 0 : (stockKg ?? stockBase);
+
+      const consumoUnidades =
+        unidad === "unidad" &&
+        typeof tasaConsumo === "number" &&
+        Number.isFinite(tasaConsumo) &&
+        tasaConsumo > 0
+          ? tasaConsumo
+          : null;
+
+      const consumoKg =
+        unidad === "unidad"
+          ? null
+          : calcularConsumoDiarioKg({
+              nombre: item.nombre,
+              unidad_medida: unidad,
+              presentacion_kg_por_bulto: presentacion,
+              tasa_consumo_diaria_kg: tasaConsumo,
+            });
+
+      let coberturaDias: number | null = null;
+
+      if (consumoUnidades && consumoUnidades > 0) {
+        const diasCalculados = stockBultosDisponibles / consumoUnidades;
+        if (Number.isFinite(diasCalculados)) {
+          coberturaDias = Math.max(0, Math.floor(diasCalculados));
+        }
+      } else if (consumoKg && consumoKg > 0) {
+        const diasCalculados = stockKgDisponibles / consumoKg;
+        if (Number.isFinite(diasCalculados)) {
+          coberturaDias = Math.max(0, Math.floor(diasCalculados));
+        }
+      }
+
+      const cobertura = coberturaDias;
+
+      let hasta: string | null = null;
+
+      if (
+        coberturaDias != null &&
+        Number.isFinite(coberturaDias) &&
+        coberturaDias > 0
+      ) {
+        const coberturaDate = calcularFechaCobertura({
+          coberturaDias,
+          fechaInicio: fechaReferencia,
+        });
+        hasta = coberturaDate.toISOString().slice(0, 10);
+      }
+
+      return {
+        material_id: item.material_id,
+        nombre: item.nombre,
+        stock:
+          unidad === "unidad"
+            ? stockBultosDisponibles
+            : unidad === "bulto"
+              ? stockBultosDisponibles
+              : stockBase || stockKgDisponibles,
+        stockKg: unidad === "unidad" ? 0 : stockKgDisponibles,
+        unidad,
+        hasta,
+        cobertura,
+      } satisfies StockRow;
+    });
+  };
+
+  const cargarTodas = useCallback(async () => {
+    if (!zonas.length) return;
     setLoading(true);
 
     try {
-      const response = await fetch(`/api/inventario?zonaId=${zonaId}`);
+      const results = await Promise.all(
+        zonas.map(async (zona) => {
+          const response = await fetch(`/api/inventario?zonaId=${zona.id}`);
+          if (!response.ok) return { zonaId: zona.id, rows: [] as StockRow[] };
+          const payload =
+            (await parseJsonResponse<InventarioActualRow[]>(response)) ?? [];
+          return { zonaId: zona.id, rows: procesarPayload(payload) };
+        }),
+      );
 
-      if (!response.ok) {
-        throw new Error("No se pudo obtener el inventario");
+      const newMap = new Map<string, StockRow[]>();
+      for (const { zonaId: zId, rows } of results) {
+        newMap.set(zId, rows);
       }
-
-      const payload =
-        (await parseJsonResponse<InventarioActualRow[]>(response)) ?? [];
-
-      const normalizarNumero = (valor: unknown) => {
-        if (typeof valor === "number") {
-          return valor;
-        }
-        if (typeof valor === "string") {
-          const numero = Number(valor);
-          return Number.isFinite(numero) ? numero : 0;
-        }
-        return 0;
-      };
-
-      const fechaReferencia = new Date();
-
-      const data = payload.map((item) => {
-        const unidad = item.unidad_medida as Unidad;
-        const presentacion = item.presentacion_kg_por_bulto;
-
-        const tasaConsumo = item.tasa_consumo_diaria_kg;
-
-        const stockBase = normalizarNumero(item.stock);
-        const stockKg = normalizarNumero(item.stock_kg);
-        const stockBultos = normalizarNumero(item.stock_bultos);
-
-        const presentacionSegura = presentacion ?? 0;
-
-        const stockBultosDisponibles =
-          unidad === "unidad"
-            ? (stockBultos ?? stockBase)
-            : (stockBultos ??
-              (presentacionSegura > 0 ? stockKg! / presentacionSegura : 0));
-
-        const stockKgDisponibles =
-          unidad === "unidad" ? 0 : (stockKg ?? stockBase);
-
-        const consumoUnidades =
-          unidad === "unidad" &&
-          typeof tasaConsumo === "number" &&
-          Number.isFinite(tasaConsumo) &&
-          tasaConsumo > 0
-            ? tasaConsumo
-            : null;
-
-        const consumoKg =
-          unidad === "unidad"
-            ? null
-            : calcularConsumoDiarioKg({
-                nombre: item.nombre,
-                unidad_medida: unidad,
-                presentacion_kg_por_bulto: presentacion,
-                tasa_consumo_diaria_kg: tasaConsumo,
-              });
-
-        let coberturaDias: number | null = null;
-
-        if (consumoUnidades && consumoUnidades > 0) {
-          const diasCalculados = stockBultosDisponibles / consumoUnidades;
-          if (Number.isFinite(diasCalculados)) {
-            coberturaDias = Math.max(0, Math.floor(diasCalculados));
-          }
-        } else if (consumoKg && consumoKg > 0) {
-          const diasCalculados = stockKgDisponibles / consumoKg;
-          if (Number.isFinite(diasCalculados)) {
-            coberturaDias = Math.max(0, Math.floor(diasCalculados));
-          }
-        }
-
-        const cobertura = coberturaDias;
-
-        let hasta: string | null = null;
-
-        if (
-          coberturaDias != null &&
-          Number.isFinite(coberturaDias) &&
-          coberturaDias > 0
-        ) {
-          const coberturaDate = calcularFechaCobertura({
-            coberturaDias,
-            fechaInicio: fechaReferencia,
-          });
-          hasta = coberturaDate.toISOString().slice(0, 10);
-        }
-
-        return {
-          material_id: item.material_id,
-          nombre: item.nombre,
-          stock:
-            unidad === "unidad"
-              ? stockBultosDisponibles
-              : unidad === "bulto"
-                ? stockBultosDisponibles
-                : stockBase || stockKgDisponibles,
-          stockKg: unidad === "unidad" ? 0 : stockKgDisponibles,
-          unidad,
-          hasta,
-          cobertura,
-        } satisfies StockRow;
-      });
-
-      setRows(data);
+      setAllZonaRows(newMap);
     } catch (err) {
       console.error(err);
       alert("❌ Error obteniendo el inventario actual");
-      setRows([]);
+      setAllZonaRows(new Map());
     } finally {
       setLoading(false);
     }
-  }, [zonaId]);
+  }, [zonas]);
 
   const formatearFechaMovimiento = (fecha: string | null) => {
     if (!fecha) return "sin hora";
@@ -1136,7 +1082,7 @@ function InventarioPageContent() {
         alert("✅ Pedido deshecho y restaurado en la lista de pedidos.");
         cerrarDeshacerPedidoModal();
 
-        await cargar();
+        await cargarTodas();
 
         if (typeof window !== "undefined") {
           window.dispatchEvent(
@@ -1153,7 +1099,7 @@ function InventarioPageContent() {
         setDeshaciendoPedidoMaterialId(null);
       }
     },
-    [cargar, cerrarDeshacerPedidoModal, zonaId],
+    [cargarTodas, cerrarDeshacerPedidoModal, zonaId],
   );
 
   useEffect(() => {
@@ -1217,105 +1163,100 @@ function InventarioPageContent() {
   }, [zonas, zonaFromQuery, zonaId]);
 
   useEffect(() => {
-    if (zonaId) void cargar();
-  }, [cargar, zonaId]);
+    if (zonas.length) void cargarTodas();
+  }, [cargarTodas, zonas]);
 
-  const zonaActual = zonas.find((zona) => zona.id === zonaId) ?? null;
-  const totalMateriales = rows.length;
-  const materialesCriticos = rows.filter(
-    (row) => row.cobertura != null && row.cobertura <= 3,
+  const allRows = Array.from(allZonaRows.values()).flat();
+  const totalMateriales = allRows.length;
+  const materialesCriticos = allRows.filter(
+    (row: StockRow) => row.cobertura != null && row.cobertura <= 3,
   ).length;
-  const materialesEstables = rows.filter(
-    (row) => row.cobertura != null && row.cobertura >= 10,
+  const materialesEstables = allRows.filter(
+    (row: StockRow) => row.cobertura != null && row.cobertura >= 10,
   ).length;
-  const mostrarColumnaKg = rows.some((row) => row.unidad !== "unidad");
 
   return (
     <PageContainer>
       <InventarioHeader
-        zonaActual={zonaActual}
         totalMateriales={totalMateriales}
         materialesCriticos={materialesCriticos}
         materialesEstables={materialesEstables}
-        zonaSeleccionada={zonaId}
         loading={loading}
-        onRefresh={() => {
-          if (!zonaId) return;
-          void cargar();
-        }}
+        onRefresh={() => void cargarTodas()}
       />
 
-      <section className="space-y-6">
+      <section>
         {zonas.length ? (
-          <Tabs
-            value={zonaId ?? undefined}
-            onValueChange={(value) => {
-              setZonaId(value);
-            }}
-            className="space-y-6"
-          >
-            <TabsList className="flex w-full flex-initial justify-start gap-1.5 rounded-xl bg-muted/95 p-7 px-1 text">
-              {" "}
-              {zonas.map((zona) => (
-                <TabsTrigger
+          <div className="grid gap-6 md:grid-cols-3">
+            {zonas.map((zona) => {
+              const zonaRows = allZonaRows.get(zona.id) ?? [];
+              return (
+                <div
                   key={zona.id}
-                  value={zona.id}
-                  className="rounded-lg border border-b-transparent px-10 py-6 text-md font-sem data-[state=active]:border-b-[#3e74cc] data-[state=active]:bg-white data-[state=active]:text-[#1F4F9C]"
+                  className="rounded-xl border bg-white p-4 shadow-sm"
                 >
-                  {zona.nombre}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-
-            {zonas.map((zona) => (
-              <TabsContent key={zona.id} value={zona.id} className="space-y-6">
-                <Card className="border-none shadow-lg">
-                  <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <CardTitle className="text-xl font-semibold">
-                        Inventario de {zona.nombre}
-                      </CardTitle>
-                      <CardDescription>
-                        Última actualización{" "}
-                        {new Date().toLocaleDateString("es-AR")}
-                      </CardDescription>
+                  <h2 className="mb-3 text-lg font-semibold text-slate-800">
+                    {zona.nombre}
+                  </h2>
+                  {loading ? (
+                    <div className="flex flex-col gap-2">
+                      {Array.from({ length: 3 }).map((_, i) => (
+                        <div
+                          key={`skel-${zona.id}-${i}`}
+                          className="h-14 animate-pulse rounded-xl border bg-slate-100"
+                        />
+                      ))}
                     </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="overflow-hidden rounded-xl border">
-                      <InventarioTable
-                        rows={rows}
-                        loading={loading}
-                        mostrarColumnaKg={mostrarColumnaKg}
-                        onVerHistorial={verHistorial}
-                        onEditar={abrirEditar}
-                        onConsumo={abrirConsumoManual}
-                        onDeshacerConsumo={deshacerConsumoManual}
-                        onDeshacerPedido={abrirDeshacerPedidoModal}
-                        deshaciendoPedidoMaterialId={
-                          deshaciendoPedidoMaterialId
-                        }
-                      />
+                  ) : zonaRows.length ? (
+                    <div className="flex flex-col gap-2">
+                      {zonaRows.map((row) => (
+                        <MaterialButton
+                          key={row.material_id}
+                          row={row}
+                          onClick={() => {
+                            setZonaId(zona.id);
+                            setMaterialSeleccionado({
+                              zonaId: zona.id,
+                              zonaNombre: zona.nombre,
+                              material: row,
+                            });
+                          }}
+                        />
+                      ))}
                     </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            ))}
-          </Tabs>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      No hay materiales registrados.
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         ) : (
-          <Card className="border-none py-12 text-center shadow-lg">
-            <CardHeader>
-              <CardTitle className="text-xl font-semibold">
-                No hay zonas activas
-              </CardTitle>
-              <CardDescription>
-                Configura zonas activas en el panel de administración para
-                visualizar el inventario.
-              </CardDescription>
-            </CardHeader>
-          </Card>
+          <div className="rounded-2xl border py-12 text-center shadow-lg">
+            <h3 className="text-xl font-semibold">No hay zonas activas</h3>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Configura zonas activas en el panel de administración para
+              visualizar el inventario.
+            </p>
+          </div>
         )}
       </section>
+
+      <MaterialAccionesDialog
+        open={materialSeleccionado !== null}
+        material={materialSeleccionado?.material ?? null}
+        zonaNombre={materialSeleccionado?.zonaNombre ?? ""}
+        movimientos={movimientos}
+        onUpdateNotas={actualizarNotasMovimiento}
+        onClose={() => setMaterialSeleccionado(null)}
+        onEditar={abrirEditar}
+        onConsumo={abrirConsumoManual}
+        onDeshacerConsumo={deshacerConsumoManual}
+        onDeshacerPedido={abrirDeshacerPedidoModal}
+        deshaciendoPedidoMaterialId={deshaciendoPedidoMaterialId}
+      />
       <Dialog
         open={showDeshacerPedidoModal}
         onOpenChange={(value) => {
@@ -1405,21 +1346,6 @@ function InventarioPageContent() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <HistorialDialog
-        open={showHistorial}
-        materialId={materialHistorialId}
-        materialNombre={materialHistorial}
-        movimientos={movimientos}
-        snapshots={snapshots}
-        snapshotDate={snapshotDate}
-        snapshotError={snapshotError}
-        snapshotLoading={snapshotLoading}
-        onSnapshotDateChange={actualizarFechaSnapshot}
-        onClose={() => setShowHistorial(false)}
-        editableRefTipos={["*"]}
-        onUpdateNotas={actualizarNotasMovimiento}
-      />
 
       <EditarInventarioDialog
         open={showEditar}
