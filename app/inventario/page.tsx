@@ -60,6 +60,17 @@ type PedidoParaDeshacer = {
   fecha: string | null;
 };
 
+type AlertaCriticaItem = {
+  zonaId: string;
+  zonaNombre: string;
+  materialId: string;
+  materialNombre: string;
+  cobertura: number | null;
+  hasta: string | null;
+  stock: number;
+  unidad: Unidad;
+};
+
 const obtenerStockMap = async (zonaId: string) => {
   try {
     const response = await fetch(`/api/inventario?zonaId=${zonaId}`);
@@ -185,6 +196,11 @@ function InventarioPageContent() {
     nombre: string;
   } | null>(null);
   const deshaciendoPedidoRef = useRef(false);
+  const [alertaCriticaItems, setAlertaCriticaItems] = useState<
+    AlertaCriticaItem[]
+  >([]);
+  const [alertaCriticaDismissed, setAlertaCriticaDismissed] = useState(false);
+  const [alertaCriticaLoading, setAlertaCriticaLoading] = useState(false);
 
   const buildNotasGenericas = (cantidad: number, unidad: Unidad) =>
     cantidad > 0
@@ -761,6 +777,74 @@ function InventarioPageContent() {
         newMap.set(zId, rows);
       }
       setAllZonaRows(newMap);
+
+      const zonasPorId = new Map(zonas.map((zona) => [zona.id, zona.nombre]));
+      const criticos: AlertaCriticaItem[] = [];
+      for (const { zonaId: zId, rows } of results) {
+        for (const row of rows) {
+          if (row.cobertura != null && row.cobertura <= 3) {
+            criticos.push({
+              zonaId: zId,
+              zonaNombre: zonasPorId.get(zId) ?? "Zona",
+              materialId: row.material_id,
+              materialNombre: row.nombre,
+              cobertura: row.cobertura,
+              hasta: row.hasta,
+              stock: row.stock,
+              unidad: row.unidad,
+            });
+          }
+        }
+      }
+
+      if (!criticos.length) {
+        setAlertaCriticaItems([]);
+        setAlertaCriticaDismissed(false);
+        return;
+      }
+
+      setAlertaCriticaLoading(true);
+      try {
+        const materialIds = Array.from(
+          new Set(criticos.map((item) => item.materialId)),
+        );
+        const zonaIds = Array.from(
+          new Set(criticos.map((item) => item.zonaId)),
+        );
+
+        const { data, error } = await supabase
+          .from("pedido_items")
+          .select("material_id, pedidos!inner(estado, zona_id)")
+          .in("material_id", materialIds)
+          .in("pedidos.estado", ["enviado", "recibido"])
+          .in("pedidos.zona_id", zonaIds);
+
+        if (error) {
+          console.warn("No se pudo validar pedidos pendientes", error);
+          setAlertaCriticaItems(criticos);
+          return;
+        }
+
+        const pendientes = new Set<string>();
+        (data ?? []).forEach((item) => {
+          const pedidoRaw = (item as { pedidos?: unknown }).pedidos;
+          const pedido = Array.isArray(pedidoRaw)
+            ? (pedidoRaw[0] as { zona_id?: string } | undefined)
+            : (pedidoRaw as { zona_id?: string } | null | undefined);
+          if (!pedido?.zona_id || !item.material_id) return;
+          pendientes.add(`${pedido.zona_id}|${item.material_id}`);
+        });
+
+        const sinPedido = criticos.filter(
+          (item) => !pendientes.has(`${item.zonaId}|${item.materialId}`),
+        );
+        setAlertaCriticaItems(sinPedido);
+        if (!sinPedido.length) {
+          setAlertaCriticaDismissed(false);
+        }
+      } finally {
+        setAlertaCriticaLoading(false);
+      }
     } catch (err) {
       console.error(err);
       alert("❌ Error obteniendo el inventario actual");
@@ -1175,8 +1259,83 @@ function InventarioPageContent() {
     (row: StockRow) => row.cobertura != null && row.cobertura >= 10,
   ).length;
 
+  const mostrarAlertaCritica =
+    alertaCriticaItems.length > 0 && !alertaCriticaDismissed;
+
   return (
     <PageContainer>
+      {mostrarAlertaCritica && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-4xl overflow-hidden rounded-2xl border bg-white shadow-2xl">
+            <div className="flex flex-wrap items-start justify-between gap-4 border-b px-6 py-5">
+              <div className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-[0.35em] text-rose-600">
+                  Alerta critica
+                </p>
+                <h2 className="text-2xl font-semibold text-slate-900">
+                  Materiales con cobertura critica
+                </h2>
+                <p className="text-sm text-slate-600">
+                  No hay un pedido enviado pendiente para estos materiales.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  variant="secondary"
+                  className="border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                  onClick={() => setAlertaCriticaDismissed(true)}
+                >
+                  Cerrar alerta
+                </Button>
+              </div>
+            </div>
+            <div className="max-h-[65vh] overflow-y-auto px-6 py-5">
+              <div className="grid gap-4 md:grid-cols-2">
+                {alertaCriticaItems.map((item) => (
+                  <div
+                    key={`${item.zonaId}-${item.materialId}`}
+                    className="rounded-xl border border-rose-100 bg-rose-50/40 p-4"
+                  >
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-rose-500">
+                      {item.zonaNombre}
+                    </p>
+                    <h3 className="mt-2 text-lg font-semibold text-slate-900">
+                      {item.materialNombre}
+                    </h3>
+                    <div className="mt-3 space-y-1 text-sm text-slate-700">
+                      <p>
+                        Cobertura:{" "}
+                        <span className="font-semibold text-rose-600">
+                          {item.cobertura ?? 0} dias
+                        </span>
+                      </p>
+                      <p>
+                        Stock actual:{" "}
+                        <span className="font-semibold">
+                          {item.stock} {item.unidad}
+                        </span>
+                      </p>
+                      <p>
+                        Cobertura hasta:{" "}
+                        <span className="font-semibold">
+                          {item.hasta
+                            ? new Date(item.hasta).toLocaleDateString("es-CO")
+                            : "Sin fecha"}
+                        </span>
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {alertaCriticaLoading && (
+                <p className="mt-4 text-xs text-muted-foreground">
+                  Validando pedidos pendientes...
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       <InventarioHeader
         totalMateriales={totalMateriales}
         materialesCriticos={materialesCriticos}

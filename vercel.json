@@ -8,6 +8,10 @@
     {
       "path": "/api/inventario/inventario-snapshots/cron",
       "schedule": "0 23 * * *"
+    },
+    {
+      "path": "/api/inventario/alerta-criticos/cron",
+      "schedule": "0 5 * * *"
     }
   ]
 }
