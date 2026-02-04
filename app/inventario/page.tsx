@@ -69,6 +69,7 @@ type AlertaCriticaItem = {
   hasta: string | null;
   stock: number;
   unidad: Unidad;
+  pedidoHecho: boolean;
 };
 
 const obtenerStockMap = async (zonaId: string) => {
@@ -792,6 +793,7 @@ function InventarioPageContent() {
               hasta: row.hasta,
               stock: row.stock,
               unidad: row.unidad,
+              pedidoHecho: false,
             });
           }
         }
@@ -811,37 +813,40 @@ function InventarioPageContent() {
         const zonaIds = Array.from(
           new Set(criticos.map((item) => item.zonaId)),
         );
+        const buildKey = (zona: string, materialId: string | number) =>
+          `${zona}|${String(materialId)}`;
 
-        const { data, error } = await supabase
-          .from("pedido_items")
-          .select("material_id, pedidos!inner(estado, zona_id)")
-          .in("material_id", materialIds)
-          .in("pedidos.estado", ["enviado", "recibido"])
-          .in("pedidos.zona_id", zonaIds);
+        const response = await fetch("/api/inventario/alerta-criticos/pedidos", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ zonaIds, materialIds }),
+        });
 
-        if (error) {
-          console.warn("No se pudo validar pedidos pendientes", error);
+        if (!response.ok) {
+          console.warn("No se pudo validar pedidos pendientes");
           setAlertaCriticaItems(criticos);
           return;
         }
 
-        const pendientes = new Set<string>();
-        (data ?? []).forEach((item) => {
-          const pedidoRaw = (item as { pedidos?: unknown }).pedidos;
-          const pedido = Array.isArray(pedidoRaw)
-            ? (pedidoRaw[0] as { zona_id?: string } | undefined)
-            : (pedidoRaw as { zona_id?: string } | null | undefined);
-          if (!pedido?.zona_id || !item.material_id) return;
-          pendientes.add(`${pedido.zona_id}|${item.material_id}`);
-        });
+        const payload = (await parseJsonResponse<{
+          ok?: boolean;
+          pedidos?: { zonaId: string; materialId: string }[];
+        }>(response)) ?? { ok: false };
 
-        const sinPedido = criticos.filter(
-          (item) => !pendientes.has(`${item.zonaId}|${item.materialId}`),
-        );
-        setAlertaCriticaItems(sinPedido);
-        if (!sinPedido.length) {
-          setAlertaCriticaDismissed(false);
+        if (!payload?.ok || !Array.isArray(payload.pedidos)) {
+          setAlertaCriticaItems(criticos);
+          return;
         }
+
+        const pendientes = new Set(
+          payload.pedidos.map((p) => buildKey(p.zonaId, p.materialId)),
+        );
+
+        const criticosConPedido = criticos.map((item) => ({
+          ...item,
+          pedidoHecho: pendientes.has(buildKey(item.zonaId, item.materialId)),
+        }));
+        setAlertaCriticaItems(criticosConPedido);
       } finally {
         setAlertaCriticaLoading(false);
       }
@@ -1276,7 +1281,8 @@ function InventarioPageContent() {
                   Materiales con cobertura critica
                 </h2>
                 <p className="text-sm text-slate-600">
-                  No hay un pedido enviado pendiente para estos materiales.
+                  Si ya registraste un pedido, veras la etiqueta "Pedido hecho"
+                  en el material correspondiente.
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
@@ -1296,9 +1302,20 @@ function InventarioPageContent() {
                     key={`${item.zonaId}-${item.materialId}`}
                     className="rounded-xl border border-rose-100 bg-rose-50/40 p-4"
                   >
-                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-rose-500">
-                      {item.zonaNombre}
-                    </p>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-rose-500">
+                        {item.zonaNombre}
+                      </p>
+                      <span
+                        className={`rounded-full px-2 py-1 text-[11px] font-semibold uppercase tracking-wide ${
+                          item.pedidoHecho
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-rose-100 text-rose-700"
+                        }`}
+                      >
+                        {item.pedidoHecho ? "Pedido hecho" : "Sin pedido"}
+                      </span>
+                    </div>
                     <h3 className="mt-2 text-lg font-semibold text-slate-900">
                       {item.materialNombre}
                     </h3>

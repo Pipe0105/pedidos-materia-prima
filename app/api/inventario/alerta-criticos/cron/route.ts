@@ -5,7 +5,7 @@ import { getSupabaseAdmin } from "@/lib/supabasedamin";
 import type { InventarioActualRow } from "@/app/(dashboard)/_components/_types";
 
 const ALERTA_UMBRAL_DIAS = 3;
-const ESTADOS_PENDIENTES = ["enviado", "recibido"] as const;
+const ESTADOS_PENDIENTES = ["enviado"] as const;
 const DESTINATARIOS = [
   "asiscalidadppt@mercamio.com",
   "jefedecalidad@mercamio.com",
@@ -158,13 +158,19 @@ export async function GET() {
       .maybeSingle();
 
     if (envioPrevioError) {
-      console.error("alerta criticos: error consultando envio previo", {
-        envioPrevioError,
-      });
-      return NextResponse.json(
-        { error: "No se pudo validar el envio previo" },
-        { status: 500 },
-      );
+      if (envioPrevioError.code === "PGRST205") {
+        console.warn(
+          "alerta criticos: tabla alertas_criticos_envios no existe, se omite validacion",
+        );
+      } else {
+        console.error("alerta criticos: error consultando envio previo", {
+          envioPrevioError,
+        });
+        return NextResponse.json(
+          { error: "No se pudo validar el envio previo" },
+          { status: 500 },
+        );
+      }
     }
 
     if (envioPrevio) {
@@ -316,11 +322,17 @@ export async function GET() {
       });
 
     if (insertError) {
-      console.error("alerta criticos: error guardando envio", insertError);
-      return NextResponse.json(
-        { error: "No se pudo registrar el envio" },
-        { status: 500 },
-      );
+      if (insertError.code === "PGRST205") {
+        console.warn(
+          "alerta criticos: tabla alertas_criticos_envios no existe, se omite registro",
+        );
+      } else {
+        console.error("alerta criticos: error guardando envio", insertError);
+        return NextResponse.json(
+          { error: "No se pudo registrar el envio" },
+          { status: 500 },
+        );
+      }
     }
 
     return NextResponse.json({
