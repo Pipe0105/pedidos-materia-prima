@@ -11,7 +11,7 @@
     },
     {
       "path": "/api/inventario/alerta-criticos/cron",
-      "schedule": "0 11 * * *"
+      "schedule": "35 14 * * *"
     }
   ]
 }
