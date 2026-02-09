@@ -66,21 +66,32 @@ export default function PedidoResumen({
 
   const unidadPrincipal = primerMaterial?.materiales?.unidad_medida ?? null;
 
-  const tituloBase = esPedidoMateriales
+  const esZonaSalmuera =
+    zonaNombre === "Desposte" || zonaNombre === "Desprese";
+
+  const tituloBase = esZonaSalmuera
+    ? zonaNombre === "Desposte"
+      ? "PEDIDO SALMUERA DESPOSTE"
+      : "PEDIDO SALMUERA DESPRESE"
+    : esPedidoMateriales
     ? `PEDIDO ${
         primerMaterial?.materiales?.nombre
           ? primerMaterial.materiales.nombre.toUpperCase()
           : "MATERIALES"
       }`
-    : zonaNombre === "Desposte"
-    ? "PEDIDO SALMUERA CARNES"
-    : zonaNombre === "Desprese"
-    ? "PEDIDO SALMUERA POLLO"
     : "PEDIDO PANIFICADORA";
 
-  const titulo = zonaNombre
+  const titulo = esZonaSalmuera
+    ? tituloBase
+    : zonaNombre
     ? `${tituloBase} ${zonaNombre.toUpperCase()}`
     : tituloBase;
+
+  const subtituloSalmuera = esZonaSalmuera
+    ? zonaNombre === "Desposte"
+      ? "SALMUERA PARA CARNES PROSAL 5% : PLANTA DESPOSTE MIXTO"
+      : "SALMUERA PARA POLLOS PROSAL HP-PLUS 4%"
+    : null;
 
   const encabezadoCantidad = esPedidoMateriales
     ? `CANTIDAD ${
@@ -133,9 +144,15 @@ export default function PedidoResumen({
     doc.setFont("helvetica", "bold");
     doc.text(titulo, 105, 20, { align: "center" });
 
+    if (subtituloSalmuera) {
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "normal");
+      doc.text(subtituloSalmuera, 105, 28, { align: "center" });
+    }
+
     // Tabla con estilo
     autoTable(doc, {
-      startY: 35,
+      startY: subtituloSalmuera ? 42 : 35,
       head: [[encabezadoCantidad, "CANTIDAD KILOS", "EMPRESA"]],
       body: empresas.map((e) => [
         `${formatNumber(e.bultos ?? 0)}${
@@ -217,7 +234,12 @@ export default function PedidoResumen({
             onClick={(e) => e.stopPropagation()} // 👈 evita cierre al hacer clic dentro
             className="bg-white rounded-lg shadow-lg w-[500px] p-6 space-y-4"
           >
-            <h2 className="text-xl font-bold text-center">{titulo}</h2>
+            <div className="text-center space-y-1">
+              <h2 className="text-xl font-bold">{titulo}</h2>
+              {subtituloSalmuera && (
+                <p className="text-sm font-semibold">{subtituloSalmuera}</p>
+              )}
+            </div>
 
             <table className="w-full border border-black text-sm text-center border-collapse">
               <thead>
