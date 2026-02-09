@@ -1,7 +1,6 @@
 "use client";
 export const dynamic = "force-dynamic";
 import { useEffect, useMemo, useState } from "react";
-
 import { supabase } from "@/lib/supabase";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FilterPanel } from "./components/filter-panel";
@@ -72,7 +71,7 @@ export default function HistorialPage() {
             kg,
             materiales (nombre, unidad_medida)
           )
-        `
+        `,
         )
         .or("estado.eq.completado,cancelado_at.not.is.null")
         .order("fecha_pedido", { ascending: false });
@@ -92,18 +91,18 @@ export default function HistorialPage() {
 
           zonas: Array.isArray(pedido.zonas)
             ? { nombre: pedido.zonas[0]?.nombre ?? null }
-            : pedido.zonas ?? { nombre: null },
+            : (pedido.zonas ?? { nombre: null }),
           pedido_items: Array.isArray(pedido.pedido_items)
             ? pedido.pedido_items
                 .filter((item): item is NonNullable<typeof item> =>
-                  Boolean(item)
+                  Boolean(item),
                 )
                 .map((item) => ({
                   bultos: item.bultos,
                   kg: item.kg,
                   materiales: Array.isArray(item.materiales)
-                    ? item.materiales[0] ?? null
-                    : item.materiales ?? null,
+                    ? (item.materiales[0] ?? null)
+                    : (item.materiales ?? null),
                 }))
             : [],
         }));
@@ -130,7 +129,7 @@ export default function HistorialPage() {
           zonasOrdenadas.map((zona) => ({
             ...zona,
             id: String(zona.id),
-          }))
+          })),
         );
       }
 
@@ -159,13 +158,13 @@ export default function HistorialPage() {
       .filter((pedido) =>
         q
           ? (pedido.solicitante ?? "").toLowerCase().includes(q.toLowerCase())
-          : true
+          : true,
       )
       .filter((pedido) =>
-        desde ? new Date(pedido.fecha_pedido) >= new Date(desde) : true
+        desde ? new Date(pedido.fecha_pedido) >= new Date(desde) : true,
       )
       .filter((pedido) =>
-        hasta ? new Date(pedido.fecha_pedido) <= new Date(hasta) : true
+        hasta ? new Date(pedido.fecha_pedido) <= new Date(hasta) : true,
       );
   }, [pedidos, q, desde, hasta]);
 

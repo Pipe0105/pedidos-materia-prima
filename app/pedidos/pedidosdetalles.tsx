@@ -41,6 +41,9 @@ export default function PedidoResumen({
     { nombre: "MERCAMIO", bultos: 0, kilos: 0 },
     { nombre: "COMERCIALIZADORA", bultos: 0, kilos: 0 },
   ]);
+  const [subtituloSeleccionado, setSubtituloSeleccionado] = useState<
+    string | null
+  >(null);
 
   const modalRef = useRef<HTMLDivElement>(null);
 
@@ -87,10 +90,18 @@ export default function PedidoResumen({
     ? `${tituloBase} ${zonaNombre.toUpperCase()}`
     : tituloBase;
 
-  const subtituloSalmuera = esZonaSalmuera
+  const opcionesSubtituloSalmuera = esZonaSalmuera
     ? zonaNombre === "Desposte"
-      ? "SALMUERA PARA CARNES PROSAL 5% : PLANTA DESPOSTE MIXTO"
-      : "SALMUERA PARA POLLOS PROSAL HP-PLUS 4%"
+      ? ["SALMUERA PARA CARNES PROSAL 5%", "SALMUERA CARNES AD CR"]
+      : [
+          "SALMUERA PARA POLLOS PROSAL HP-Plus 3%",
+          "SALMUERA PARA POLLOS PROSAL HP-PLUS 4%",
+          "SALMUERA PARA POLLOS PROSAL HP-P 5%",
+        ]
+    : [];
+
+  const subtituloSalmuera = esZonaSalmuera
+    ? subtituloSeleccionado ?? opcionesSubtituloSalmuera[0] ?? null
     : null;
 
   const encabezadoCantidad = esPedidoMateriales
@@ -218,6 +229,11 @@ export default function PedidoResumen({
               kilos: comercialKg,
             },
           ]);
+          if (opcionesSubtituloSalmuera.length > 0) {
+            setSubtituloSeleccionado(opcionesSubtituloSalmuera[0]);
+          } else {
+            setSubtituloSeleccionado(null);
+          }
           setOpen(true);
         }}
         className="gap-2 rounded bg-blue-600 text-white px-3 py-1 text-sm hover:bg-blue-700"
@@ -240,6 +256,24 @@ export default function PedidoResumen({
                 <p className="text-sm font-semibold">{subtituloSalmuera}</p>
               )}
             </div>
+            {esZonaSalmuera && opcionesSubtituloSalmuera.length > 0 && (
+              <div className="no-export">
+                <label className="block text-sm font-semibold mb-1">
+                  Seleccionar formato de salmuera
+                </label>
+                <select
+                  className="w-full rounded border border-black/30 px-3 py-2 text-sm"
+                  value={subtituloSalmuera ?? ""}
+                  onChange={(e) => setSubtituloSeleccionado(e.target.value)}
+                >
+                  {opcionesSubtituloSalmuera.map((opcion) => (
+                    <option key={opcion} value={opcion}>
+                      {opcion}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <table className="w-full border border-black text-sm text-center border-collapse">
               <thead>
