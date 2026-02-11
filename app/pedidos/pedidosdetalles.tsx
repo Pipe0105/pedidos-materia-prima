@@ -66,43 +66,51 @@ export default function PedidoResumen({
   const primerMaterial = esPedidoMateriales
     ? (pedido.pedido_items ?? []).find((item) => item?.materiales?.nombre)
     : null;
+  const nombreMaterial = (primerMaterial?.materiales?.nombre ?? "").trim();
+  const nombreMaterialLower = nombreMaterial.toLowerCase();
 
   const unidadPrincipal = primerMaterial?.materiales?.unidad_medida ?? null;
 
-  const esZonaSalmuera =
-    zonaNombre === "Desposte" || zonaNombre === "Desprese";
+  const esZonaSalmuera = zonaNombre === "Desposte" || zonaNombre === "Desprese";
+  const esMaterialSalmuera = nombreMaterialLower.includes("salmuera");
+  const esMaterialBolsatina = nombreMaterialLower.includes("bolsatina");
 
-  const tituloBase = esZonaSalmuera
-    ? zonaNombre === "Desposte"
-      ? "PEDIDO SALMUERA DESPOSTE"
-      : "PEDIDO SALMUERA DESPRESE"
+  const usarFormatoSalmuera = esZonaSalmuera && esMaterialSalmuera;
+
+  const nombreMaterialTitulo = nombreMaterial
+    ? nombreMaterial.toUpperCase()
+    : esMaterialBolsatina
+    ? "BOLSATINA"
+    : "MATERIALES";
+
+  const titulo = zonaNombre
+    ? esPedidoMateriales
+      ? `PEDIDO ${nombreMaterialTitulo} PARA PLANTA ${zonaNombre.toUpperCase()}`
+      : `PEDIDO PANIFICADORA PARA PLANTA ${zonaNombre.toUpperCase()}`
     : esPedidoMateriales
-    ? `PEDIDO ${
-        primerMaterial?.materiales?.nombre
-          ? primerMaterial.materiales.nombre.toUpperCase()
-          : "MATERIALES"
-      }`
+    ? `PEDIDO ${nombreMaterialTitulo}`
     : "PEDIDO PANIFICADORA";
 
-  const titulo = esZonaSalmuera
-    ? tituloBase
-    : zonaNombre
-    ? `${tituloBase} ${zonaNombre.toUpperCase()}`
-    : tituloBase;
-
-  const opcionesSubtituloSalmuera = esZonaSalmuera
+  const opcionesSubtituloSalmuera = usarFormatoSalmuera
     ? zonaNombre === "Desposte"
       ? ["SALMUERA PARA CARNES PROSAL 5%", "SALMUERA CARNES AD CR"]
       : [
           "SALMUERA PARA POLLOS PROSAL HP-Plus 3%",
           "SALMUERA PARA POLLOS PROSAL HP-PLUS 4%",
           "SALMUERA PARA POLLOS PROSAL HP-P 5%",
+          "SALMUERA HP-INV 3% 15k",
         ]
     : [];
 
-  const subtituloSalmuera = esZonaSalmuera
+  const subtituloSalmuera = usarFormatoSalmuera
     ? subtituloSeleccionado ?? opcionesSubtituloSalmuera[0] ?? null
     : null;
+
+  const subtituloBolsatina = esMaterialBolsatina
+    ? "BOLSA TR ALTA NO IMP 107x60"
+    : null;
+
+  const subtitulo = subtituloSalmuera ?? subtituloBolsatina;
 
   const encabezadoCantidad = esPedidoMateriales
     ? `CANTIDAD ${
@@ -155,15 +163,15 @@ export default function PedidoResumen({
     doc.setFont("helvetica", "bold");
     doc.text(titulo, 105, 20, { align: "center" });
 
-    if (subtituloSalmuera) {
+    if (subtitulo) {
       doc.setFontSize(11);
       doc.setFont("helvetica", "normal");
-      doc.text(subtituloSalmuera, 105, 28, { align: "center" });
+      doc.text(subtitulo, 105, 28, { align: "center" });
     }
 
     // Tabla con estilo
     autoTable(doc, {
-      startY: subtituloSalmuera ? 42 : 35,
+      startY: subtitulo ? 42 : 35,
       head: [[encabezadoCantidad, "CANTIDAD KILOS", "EMPRESA"]],
       body: empresas.map((e) => [
         `${formatNumber(e.bultos ?? 0)}${
@@ -252,11 +260,11 @@ export default function PedidoResumen({
           >
             <div className="text-center space-y-1">
               <h2 className="text-xl font-bold">{titulo}</h2>
-              {subtituloSalmuera && (
-                <p className="text-sm font-semibold">{subtituloSalmuera}</p>
+              {subtitulo && (
+                <p className="text-sm font-semibold">{subtitulo}</p>
               )}
             </div>
-            {esZonaSalmuera && opcionesSubtituloSalmuera.length > 0 && (
+            {usarFormatoSalmuera && opcionesSubtituloSalmuera.length > 0 && (
               <div className="no-export">
                 <label className="block text-sm font-semibold mb-1">
                   Seleccionar formato de salmuera
