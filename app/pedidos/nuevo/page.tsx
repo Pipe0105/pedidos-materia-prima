@@ -25,6 +25,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useToast } from "@/components/toastprovider";
+import { calcularFechaCobertura } from "@/lib/utils";
 
 function LoadingNuevoPedido() {
   return (
@@ -48,6 +49,7 @@ type PedidoItem = {
   nombre: string;
   bultos: number;
   kg: number | null;
+  cobertura: number | null;
   materiales: {
     nombre: string;
     presentacion_kg_por_bulto: number | null;
@@ -75,6 +77,7 @@ function NuevoPedidoPageContent() {
       nombre: string;
       presentacion_kg_por_bulto: number | null;
       unidad_medida: "bulto" | "unidad" | "litro";
+      cobertura: number | null;
     }
   ) {
     if (!meta) return;
@@ -90,6 +93,7 @@ function NuevoPedidoPageContent() {
             : meta.unidad_medida === "litro"
             ? 1 // si 1 litro = 1kg
             : null,
+        cobertura: meta.cobertura,
         materiales: meta,
       },
     ]);
@@ -172,6 +176,12 @@ function NuevoPedidoPageContent() {
 
   const totalBultos = items.reduce((sum, it) => sum + it.bultos, 0);
   const totalKg = items.reduce((sum, it) => sum + (it.kg ?? 0), 0);
+  const formatoCobertura = (cobertura: number | null) => {
+    if (cobertura == null) return "N/D";
+    if (!Number.isFinite(cobertura) || cobertura <= 0) return "Sin cobertura";
+    const fechaCobertura = calcularFechaCobertura({ coberturaDias: cobertura });
+    return fechaCobertura.toLocaleDateString("es-CO");
+  };
 
   return (
     <main className="py-6">
@@ -258,6 +268,9 @@ function NuevoPedidoPageContent() {
                       <TableRow>
                         <TableHead>Material</TableHead>
                         <TableHead>Unidad</TableHead>
+                        <TableHead className="w-36 text-center">
+                          Cobertura
+                        </TableHead>
                         <TableHead className="w-32 text-center">
                           Cantidad
                         </TableHead>
@@ -279,6 +292,9 @@ function NuevoPedidoPageContent() {
                           </TableCell>
                           <TableCell className="capitalize text-muted-foreground">
                             {it.materiales?.unidad_medida}
+                          </TableCell>
+                          <TableCell className="text-center text-sm text-muted-foreground">
+                            {formatoCobertura(it.cobertura)}
                           </TableCell>
                           <TableCell className="text-center">
                             <Input
