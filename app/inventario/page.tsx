@@ -304,9 +304,11 @@ function InventarioPageContent() {
 
     const { id, unidad } = materialConsumo;
     const notasGenericas = buildNotasGenericas(cantidad, unidad);
-    const notasBase = notasConsumo.trim() || notasGenericas;
+    const notasBase = notasEditadas
+      ? notasConsumo.trim()
+      : notasConsumo.trim() || notasGenericas;
     let notas = notasBase;
-    if (unidad === "bulto") {
+    if (unidad === "bulto" && notasBase.length > 0) {
       const stockMap = await obtenerStockMap(zonaId);
       const stockActual = obtenerStockActual(stockMap, id);
       notas = buildNotaConStock({
@@ -1558,7 +1560,7 @@ function InventarioPageContent() {
         onDayChange={setDiaProceso}
         onNotesChange={(value) => {
           setNotasConsumo(value);
-          setNotasEditadas(value.trim().length > 0);
+          setNotasEditadas(true);
         }}
         notesValue={notasConsumo}
         notesLabel="Notas del consumo"
