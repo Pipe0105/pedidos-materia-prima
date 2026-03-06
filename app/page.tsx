@@ -133,6 +133,10 @@ export default function HomePage() {
         onCompletar={handleCompletar}
         materialesConCobertura={materialesConCobertura}
       />
+
+      <footer className="mt-8 border-t border-slate-200 pt-4 text-center text-xs text-slate-500 sm:text-sm">
+        Created by Juan Felipe Gomez and Juan Manuel Velasquez
+      </footer>
     </PageContainer>
   );
 }
