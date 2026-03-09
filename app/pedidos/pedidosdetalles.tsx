@@ -24,6 +24,7 @@ type PedidoResumenData = {
   total_bultos?: number | null;
   total_kg?: number | null;
   fecha_entrega?: string | null;
+  notas?: string | null;
   pedido_items?: PedidoItem[] | null;
 };
 
@@ -121,6 +122,7 @@ export default function PedidoResumen({
   const etiquetaCantidad = esPedidoMateriales
     ? unidadLabels[unidadPrincipal ?? ""] ?? undefined
     : undefined;
+  const notasPedido = pedido.notas?.trim() ?? "";
 
   // Descargar como PNG con html-to-image
   const descargarPNG = async () => {
@@ -207,9 +209,22 @@ export default function PedidoResumen({
       { weekday: "long", day: "numeric", month: "long" }
     );
 
+    let infoY = finalY + 15;
+
+    if (notasPedido) {
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.text("NOTAS:", 14, infoY);
+
+      doc.setFont("helvetica", "normal");
+      const notasLineas = doc.splitTextToSize(notasPedido, 180);
+      doc.text(notasLineas, 14, infoY + 6);
+      infoY += 6 + notasLineas.length * 6 + 3;
+    }
+
     doc.setFontSize(12);
     doc.setFont("helvetica", "bold");
-    doc.text(`FECHA DE ENTREGA: ${fechaTexto}`, 14, finalY + 15);
+    doc.text(`FECHA DE ENTREGA: ${fechaTexto}`, 14, infoY);
 
     doc.save(`${titulo}.pdf`);
   };
@@ -318,7 +333,16 @@ export default function PedidoResumen({
               </tbody>
             </table>
 
-            <p className="text-left mt-4 font-semibold">
+            {notasPedido && (
+              <p className="text-left mt-4 font-semibold">
+                NOTAS:{" "}
+                <span className="text-base font-normal text-slate-800">
+                  {notasPedido}
+                </span>
+              </p>
+            )}
+
+            <p className="text-left mt-2 font-semibold">
               FECHA DE ENTREGA:{" "}
               <span className="text-lg font-semibold text-blue-700">
                 {(() => {
