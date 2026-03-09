@@ -4,9 +4,9 @@ import type { NextRequest } from "next/server";
 export function middleware(req: NextRequest) {
   const pathname = req.nextUrl.pathname.toLowerCase();
 
-  // Bloquea el acceso a pconsumo y redirige a inventario.
+  // Bloquea el acceso a pconsumo sin redireccionar.
   if (pathname.startsWith("/pconsumo")) {
-    return NextResponse.redirect(new URL("/inventario", req.url));
+    return new NextResponse("403 - Acceso bloqueado", { status: 403 });
   }
 
   // Mientras la autenticacion no sea necesaria, dejamos pasar todas las solicitudes.
