@@ -334,9 +334,9 @@ export default function PedidoResumen({
             </table>
 
             {notasPedido && (
-              <p className="text-left mt-4 font-semibold">
+              <p className="mt-4 text-left font-semibold break-words">
                 NOTAS:{" "}
-                <span className="text-base font-normal text-slate-800">
+                <span className="mt-1 block max-w-full whitespace-pre-wrap break-words text-base font-normal text-slate-800">
                   {notasPedido}
                 </span>
               </p>
