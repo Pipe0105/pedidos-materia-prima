@@ -502,6 +502,8 @@ export default function PedidoEditorPage() {
                                 nuevoKg = factor
                                   ? Number((nuevoBultos * factor).toFixed(2))
                                   : 0;
+                              } else if (unidad === "litro") {
+                                nuevoKg = nuevoBultos;
                               }
                               void actualizarItem(item, {
                                 bultos: nuevoBultos,
@@ -524,7 +526,25 @@ export default function PedidoEditorPage() {
                                 const nuevoKg = Number.isNaN(valor)
                                   ? 0
                                   : Math.max(0, valor);
+                                let nuevoBultos = item.bultos;
+                                if (unidad === "bulto") {
+                                  const factor =
+                                    item.materiales
+                                      ?.presentacion_kg_por_bulto ?? 0;
+                                  nuevoBultos = factor
+                                    ? Math.max(
+                                        0,
+                                        Math.round(nuevoKg / factor)
+                                      )
+                                    : 0;
+                                } else if (unidad === "litro") {
+                                  nuevoBultos = Math.max(
+                                    0,
+                                    Math.round(nuevoKg)
+                                  );
+                                }
                                 void actualizarItem(item, {
+                                  bultos: nuevoBultos,
                                   kg: nuevoKg,
                                 });
                               }}
